@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Campus Marketplace — Triptych Dashboard with Seller, Admin, and Buyer panels.">
+  <title>Campus Marketplace — Dashboard</title>
+
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════
+     TRIPTYCH LAYOUT — 3-COLUMN GRID
+     ═══════════════════════════════════════ -->
+<div class="triptych">
+
+  <!-- ════════════════════════════════════
+       🟢 LEFT PANEL — SELLER DASHBOARD
+       ════════════════════════════════════ -->
+  <section class="panel" id="sellerPanel">
+    <h1 class="panel-title">Sellers Portal</h1>
+    <p class="panel-subtitle">Manage Inventory &amp; Discounts</p>
+
+    <!-- Quick Stats -->
+    <div class="stats-row">
+      <div class="stat-chip">
+        <div class="stat-num" id="statTotal">6</div>
+        <div class="stat-lbl">Products</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-num" id="statLive">6</div>
+        <div class="stat-lbl">Live</div>
+      </div>
+      <div class="stat-chip">
+        <div class="stat-num" id="statPending">0</div>
+        <div class="stat-lbl">Pending</div>
+      </div>
+    </div>
+
+    <!-- Product Table -->
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Product Name</th>
+          <th>Price</th>
+          <th>Discount</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="sellerTableBody">
+        <!-- Rendered by JS -->
+      </tbody>
+    </table>
+
+    <!-- Submit for Approval (appears when row selected) -->
+    <div id="submitArea"></div>
+
+    <div class="signature">Janke</div>
+  </section>
+
+  <!-- ════════════════════════════════════
+       🟡 CENTER PANEL — ADMIN DASHBOARD
+       ════════════════════════════════════ -->
+  <section class="panel" id="adminPanel">
+    <h1 class="panel-title">Admin Panel</h1>
+    <p class="panel-subtitle">Pending Discount Approvals</p>
+
+    <div class="approval-list" id="approvalList">
+      <!-- Rendered by JS -->
+    </div>
+
+    <div class="signature">Janke</div>
+  </section>
+
+  <!-- ════════════════════════════════════
+       🔵 RIGHT PANEL — BUYER DASHBOARD
+       ════════════════════════════════════ -->
+  <section class="panel" id="buyerPanel">
+    <h1 class="panel-title">My Shopping Hub</h1>
+    <p class="panel-subtitle">Order Summary</p>
+
+    <!-- Product Cards Grid -->
+    <div class="product-grid" id="productGrid">
+      <!-- Rendered by JS -->
+    </div>
+
+    <!-- Cart Total -->
+    <div class="cart-total">
+      <div>
+        <div class="label">Order Total</div>
+        <div style="font-size:0.75rem; opacity:0.5;" id="cartCount">0 items</div>
+      </div>
+      <div class="amount" id="cartTotal">₵0.00</div>
+    </div>
+
+    <!-- Important Notice -->
+    <div class="notice-box">
+      <strong>⚠️ Important</strong>
+      This order is configured for <b>IN-PERSON PAYMENT</b>. Please pay the seller directly upon collection.
+    </div>
+
+    <!-- Place Order CTA -->
+    <button class="btn btn-checkout" onclick="placeOrder()">
+      Place Order
+    </button>
+
+    <div class="signature">Janke</div>
+  </section>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Script -->
+<script src="script.js"></script>
+
+</body>
+</html>

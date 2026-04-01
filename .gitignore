@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build Outputs
+dist/
+build/
+*.log
+
+# Local Config & Environment
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE Config
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# XAMPP Specifics
+php.ini
+*.bak
+php_errors.log
+
+# Temporary Assets
+convert_to_webp.php
+FINAL_DB_READY.sql
+GOLIVE_*.sql
+campus_marketplace_structure.sql
+out.txt
+error.txt
+extracted_url*.txt
+others_search.txt
+products_list.txt
+test*.html
+test*.php
