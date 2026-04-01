@@ -96,13 +96,13 @@ $categories = $pdo->query("SELECT DISTINCT category FROM products WHERE status='
 
 <?php 
 $cat_images = [
-    'Computer & Accessories' => 'IMG_5825.JPG',
-    'Phone & Accessories' => 'IMG_5822.JPG',
-    'Electrical Appliances' => 'IMG_5827.JPG',
-    'Fashion' => 'IMG_5828.JPG',
-    'Food & Groceries' => 'IMG_5830.JPG',
-    'Education & Books' => 'IMG_5831.JPG',
-    'Hostels for Rent' => 'IMG_5833.JPG'
+    'Computer & Accessories' => 'IMG_5825.webp',
+    'Phone & Accessories' => 'IMG_5822.webp',
+    'Electrical Appliances' => 'IMG_5827.webp',
+    'Fashion' => 'IMG_5828.webp',
+    'Food & Groceries' => 'IMG_5830.webp',
+    'Education & Books' => 'IMG_5831.webp',
+    'Hostels for Rent' => 'IMG_5833.webp'
 ];
 $cat_descriptions = [
     'Computer & Accessories' => 'Laptops, monitors, and all computing essentials.',

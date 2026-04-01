@@ -5,7 +5,7 @@ import { Search, Upload, Users, ShoppingBag, GraduationCap, Rocket, BadgeDollarS
 const cycleWords = ['Buy', 'Sell', 'Rent', 'Advertise'];
 
 // Use global base URL from PHP; fallback to local detection
-const BASE = (window as any).MARKETPLACE_BASE_URL || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '/marketplace/' : '/');
+const BASE = (window as any).MARKETPLACE_BASE_URL || (import.meta as any).env.VITE_API_URL || (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? '/marketplace/' : '/');
 
 const categories = [
   { title: "Computer & Accessories", image: `${BASE}IMG_5825.webp` },
@@ -116,7 +116,10 @@ export default function Hero() {
           playsInline
           className="absolute inset-0 w-full h-full object-cover object-center md:object-[center_30%]"
         >
-          <source src="hero.mp4" type="video/mp4" />
+          <source 
+            src="https://res.cloudinary.com/dqfvibcdh/video/upload/f_auto,q_auto/v1/hero_optimized.mp4" 
+            type="video/mp4" 
+          />
         </video>
 
         {/* Gradient overlay */}

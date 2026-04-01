@@ -13,7 +13,7 @@ import {
   Cpu
 } from "lucide-react";
 
-const BASE = (window as any).MARKETPLACE_BASE_URL || (window.location.hostname === 'localhost' ? '/marketplace/' : '/');
+const BASE = (window as any).MARKETPLACE_BASE_URL || (import.meta as any).env.VITE_API_URL || (window.location.hostname === 'localhost' ? '/marketplace/' : '/');
 
 const CLIENTS = [
   { name: "Acme Corp", icon: Hexagon },

@@ -1,10 +1,10 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-$host = 'localhost';
-$dbname = 'campus_marketplace';
-$db_user = 'root';
-$db_pass = '';
+$host = get_env_var('DB_HOST', 'localhost');
+$dbname = get_env_var('DB_NAME', 'campus_marketplace');
+$db_user = get_env_var('DB_USER', 'root');
+$db_pass = get_env_var('DB_PASS', '');
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $db_user, $db_pass);
