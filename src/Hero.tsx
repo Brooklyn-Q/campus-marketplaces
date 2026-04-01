@@ -487,3 +487,5 @@ function CategoryCard({ cat, height, textSize, padding }: {
     </motion.a>
   );
 }
+/ /   d e p l o y m e n t _ t r i g g e r :   1  
+ 
