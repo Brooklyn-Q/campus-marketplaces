@@ -250,15 +250,16 @@ nav {
 
 /* UPDATED: Premium Inputs */
 .form-control {
-    width: 100%; 
+    width: 100%;
     padding: 0.95rem 1.25rem;
-    background: rgba(0,0,0,0.04); 
+    min-height: 44px;
+    background: rgba(0,0,0,0.04);
     border: 1px solid rgba(0,0,0,0.1);
     border-radius: 16px;
-    color: var(--text-main); 
+    color: var(--text-main);
     outline: none;
     transition: all 0.25s cubic-bezier(0.2, 0, 0, 1);
-    font-size: 1rem; 
+    font-size: 1rem;
     font-family: var(--font-body);
 }
 .form-control:focus {
@@ -1461,4 +1462,50 @@ body.module-failed .glass {
     border: 1px solid rgba(255,59,48,0.2);
 }
 .fade-in { animation: futuristicFadeIn 0.5s ease-out forwards; }
+
+/* ── MOBILE CATEGORY CARDS FIX ── */
+@media (max-width: 768px) {
+    /* Category cards horizontal scroll container */
+    div[style*="flex-wrap"] {
+        padding: 0 0.75rem 1.5rem !important;
+    }
+
+    /* Category card wrapper - ensure text is visible */
+    a[style*="flex:0 0 80vw"] {
+        flex: 0 0 calc(100vw - 2rem) !important;
+        max-width: calc(100vw - 2rem) !important;
+    }
+
+    /* Category card height - ensure text box is larger */
+    a[style*="flex:0 0 80vw"] div[style*="height:350px"] {
+        height: 280px !important;
+        position: relative;
+    }
+
+    /* Category card text - ensure readable on mobile */
+    a[style*="flex:0 0 80vw"] h3 {
+        font-size: 1.1rem !important;
+        -webkit-line-clamp: 2 !important;
+        line-clamp: 2 !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    /* Category card padding for mobile */
+    a[style*="flex:0 0 80vw"] div[style*="bottom:0"] {
+        padding: 1.25rem !important;
+    }
+}
+
+@media (max-width: 480px) {
+    /* Extra small devices - reduce card size further */
+    a[style*="flex:0 0 80vw"] {
+        flex: 0 0 calc(100vw - 1.5rem) !important;
+        max-width: calc(100vw - 1.5rem) !important;
+    }
+
+    a[style*="flex:0 0 80vw"] h3 {
+        font-size: 0.95rem !important;
+    }
+}
 

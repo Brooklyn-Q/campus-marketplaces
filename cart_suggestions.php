@@ -19,9 +19,9 @@ if (count($suggestions) > 0) {
     echo '</h3>';
     echo '<div class="product-grid" style="grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:1rem;">';
     foreach($suggestions as $sp) {
-        $img = $sp['main_image'] ? 'uploads/'.htmlspecialchars($sp['main_image']) : '';
+        $img = $sp['main_image'] ? getAssetUrl('uploads/'.htmlspecialchars($sp['main_image'])) : '';
         $img_fallback = $img ? '' : '<div class="product-img" style="display:flex;align-items:center;justify-content:center;color:#555;background:rgba(0,0,0,0.2);">No Image</div>';
-        $img_tag = $img ? '<img src="'.$img.'" class="product-img" style="aspect-ratio:1/1;object-fit:cover;">' : $img_fallback;
+        $img_tag = $img ? '<img src="'.$img.'" class="product-img" style="aspect-ratio:1/1;object-fit:cover;" loading="lazy">' : $img_fallback;
         
         echo '
         <a href="product.php?id='.$sp['id'].'" class="glass product-card fade-in" style="background:rgba(255,255,255,0.8); text-decoration:none; color:inherit;">
