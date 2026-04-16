@@ -1,5 +1,5 @@
     </div><!-- /container -->
-    <footer style="background:var(--card-bg); padding:1.5rem 1rem 0.5rem; color:var(--text-main); border-top:1px solid var(--border); margin-top:2rem; border-radius:24px 24px 0 0;">
+    <footer style="background:var(--card-bg); padding:1.5rem 1rem 0.5rem; color:var(--text-main); border-top:1px solid var(--border); margin-top:2rem; border-radius:24px 24px 0 0; width:100%; box-sizing:border-box;">
         <div class="container footer-grid" style="margin-bottom:1rem;">
             <!-- Brand -->
             <div>
@@ -54,7 +54,7 @@
         <div class="glass" style="width:100%; max-width:800px; height:85vh; border-radius:32px; display:flex; flex-direction:column; overflow:hidden; position:relative; box-shadow:0 30px 100px rgba(0,0,0,0.3); animation:modalSlideUp 0.4s cubic-bezier(0.19, 1, 0.22, 1);">
             <div style="padding:1.5rem 2rem; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
                 <h3 style="margin:0; font-size:1.2rem; font-weight:800;">Terms & Conditions</h3>
-                <button onclick="closeTermsModal()" style="background:rgba(0,0,0,0.05); border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.5rem; display:flex; align-items:center; justify-content:center; transition:0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.1)'" onmouseout="this.style.background='rgba(0,0,0,0.05)'">&times;</button>
+                <button onclick="closeTermsModal()" style="background:rgba(0,0,0,0.05); border:none; width:44px; height:44px; border-radius:50%; cursor:pointer; font-size:1.5rem; display:flex; align-items:center; justify-content:center; transition:0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.1)'" onmouseout="this.style.background='rgba(0,0,0,0.05)'">&times;</button>
             </div>
             <!-- Progress Bar -->
             <div style="width:100%; height:4px; background:rgba(0,113,227,0.1); position:relative; overflow:hidden;">
@@ -187,11 +187,6 @@
         </div>
     </div>
 
-    <style>
-        @keyframes modalSlideUp { from { opacity:0; transform:translateY(30px) scale(0.98); } to { opacity:1; transform:translateY(0) scale(1); } }
-        .modal-overlay.open { display:flex !important; }
-    </style>
-
     <script>
         function openTermsModal() {
             const modal = document.getElementById('termsModal');
@@ -234,8 +229,8 @@
             <!-- Header -->
             <div style="background:#0071e3; padding:0.85rem 1rem; color:white; display:flex; justify-content:space-between; align-items:center;">
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <div style="width:32px; height:32px; background:rgba(255,255,255,0.2); border-radius:10px; display:flex; align-items:center; justify-content:center;">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    <div style="width:44px; height:44px; background:rgba(255,255,255,0.2); border-radius:10px; display:flex; align-items:center; justify-content:center;">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
                     </div>
                     <div>
                         <h4 style="margin:0; font-size:0.9rem; font-weight:600;">Campus Assistant</h4>
@@ -337,7 +332,47 @@
                  .replace(/'/g, "&#039;");
         }
     </script>
+
     <script src="<?= getAssetUrl('assets/js/main.js') ?>"></script>
+
+    <!-- MODULE ERROR HANDLING & FALLBACK -->
+    <script>
+        // Monitor for module script errors
+        document.addEventListener('error', function(event) {
+            if (event.filename && (event.filename.includes('app.js') || event.filename.includes('app.css'))) {
+                console.warn('Failed to load app module, but site will function with fallback styles');
+                document.body.classList.add('module-failed');
+            }
+        });
+
+        // Ensure mobile viewport is always respected
+        function ensureMobileOptimization() {
+            const html = document.documentElement;
+            const body = document.body;
+
+            // Ensure no horizontal scrollbars
+            html.style.width = '100%';
+            html.style.maxWidth = '100vw';
+            html.style.overflowX = 'hidden';
+
+            body.style.width = '100%';
+            body.style.maxWidth = '100vw';
+            body.style.overflowX = 'hidden';
+        }
+
+        // Run immediately and on load
+        ensureMobileOptimization();
+        window.addEventListener('load', ensureMobileOptimization);
+        window.addEventListener('resize', ensureMobileOptimization);
+
+        // Detect if viewport meta tag exists, if not add it
+        if (!document.querySelector('meta[name="viewport"]')) {
+            const meta = document.createElement('meta');
+            meta.name = 'viewport';
+            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover';
+            document.head.appendChild(meta);
+        }
+    </script>
     <!-- SIDE CART DRAWER -->
     <div class="cart-drawer-backdrop" id="sideCartBackdrop" onclick="closeSideCart()"></div>
     <div class="cart-drawer" id="sideCartDrawer">

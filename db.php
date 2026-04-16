@@ -27,14 +27,19 @@ function get_env_var(string $key, $default = '') {
     static $env = null;
     if ($env === null) {
         $env = [];
-        $path = __DIR__ . '/../.env';
+        $path = __DIR__ . '/.env';
         if (file_exists($path)) {
             $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
             foreach ($lines as $line) {
-                if (strpos(trim($line), '#') === 0) continue;
+                $line = trim($line);
+                if (empty($line) || strpos($line, '#') === 0) continue;
                 $parts = explode('=', $line, 2);
                 if (count($parts) === 2) {
-                    $env[trim($parts[0])] = trim($parts[1]);
+                    $k = trim($parts[0]);
+                    $v = trim($parts[1]);
+                    // Remove surrounding quotes if they exist
+                    $v = trim($v, "\"'");
+                    $env[$k] = $v;
                 }
             }
         }
@@ -134,7 +139,15 @@ function getUnreadCount(PDO $pdo, int $userId): int {
 }
 
 function updateLastSeen(PDO $pdo, int $userId): void {
-    $pdo->prepare("UPDATE users SET last_seen = ? WHERE id = ?")->execute([date('Y-m-d H:i:s'), $userId]);
+    try {
+        $pdo->prepare("UPDATE users SET last_seen = ? WHERE id = ?")->execute([date('Y-m-d H:i:s'), $userId]);
+    } catch (PDOException $e) {
+        // Frequent heartbeat writes can hit lock waits; keep requests non-blocking.
+        $errorCode = (int)($e->errorInfo[1] ?? 0);
+        if ($errorCode !== 1205 && $errorCode !== 1213) {
+            throw $e;
+        }
+    }
 }
 
 function auditLog(PDO $pdo, int $adminId, string $action, string $targetType = '', int $targetId = 0): void {
@@ -185,7 +198,7 @@ function getBadgeHtml(PDO $pdo, string $tier): string {
         default => '✔️ ' 
     };
 
-    return "<span class='badge' style='background:$bg; color:$txt; padding:4px 12px; border-radius:30px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); border:1px solid rgba(255,255,255,0.1);'>{$icon}" . ucfirst($tier) . "</span>";
+    return "<span class='badge' style='background:".htmlspecialchars($bg, ENT_QUOTES, 'UTF-8')."; color:".htmlspecialchars($txt, ENT_QUOTES, 'UTF-8')."; padding:4px 12px; border-radius:30px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); border:1px solid rgba(255,255,255,0.1);'>{$icon}" . ucfirst($tier) . "</span>";
 }
 
 
@@ -273,26 +286,7 @@ function getSetting(PDO $pdo, string $key, $default = ''): string {
     } catch(Exception $e) { return (string)$default; }
 }
 
-function findNextAvailableId($pdo, $table) {
-    try {
-        // 1. Check if ID 1 is available
-        $exists1 = $pdo->prepare("SELECT 1 FROM $table WHERE id = 1");
-        $exists1->execute();
-        if (!$exists1->fetchColumn()) return 1;
 
-        // 2. Find the first gap in the sequence
-        $sql = "SELECT t1.id + 1 AS gap 
-                FROM $table t1 
-                WHERE NOT EXISTS (SELECT 1 FROM $table t2 WHERE t2.id = t1.id + 1)
-                ORDER BY gap 
-                LIMIT 1";
-        $gap = $pdo->query($sql)->fetchColumn();
-        
-        return $gap ? (int)$gap : 1;
-    } catch(Exception $e) {
-        return null;
-    }
-}
 
 function getAvgRating(PDO $pdo, int $productId): float {
     $stmt = $pdo->prepare("SELECT AVG(rating) FROM reviews WHERE product_id = ?");

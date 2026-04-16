@@ -27,18 +27,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $placement = $_POST['ad_placement'] ?? 'homepage';
         
         // Handle File Upload if provided
-        if (!empty($_FILES['ad_file']['name'])) {
+        if (!empty($_FILES['ad_file']['name']) && $_FILES['ad_file']['error'] === UPLOAD_ERR_OK) {
             $ext = strtolower(pathinfo($_FILES['ad_file']['name'], PATHINFO_EXTENSION));
-            $allowed = ['jpg','jpeg','png','webp','gif'];
-            if (in_array($ext, $allowed)) {
+            $allowedExts = ['jpg','jpeg','png','webp','gif'];
+
+            // Validate MIME type natively to ensure it's truly an image
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mimeType = finfo_file($finfo, $_FILES['ad_file']['tmp_name']);
+            finfo_close($finfo);
+
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+            if (in_array($ext, $allowedExts) && in_array($mimeType, $allowedMimes)) {
                 $filename = 'ad_' . time() . '_' . rand(1000,9999) . '.' . $ext;
                 if (!is_dir('../uploads/ads')) mkdir('../uploads/ads', 0777, true);
                 $target = '../uploads/ads/' . $filename;
                 if (move_uploaded_file($_FILES['ad_file']['tmp_name'], $target)) {
                     $image_url = 'uploads/ads/' . $filename; // Store relative path
+                } else {
+                    $msg = "❌ Failed to upload image.";
                 }
             } else {
-                $msg = "❌ Invalid image format.";
+                $msg = "❌ Invalid image format or corrupted file.";
             }
         }
 

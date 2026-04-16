@@ -19,6 +19,38 @@ $page_title = $page_title ?? 'Admin';
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
     <style>
         .container { max-width: none !important; width: 96% !important; padding-left: 2rem; padding-right: 2rem; }
+
+        /* Admin nav mobile responsive */
+        .nav-links { display:flex !important; gap:0.8rem; align-items:center; justify-content:center; flex:1; min-width:0; }
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none !important;
+                position: fixed;
+                top: 58px;
+                left: 0;
+                right: 0;
+                flex-direction: column;
+                background: rgba(255,255,255,0.95);
+                backdrop-filter: blur(24px);
+                border-bottom: 1px solid var(--border);
+                padding: 1rem 0;
+                gap: 0;
+                align-items: stretch;
+                justify-content: flex-start;
+                z-index: 999;
+                max-height: calc(100vh - 58px);
+                overflow-y: auto;
+            }
+            .nav-links.open { display: flex !important; }
+            .nav-links a {
+                display: block !important;
+                padding: 0.75rem 1.5rem !important;
+                border-bottom: 1px solid rgba(0,0,0,0.05);
+                text-align: left;
+                min-width: auto !important;
+                flex-shrink: 0 !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -41,7 +73,7 @@ $page_title = $page_title ?? 'Admin';
             </div>
             <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
                 <div id="react-theme-toggle"></div>
-                <button class="mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" style="color:var(--text-main); cursor:pointer; background:none; border:none; padding:6px; border-radius:8px; display:none;">
+                <button class="mobile-toggle" onclick="document.querySelector('.nav-links').classList.toggle('open')" style="color:var(--text-main); cursor:pointer; background:none; border:none; padding:6px; border-radius:8px;">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                 </button>
             </div>

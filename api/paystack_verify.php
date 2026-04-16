@@ -72,7 +72,8 @@ if($response['status'] && $response['data']['status'] === 'success') {
         echo json_encode(['status' => 'success', 'message' => $msg]);
     } catch(Exception $e) {
         $pdo->rollBack();
-        echo json_encode(['status' => 'error', 'message' => 'DB Error: ' . $e->getMessage()]);
+        error_log('paystack_verify.php DB error: ' . $e->getMessage());
+        echo json_encode(['status' => 'error', 'message' => 'Database error. Please try again.']);
     }
 } else {
     echo json_encode(['status' => 'error', 'message' => 'Payment validation failed at Paystack.']);

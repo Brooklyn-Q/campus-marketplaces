@@ -35,12 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         try {
             $pdo->beginTransaction();
 
-            // Get next available ID to reuse holes
-            $nextPId = findNextAvailableId($pdo, 'products');
-
-            $stmt = $pdo->prepare("INSERT INTO products (id, user_id, title, description, price, category, quantity, promo_tag, delivery_method, payment_agreement, status) VALUES (?,?,?,?,?,?,?,?,?,?,'pending')");
-            $stmt->execute([$nextPId, $user['id'], $title, $description, $price, $category, $quantity, $promo_tag, $delivery_method, $payment_agreement]);
-            $productId = $nextPId;
+            $stmt = $pdo->prepare("INSERT INTO products (user_id, title, description, price, category, quantity, promo_tag, delivery_method, payment_agreement, status) VALUES (?,?,?,?,?,?,?,?,?,'pending')");
+            $stmt->execute([$user['id'], $title, $description, $price, $category, $quantity, $promo_tag, $delivery_method, $payment_agreement]);
+            $productId = (int)$pdo->lastInsertId();
 
             // Handle multiple image uploads
             if (!is_dir(__DIR__ . '/uploads/products')) mkdir(__DIR__ . '/uploads/products', 0777, true);
@@ -116,10 +113,6 @@ require_once 'includes/header.php';
                         <option value="<?= $c ?>"><?= $c ?></option>
                     <?php endforeach; ?>
                 </select>
-            </div>
-            <div class="form-group">
-                <label>Quantity *</label>
-                <input type="number" name="quantity" class="form-control" value="1" min="1" required>
             </div>
         </div>
         <div class="form-group">

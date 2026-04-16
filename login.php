@@ -23,8 +23,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'];
-                // Update last_seen
-                $pdo->prepare("UPDATE users SET last_seen = NOW() WHERE id = ?")->execute([$user['id']]);
+                // Best-effort last_seen update. Do not block login when DB row is locked.
+                try {
+                    $pdo->prepare("UPDATE users SET last_seen = NOW() WHERE id = ?")->execute([$user['id']]);
+                } catch (PDOException $e) {
+                    // MySQL lock wait timeout / deadlock should not prevent authentication success.
+                    $errorCode = (int)($e->errorInfo[1] ?? 0);
+                    if ($errorCode !== 1205 && $errorCode !== 1213) {
+                        throw $e;
+                    }
+                }
                 redirect('dashboard.php');
             }
         } else {
@@ -72,17 +80,5 @@ require_once 'includes/header.php';
         </div>
     </div>
 </div>
-
-<style>
-    @media (max-width: 600px) {
-        .form-container {
-            width: 95% !important;
-            padding: 2rem 1.5rem !important;
-            margin: 1rem auto !important;
-        }
-        h1 { font-size: 1.6rem !important; }
-        p { font-size: 0.95rem !important; }
-    }
-</style>
 
 <?php require_once 'includes/footer.php'; ?>

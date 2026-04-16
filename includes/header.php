@@ -46,22 +46,75 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
         }
         window.MARKETPLACE_BASE_URL = '<?= $baseUrl ?>';
     </script>
-    <!-- UPDATED: Fonts loaded via CSS @import -->
-    <link rel="stylesheet" href="<?= getAssetUrl('assets/css/style.css?v=1.1') ?>">
-    
+    <!-- Fonts loaded via CSS @import in style.css -->
+    <link rel="stylesheet" href="<?= getAssetUrl('assets/css/style.css?v=1.4') ?>">
+
     <!-- LOAD REACT ASSETS EVERYWHERE -->
-    <link rel="stylesheet" href="<?= getAssetUrl('assets/dist/app.css?v=1.1') ?>">
-    <script type="module" src="<?= getAssetUrl('assets/dist/app.js?v=1.1') ?>"></script>
+    <link rel="stylesheet" href="<?= getAssetUrl('assets/dist/app.css?v=1.4') ?>">
+    <script type="module" src="<?= getAssetUrl('assets/dist/app.js?v=1.4') ?>" onerror="console.error('Failed to load module')"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
+
+    <!-- MOBILE OPTIMIZATION & CRITICAL FIXES -->
+    <style>
+        /* Ensure body takes full width, but DO NOT constrain height (allows scrolling) */
+        html, body {
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden;
+            /* REMOVED height:100% — it was preventing page scroll */
+        }
+        body {
+            min-height: 100vh; /* Use min-height so content can grow */
+        }
+
+        /* Ensure nav doesn't overflow on mobile */
+        nav { max-width: 100vw; overflow-x: hidden; }
+
+        /* Fix container — use overflow visible so content isn't clipped */
+        .container {
+            width: 100%;
+            max-width: 1400px;
+            margin: 0 auto;
+            box-sizing: border-box;
+            /* REMOVED overflow:hidden — it was clipping content */
+        }
+
+        /* Ensure all elements respect viewport width */
+        * { box-sizing: border-box; }
+
+        /* Mobile-first responsive text sizing */
+        @media (max-width: 480px) {
+            body { font-size: 14px; }
+            .form-row { grid-template-columns: 1fr !important; }
+            .product-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
+            .footer-grid { grid-template-columns: 1fr !important; }
+            .nav-links { width: 100vw !important; }
+        }
+
+        /* Extra mobile fixes for iPhone/small devices */
+        @supports (padding: max(0px)) {
+            body { padding-left: max(0px, env(safe-area-inset-left)); padding-right: max(0px, env(safe-area-inset-right)); }
+            nav { padding-left: max(1rem, env(safe-area-inset-left)) !important; padding-right: max(1rem, env(safe-area-inset-right)) !important; }
+        }
+
+        /* Auth page responsive fixes */
+        @media (max-width: 600px) {
+            .form-container {
+                width: 95% !important;
+                padding: 2rem 1.5rem !important;
+                margin: 1rem auto !important;
+            }
+        }
+    </style>
 </head>
 <body class="<?= isLoggedIn() ? 'is-logged-in' : '' ?>">
-    <nav style="position:sticky; top:0; z-index:999999; backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px); background:rgba(255,255,255,0.75); border-bottom:1px solid rgba(0,0,0,0.07); transition: background 0.3s, border-color 0.3s; padding: 0 5%;">
-        <div style="display:flex; align-items:center; justify-content:space-between; height:58px; max-width:1400px; margin:0 auto; width:100%;">
+    <nav style="position:sticky; top:0; z-index:999999; backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px); background:var(--card-bg, rgba(255,255,255,0.75)); border-bottom:1px solid var(--border, rgba(0,0,0,0.07)); transition: background 0.3s, border-color 0.3s; padding: 0 5%;">
+        <div class="nav-shell" style="display:flex; align-items:center; justify-content:space-between; gap:1rem; height:58px; max-width:1400px; margin:0 auto; width:100%;">
             <!-- Brand -->
-            <a href="<?= $baseUrl ?>" style="font-size:1.15rem; font-weight:800; color:var(--text-main); text-decoration:none; letter-spacing:-0.04em; display:flex; align-items:center; gap:6px; flex-shrink:0; transition:opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
+            <a href="<?= $baseUrl ?>" class="nav-brand-link" aria-label="Campus Marketplace home" title="Campus Marketplace" style="color:var(--text-main); text-decoration:none; display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:12px; flex-shrink:0; transition:background 0.2s, opacity 0.2s;" onmouseover="this.style.opacity='0.7'" onmouseout="this.style.opacity='1'">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
-                Campus Marketplace
             </a>
 
             <!-- Center Nav Links -->
@@ -103,25 +156,8 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                             Hostels for Rent
                         </a>
-                        <!-- Removed Others category -->
                     </div>
                 </div>
-
-                <style>
-                    .cat-dropdown-menu.cat-open { display:block !important; animation: catFadeIn 0.18s ease; }
-                    @keyframes catFadeIn { from { opacity:0; transform:translateX(-50%) translateY(-8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
-                    .cat-item { display:flex; align-items:center; gap:8px; padding:10px 16px; color:var(--text-main); text-decoration:none; font-size:0.84rem; border-bottom:1px solid rgba(0,0,0,0.05); transition:all 0.2s; }
-                    .cat-item:hover { background:rgba(0,113,227,0.06); color:#0071e3; }
-                    .cat-item:last-child { border-bottom:none; }
-                    :root.dark-mode .cat-item { border-bottom-color:rgba(255,255,255,0.06); }
-                    :root.dark-mode .cat-item:hover { background:rgba(255,255,255,0.08); }
-                    @media (max-width: 768px) {
-                        .cat-dropdown { width: 100%; display:block; }
-                        #catMenu { position: relative !important; top: 0 !important; left: 0 !important; transform: none !important; width: 100% !important; box-shadow: none !important; border: none !important; background: transparent !important; margin-top: 8px; }
-                        :root.dark-mode .cat-dropdown-menu { background: transparent !important; }
-                    }
-                </style>
-                <script>document.addEventListener('click',function(e){if(!e.target.closest('.cat-dropdown')){var m=document.getElementById('catMenu');if(m)m.classList.remove('cat-open');}});</script>
 
                 <?php if(isLoggedIn()): ?>
                     <?php $unread = getUnreadCount($pdo, $_SESSION['user_id']); ?>
@@ -132,15 +168,15 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
                         <span class="notif-badge msg-unread-badge" style="<?= $unread > 0 ? 'display:flex;' : 'display:none;' ?>"><?= $unread ?></span>
                     </a>
                     <?php if(isSeller() || isAdmin()): ?>
-                        <a href="<?= $baseUrl ?>add_product.php" class="react-liquid-btn" data-label="+ Sell" style="flex-shrink:0;"></a>
+                        <a href="<?= $baseUrl ?>add_product.php" class="react-liquid-btn" data-label="+ Sell" style="display:inline-flex; align-items:center; justify-content:center; min-height:48px; flex-shrink:0;"></a>
                     <?php endif; ?>
                     <?php if(isAdmin()): ?>
                         <a href="<?= $baseUrl ?>admin/" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Admin</a>
                     <?php endif; ?>
-                    <a href="<?= $baseUrl ?>logout.php" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='#ff3b30'; this.style.background='rgba(255,59,48,0.06)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Logout</a>
+                    <a href="<?= $baseUrl ?>logout.php" class="nav-pill-link" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.95rem; border-radius:999px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='#ff3b30'; this.style.background='rgba(255,59,48,0.06)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Logout</a>
                 <?php else: ?>
-                    <a href="<?= $baseUrl ?>login.php" style="color:var(--text-muted); font-weight:500; font-size:0.85rem; padding:0.4rem 0.75rem; border-radius:8px; transition:all 0.2s; text-decoration:none;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Login</a>
-                    <a href="<?= $baseUrl ?>register.php" style="background:#0071e3; color:#fff; font-weight:600; font-size:0.85rem; padding:0.45rem 1.1rem; border-radius:980px; text-decoration:none; transition:all 0.2s;" onmouseover="this.style.background='#0080f8'" onmouseout="this.style.background='#0071e3'">Sign Up</a>
+                    <a href="<?= $baseUrl ?>login.php" class="nav-pill-link" style="color:var(--text-muted); font-weight:500; font-size:0.85rem; padding:0.4rem 0.85rem; border-radius:999px; transition:all 0.2s; text-decoration:none;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Login</a>
+                    <a href="<?= $baseUrl ?>register.php" style="background:#0071e3; color:#fff; font-weight:600; font-size:0.85rem; padding:0.5rem 1.1rem; min-height:48px; border-radius:980px; text-decoration:none; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center;" onmouseover="this.style.background='#0080f8'" onmouseout="this.style.background='#0071e3'">Sign Up</a>
                 <?php endif; ?>
             </div>
 
@@ -151,7 +187,7 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
                     <span class="cart-count-badge" style="display:none; position:absolute; top:-5px; right:-6px; background:#ff3b30; color:#fff; font-size:0.6rem; font-weight:700; width:17px; height:17px; border-radius:50%; align-items:center; justify-content:center; box-shadow:0 2px 8px rgba(255,59,48,0.4);">0</span>
                 </a>
-                <button class="mobile-toggle" id="mobileNavToggle" onclick="toggleMobileNav()" style="color:var(--text-main); cursor:pointer; background:none; border:none; padding:6px; border-radius:8px; display:none;" aria-label="Toggle menu">
+                <button class="mobile-toggle" id="mobileNavToggle" onclick="toggleMobileNav()" style="color:var(--text-main); cursor:pointer; background:none; border:none; padding:6px; border-radius:8px;" aria-label="Toggle menu">
                     <svg id="menuIconOpen" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
                     <svg id="menuIconClose" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                 </button>
@@ -180,22 +216,30 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
             document.body.style.overflow = 'hidden';
             navBar.style.backdropFilter = 'none';
             navBar.style.webkitBackdropFilter = 'none';
-            // Dark mode background adaptation
             navBar.style.background = document.documentElement.classList.contains('dark-mode') ? '#1c1c1e' : '#ffffff';
         }
     }
+
     // Close mobile nav when clicking a link (unless it's a dropdown toggle)
     document.addEventListener('DOMContentLoaded', function() {
         var links = document.querySelectorAll('#mobileNavLinks a');
         links.forEach(function(link) {
             link.addEventListener('click', function(e) {
-                if (this.getAttribute('href') === '#') return; // Don't close if it's a toggle
+                if (this.getAttribute('href') === '#') return;
                 var nav = document.getElementById('mobileNavLinks');
                 if (nav && nav.classList.contains('open')) {
                     toggleMobileNav();
                 }
             });
         });
+    });
+
+    // Close category dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.cat-dropdown')) {
+            var m = document.getElementById('catMenu');
+            if (m) m.classList.remove('cat-open');
+        }
     });
     </script>
     <div class="container">

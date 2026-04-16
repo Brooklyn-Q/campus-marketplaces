@@ -7,18 +7,32 @@ if (!isset($pdo)) {
     require_once 'includes/footer.php'; exit;
 }
 
-// 1. FORCED REVIEW BARRIER: Rule 10
-if (isLoggedIn() && hasUnreviewedOrders($pdo, $_SESSION['user_id'])) {
-    if (basename($_SERVER['PHP_SELF']) !== 'dashboard.php') {
-        $_SESSION['flash'] = "🔒 REVIEW REQUIRED: Please submit a review for your recent purchase before you continue browsing.";
-        header("Location: dashboard.php#buyer_orders");
-        exit;
+if (!function_exists('dedupe_items_by_id')) {
+    function dedupe_items_by_id(array $items): array {
+        $seen = [];
+        $deduped = [];
+
+        foreach ($items as $index => $item) {
+            $key = isset($item['id']) ? (string) $item['id'] : 'fallback-' . $index;
+            if (isset($seen[$key])) {
+                continue;
+            }
+
+            $seen[$key] = true;
+            $deduped[] = $item;
+        }
+
+        return $deduped;
     }
 }
 
-
 // Database migrations moved to migrate.php for performance
 
+// Filters
+$search = trim($_GET['search'] ?? '');
+$min_price = $_GET['min_price'] ?? '';
+$max_price = $_GET['max_price'] ?? '';
+$category = $_GET['category'] ?? '';
 
 // Fetch Context-Aware Ads (Multiple)
 $homepage_ads = [];
@@ -35,28 +49,31 @@ try {
     }
 } catch(Exception $e) {}
 
+$homepage_ads = dedupe_items_by_id($homepage_ads);
+
 // Pagination
 $page = max(1, (int)($_GET['page'] ?? 1));
 $per_page = 12;
 $offset = ($page - 1) * $per_page;
-
-$search = trim($_GET['search'] ?? '');
-$min_price = $_GET['min_price'] ?? '';
-$max_price = $_GET['max_price'] ?? '';
-$category = $_GET['category'] ?? '';
 
 // Base query - only approved + not on vacation
 // Base query
 if ($search) {
     $p_join = " JOIN users u ON p.user_id = u.id ";
     $p_order = " ORDER BY FIELD(u.seller_tier, 'premium', 'pro', 'basic'), p.boosted_until DESC, p.created_at DESC ";
-    $stmt = $pdo->prepare("SELECT p.* FROM products p $p_join WHERE p.status='approved' AND (p.title LIKE ? OR p.category LIKE ? OR p.description LIKE ?) $p_order");
+    $stmt = $pdo->prepare("SELECT p.*, u.username, u.seller_tier, u.profile_pic as seller_pic,
+              (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image,
+              (SELECT dr.original_price FROM discount_requests dr WHERE dr.product_id = p.id AND dr.status = 'approved' ORDER BY dr.created_at DESC LIMIT 1) as original_price_before_discount
+              FROM products p $p_join WHERE p.status='approved' AND u.vacation_mode = 0 AND (p.title LIKE ? OR p.category LIKE ? OR p.description LIKE ?) $p_order");
     $stmt->execute(["%$search%", "%$search%", "%$search%"]);
     $products = $stmt->fetchAll();
     
     // TYPO-TOLERANT FALLBACK
     if (count($products) === 0 && strlen($search) > 3) {
-        $stmt = $pdo->prepare("SELECT p.* FROM products p $p_join WHERE p.status='approved' AND (SOUNDEX(p.title) = SOUNDEX(?) OR p.title LIKE ?) $p_order LIMIT 10");
+        $stmt = $pdo->prepare("SELECT p.*, u.username, u.seller_tier, u.profile_pic as seller_pic,
+              (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image,
+              (SELECT dr.original_price FROM discount_requests dr WHERE dr.product_id = p.id AND dr.status = 'approved' ORDER BY dr.created_at DESC LIMIT 1) as original_price_before_discount
+              FROM products p $p_join WHERE p.status='approved' AND u.vacation_mode = 0 AND (SOUNDEX(p.title) = SOUNDEX(?) OR p.title LIKE ?) $p_order LIMIT 10");
         $stmt->execute([$search, substr($search, 0, 4) . "%"]);
         $products = $stmt->fetchAll();
     }
@@ -90,6 +107,8 @@ if ($search) {
     $products = $stmt->fetchAll();
 }
 
+$products = dedupe_items_by_id($products);
+
 // Categories for filter
 $categories = $pdo->query("SELECT DISTINCT category FROM products WHERE status='approved' ORDER BY category")->fetchAll(PDO::FETCH_COLUMN);
 ?>
@@ -115,11 +134,129 @@ $cat_descriptions = [
 ];
 $cat_img = ($category && isset($cat_images[$category])) ? $cat_images[$category] : null;
 $cat_desc = ($category && isset($cat_descriptions[$category])) ? $cat_descriptions[$category] : 'Explore what this category comprises of.';
+$is_default_home = empty($search) && empty($category) && empty($min_price) && empty($max_price) && $page == 1;
+
+$ai_suggestions = [];
+$display_products = $products;
+if ($is_default_home) {
+    $ai_suggestions = get_smart_suggestions($pdo, 'home', $_SESSION['recent_views'] ?? [], 6, true);
+    $ai_suggestions = dedupe_items_by_id($ai_suggestions);
+
+    // Keep homepage sections consistent by preventing the same product
+    // from showing in both Recommendations and the main product grid.
+    $recommended_ids = [];
+    foreach ($ai_suggestions as $rec) {
+        if (isset($rec['id'])) {
+            $recommended_ids[(string)$rec['id']] = true;
+        }
+    }
+    if (!empty($recommended_ids)) {
+        $display_products = array_values(array_filter($products, function ($product) use ($recommended_ids) {
+            if (!isset($product['id'])) {
+                return true;
+            }
+            return !isset($recommended_ids[(string)$product['id']]);
+        }));
+    }
+}
 ?>
-<?php if (empty($search) && empty($category) && empty($min_price) && empty($max_price) && $page == 1): ?>
+<?php if ($is_default_home): ?>
     </div><!-- End container for full bleed -->
     <!-- REACT HERO (Only show on default home) -->
-    <div id="react-hero-root"></div>
+    <div id="react-hero-root" data-react-mount="hero">
+        <!-- PHP FALLBACK HERO — replaced by React when JS loads -->
+        <noscript><style>.php-hero-fallback{display:block !important;}</style></noscript>
+        <div class="php-hero-fallback" id="phpHeroFallback">
+            <!-- Video Hero -->
+            <div style="position:relative; width:100%; height:100vh; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; overflow:hidden;">
+                <video autoplay loop muted playsinline style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;">
+                    <source src="<?= getAssetUrl('assets/dist/hero.mp4') ?>" type="video/mp4">
+                </video>
+                <!-- Gradient overlay -->
+                <div style="position:absolute; inset:0; z-index:1; background:linear-gradient(to bottom, rgba(0,0,0,0.62) 0%, rgba(0,0,0,0.28) 55%, rgba(0,0,0,0.55) 100%);"></div>
+                <!-- Bottom fade -->
+                <div style="position:absolute; left:0; right:0; bottom:0; height:12rem; z-index:2; background:linear-gradient(to top, var(--bg, #fff), transparent);"></div>
+                <!-- Content -->
+                <div style="position:relative; z-index:10; display:flex; flex-direction:column; align-items:center; text-align:center; padding:0 1.5rem; width:100%; max-width:56rem; padding-top:14vh;">
+                    <h1 style="font-size:clamp(2.4rem, 6vw, 4rem); font-weight:800; color:#fff; letter-spacing:-0.04em; line-height:1.05; margin-bottom:1rem; font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
+                        Campus Marketplace
+                    </h1>
+                    <p style="font-size:clamp(2.5rem, 7vw, 5rem); font-weight:900; letter-spacing:-0.04em; background:linear-gradient(105deg, #ffffff 0%, #a0d4ff 50%, #ffffff 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; line-height:1.0; margin-bottom:0.6rem; font-family:'Inter', -apple-system, BlinkMacSystemFont, sans-serif;">
+                        Buy &amp; Sell
+                    </p>
+                    <p style="font-size:clamp(0.95rem, 2.2vw, 1.15rem); color:rgba(255,255,255,0.72); margin-bottom:2.5rem; font-weight:400; letter-spacing:0.01em; font-family:'Inter', sans-serif;">
+                        Everything You Need on Campus
+                    </p>
+                    <!-- Search Bar -->
+                    <form action="index.php" method="GET" style="width:100%; max-width:36rem;">
+                        <div style="display:flex; align-items:center; overflow:hidden; background:rgba(255,255,255,0.12); backdrop-filter:saturate(200%) blur(28px); -webkit-backdrop-filter:saturate(200%) blur(28px); border:1px solid rgba(255,255,255,0.22); border-radius:999px; box-shadow:0 8px 32px rgba(0,0,0,0.18), inset 0 1px 1px rgba(255,255,255,0.15);">
+                            <div style="padding-left:1.25rem; color:rgba(255,255,255,0.6);">
+                                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                            </div>
+                            <input type="text" name="search" placeholder="Search products, textbooks, phones..."
+                                style="flex:1; background:transparent; border:none; color:#fff; padding:1rem 0.75rem; font-weight:500; font-size:0.9rem; outline:none;">
+                            <div style="padding-right:0.35rem;">
+                                <button type="submit" style="background:#0071e3; color:#fff; border:none; padding:0.6rem 1.4rem; border-radius:999px; font-weight:600; font-size:0.85rem; cursor:pointer;">Search</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Categories Section -->
+            <div style="text-align:center; padding:4rem 1.5rem 2rem;">
+                <p style="color:#0071e3; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.16em; font-weight:700; margin-bottom:0.7rem;">Categories</p>
+                <h2 style="font-size:clamp(2rem, 5vw, 3rem); font-weight:800; letter-spacing:-0.03em; line-height:1.1;">Browse by category.</h2>
+            </div>
+            <div style="display:flex; overflow-x:auto; gap:1rem; padding:0 1rem 2rem; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch;">
+                <?php
+                $hero_cats = [
+                    ['title' => 'Computer & Accessories', 'image' => 'IMG_5825.webp'],
+                    ['title' => 'Phone & Accessories',    'image' => 'IMG_5822.webp'],
+                    ['title' => 'Electrical Appliances',  'image' => 'IMG_5827.webp'],
+                    ['title' => 'Fashion',                'image' => 'IMG_5828.webp'],
+                    ['title' => 'Food & Groceries',       'image' => 'IMG_5830.webp'],
+                    ['title' => 'Education & Books',      'image' => 'IMG_5831.webp'],
+                    ['title' => 'Hostels for Rent',       'image' => 'IMG_5833.webp'],
+                ];
+                foreach($hero_cats as $hc):
+                ?>
+                <a href="index.php?category=<?= urlencode($hc['title']) ?>" style="flex:0 0 80vw; max-width:350px; scroll-snap-align:center; text-decoration:none; display:block;">
+                    <div style="position:relative; width:100%; height:350px; border-radius:16px; overflow:hidden;">
+                        <img src="<?= getAssetUrl('assets/dist/' . $hc['image']) ?>" alt="<?= htmlspecialchars($hc['title']) ?>" loading="lazy" style="width:100%; height:100%; object-fit:cover;">
+                        <div style="position:absolute; inset:0; background:linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.2) 40%, transparent 100%);"></div>
+                        <div style="position:absolute; bottom:0; left:0; right:0; padding:1.5rem; text-align:left;">
+                            <h3 style="font-size:1.35rem; font-weight:700; color:#fff; letter-spacing:-0.01em; margin:0 0 0.25rem;"><?= htmlspecialchars($hc['title']) ?></h3>
+                            <p style="color:#0071e3; font-size:0.875rem; font-weight:500; margin:0;">Explore →</p>
+                        </div>
+                    </div>
+                </a>
+                <?php endforeach; ?>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Hide PHP fallback once React mounts the hero
+        (function() {
+            var observer = new MutationObserver(function(mutations) {
+                var root = document.getElementById('react-hero-root');
+                if (root && root.getAttribute('data-react-mounted') === 'true') {
+                    var fallback = document.getElementById('phpHeroFallback');
+                    if (fallback) fallback.style.display = 'none';
+                    observer.disconnect();
+                }
+            });
+            var root = document.getElementById('react-hero-root');
+            if (root) {
+                if (root.getAttribute('data-react-mounted') === 'true') {
+                    var fb = document.getElementById('phpHeroFallback');
+                    if (fb) fb.style.display = 'none';
+                } else {
+                    observer.observe(root, { attributes: true });
+                }
+            }
+        })();
+    </script>
     <div class="container"><!-- Reopen container for the rest of the page -->
 <?php else: ?>
     <?php if($cat_img): ?>
@@ -205,37 +342,70 @@ $cat_desc = ($category && isset($cat_descriptions[$category])) ? $cat_descriptio
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const carousel = document.getElementById('adCarousel');
-            if(!carousel) return;
-            const dots = document.querySelectorAll('.ad-dot');
-            
-            carousel.addEventListener('scroll', () => {
-                const idx = Math.round(carousel.scrollLeft / carousel.offsetWidth);
+            if (!carousel || carousel.dataset.initialized === 'true') return;
+            carousel.dataset.initialized = 'true';
+
+            const dots = Array.from(document.querySelectorAll('.ad-dot'));
+            const totalSlides = <?= count($homepage_ads) ?>;
+            let currentIndex = 0;
+            let scrollInterval = null;
+            let ticking = false;
+
+            const updateDots = (idx) => {
                 dots.forEach((dot, i) => {
                     dot.style.background = (i === idx) ? '#fff' : 'rgba(255,255,255,0.4)';
                     dot.style.width = (i === idx) ? '12px' : '6px';
                     dot.style.borderRadius = (i === idx) ? '3px' : '50%';
                 });
-            });
+            };
 
-            // Auto-scroll logic
-            let scrollInterval = setInterval(() => {
-                const nextIdx = (Math.round(carousel.scrollLeft / carousel.offsetWidth) + 1) % <?= count($homepage_ads) ?>;
-                carousel.scrollTo({
-                    left: nextIdx * carousel.offsetWidth,
-                    behavior: 'smooth'
-                });
-            }, 6000); // 6 seconds per ad
+            const stopAutoScroll = () => {
+                if (scrollInterval) {
+                    clearInterval(scrollInterval);
+                    scrollInterval = null;
+                }
+            };
 
-            carousel.addEventListener('mouseenter', () => clearInterval(scrollInterval));
-            carousel.addEventListener('mouseleave', () => {
+            const startAutoScroll = () => {
+                if (scrollInterval || totalSlides <= 1) return;
+
                 scrollInterval = setInterval(() => {
-                    const nextIdx = (Math.round(carousel.scrollLeft / carousel.offsetWidth) + 1) % <?= count($homepage_ads) ?>;
+                    if (document.hidden) return;
+
+                    if (currentIndex >= totalSlides - 1) {
+                        stopAutoScroll();
+                        return;
+                    }
+
+                    currentIndex += 1;
                     carousel.scrollTo({
-                        left: nextIdx * carousel.offsetWidth,
+                        left: currentIndex * carousel.offsetWidth,
                         behavior: 'smooth'
                     });
+                    updateDots(currentIndex);
                 }, 6000);
+            };
+
+            carousel.addEventListener('scroll', () => {
+                if (ticking) return;
+
+                ticking = true;
+                window.requestAnimationFrame(() => {
+                    currentIndex = Math.round(carousel.scrollLeft / Math.max(carousel.offsetWidth, 1));
+                    updateDots(currentIndex);
+                    ticking = false;
+                });
+            }, { passive: true });
+
+            carousel.addEventListener('mouseenter', stopAutoScroll);
+            carousel.addEventListener('mouseleave', startAutoScroll);
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) stopAutoScroll();
+                else startAutoScroll();
             });
+
+            updateDots(0);
+            startAutoScroll();
         });
     </script>
     <?php endif; ?>
@@ -261,16 +431,19 @@ document.addEventListener('DOMContentLoaded', () => {
             fetch(`${window.MARKETPLACE_BASE_URL || '/'}api/search_suggest.php?q=${encodeURIComponent(q)}`)
                 .then(res => res.json())
                 .then(data => {
-                    if (data && data.length > 0) {
+                    const suggestions = Array.isArray(data) ? data : (data.suggestions || []);
+                    if (suggestions.length > 0) {
                         searchSuggestions.innerHTML = '';
-                        data.forEach(word => {
+                        suggestions.forEach(word => {
+                            const label = typeof word === 'string' ? word : (word.title || word.category || '');
+                            if (!label) return;
                             const wordDiv = document.createElement('div');
-                            wordDiv.textContent = word;
+                            wordDiv.textContent = label;
                             wordDiv.style.cssText = 'padding:10px 16px; cursor:pointer; font-weight:500; border-bottom:1px solid rgba(0,0,0,0.05); transition:background 0.2s;';
                             wordDiv.onmouseover = () => wordDiv.style.background = 'rgba(0,113,227,0.06)';
                             wordDiv.onmouseout = () => wordDiv.style.background = 'transparent';
                             wordDiv.onclick = () => {
-                                searchInput.value = word;
+                                searchInput.value = label;
                                 searchSuggestions.style.display = 'none';
                                 document.getElementById('searchForm').submit();
                             };
@@ -292,21 +465,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 </script>
 
-<style>
-    .ad-banner-img { height: 180px; object-fit: cover !important; }
-    @media (min-width: 768px) {
-        .ad-banner-img { height: 420px !important; }
-        .ad-image-container:hover { transform: scale(1.005); filter: brightness(1.05); }
-    }
-</style>
-
 <h2 class="mb-2" style="font-size:1.3rem;">Approved Listings <span class="text-muted" style="font-size:0.9rem;">(<?= $total ?> items)</span></h2>
 
-<?php if (empty($search) && empty($category) && $page == 1): ?>
-    <?php 
-    $ai_suggestions = get_smart_suggestions($pdo, 'home', $_SESSION['recent_views'] ?? [], 6, true); 
-    ?>
-
+<?php if ($is_default_home): ?>
     <?php if(count($ai_suggestions) > 0): ?>
     <div style="margin-bottom:2rem; position:relative;">
         <h3 class="mb-3" style="font-size:1.4rem; font-weight:800; display:flex; align-items:center; justify-content:space-between;">
@@ -340,16 +501,44 @@ document.addEventListener('DOMContentLoaded', () => {
         <script>
             document.addEventListener('DOMContentLoaded', () => {
                 const s = document.getElementById('aiRecScroll');
-                if(!s) return;
-                let auto = setInterval(() => {
-                    if(s.scrollLeft + s.clientWidth >= s.scrollWidth - 10) s.scrollTo({left:0, behavior:'smooth'});
-                    else s.scrollBy({left:188, behavior:'smooth'});
-                }, 2000);
-                s.addEventListener('mouseenter', () => clearInterval(auto));
-                s.addEventListener('mouseleave', () => auto = setInterval(() => {
-                    if(s.scrollLeft + s.clientWidth >= s.scrollWidth - 10) s.scrollTo({left:0, behavior:'smooth'});
-                    else s.scrollBy({left:188, behavior:'smooth'});
-                }, 2000));
+                if (!s || s.dataset.initialized === 'true') return;
+                s.dataset.initialized = 'true';
+
+                let auto = null;
+
+                const stopAuto = () => {
+                    if (auto) {
+                        clearInterval(auto);
+                        auto = null;
+                    }
+                };
+
+                const startAuto = () => {
+                    if (auto) return;
+
+                    auto = setInterval(() => {
+                        if (document.hidden) return;
+
+                        const nextLeft = s.scrollLeft + 188;
+                        const maxLeft = s.scrollWidth - s.clientWidth;
+
+                        if (nextLeft >= maxLeft - 10) {
+                            stopAuto();
+                            return;
+                        }
+
+                        s.scrollTo({ left: nextLeft, behavior: 'smooth' });
+                    }, 2500);
+                };
+
+                s.addEventListener('mouseenter', stopAuto);
+                s.addEventListener('mouseleave', startAuto);
+                document.addEventListener('visibilitychange', () => {
+                    if (document.hidden) stopAuto();
+                    else startAuto();
+                });
+
+                startAuto();
             });
         </script>
     </div>
@@ -359,8 +548,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
 <div class="product-grid">
-    <?php if (count($products) > 0): ?>
-        <?php foreach($products as $p): ?>
+    <?php if (count($display_products) > 0): ?>
+        <?php foreach($display_products as $p): ?>
             <a href="product.php?id=<?= $p['id'] ?>" class="glass product-card fade-in" style="flex-direction:column;">
                 <div class="product-img-wrap" style="aspect-ratio: 1 / 1; border-radius: 14px; overflow:hidden;">
                     <?php if($p['main_image']): ?>

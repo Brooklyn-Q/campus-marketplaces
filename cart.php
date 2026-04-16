@@ -30,7 +30,7 @@ require_once 'includes/header.php';
     .cart-item:hover { border-color:rgba(255,255,255,0.15); }
     .cart-item img { width:70px; height:70px; object-fit:cover; border-radius:8px; }
     .cart-item-actions { display:flex; align-items:center; gap:0.5rem; }
-    .qty-btn { width:30px; height:30px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:var(--light); cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+    .qty-btn { width:44px; height:44px; border-radius:8px; border:1px solid var(--border); background:rgba(255,255,255,0.05); color:var(--light); cursor:pointer; font-size:1rem; display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
     .qty-btn:hover { background:rgba(255,255,255,0.15); }
     .remove-btn { background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.2); color:#ef4444; padding:6px 12px; border-radius:8px; cursor:pointer; font-size:0.8rem; transition:all 0.2s; }
     .remove-btn:hover { background:rgba(239,68,68,0.25); }

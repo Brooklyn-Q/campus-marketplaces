@@ -79,5 +79,6 @@ try {
 
     echo json_encode(['response' => trim($response_text)]);
 } catch (Throwable $e) {
-    echo json_encode(['response' => "Connection stable, but a system error occurred: " . $e->getMessage()]);
+    error_log('chat_ai.php error: ' . $e->getMessage());
+    echo json_encode(['response' => "Connection stable, but a system error occurred. Please try again."]);
 }

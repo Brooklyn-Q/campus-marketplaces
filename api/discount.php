@@ -27,6 +27,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once '../includes/db.php';
 
+// ── AUTHENTICATION & AUTHORIZATION ──
+if (!isLoggedIn()) {
+    http_response_code(401);
+    echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
+    exit;
+}
+
 // Parse JSON body
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $input['action'] ?? ($_GET['action'] ?? '');
@@ -54,9 +61,9 @@ try {
                 break;
             }
 
-            // Check product exists
-            $check = $pdo->prepare("SELECT id, title, price, user_id FROM products WHERE id = ?");
-            $check->execute([$product_id]);
+            // Check product exists AND user owns it
+            $check = $pdo->prepare("SELECT id, title, price, user_id FROM products WHERE id = ? AND user_id = ?");
+            $check->execute([$product_id, $_SESSION['user_id']]);
             $product = $check->fetch(PDO::FETCH_ASSOC);
 
             if (!$product) {
@@ -101,6 +108,11 @@ try {
 
         // ── Admin: get pending discount approvals ──
         case 'get_pending':
+            if (!isAdmin()) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Forbidden']);
+                break;
+            }
             // Create table if not exists (safe idempotent)
             $pdo->exec("CREATE TABLE IF NOT EXISTS discount_requests (
                 id INT AUTO_INCREMENT PRIMARY KEY,
@@ -125,6 +137,11 @@ try {
 
         // ── Admin approves a discount ──
         case 'approve':
+            if (!isAdmin()) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Forbidden']);
+                break;
+            }
             $request_id = (int) ($input['request_id'] ?? 0);
             if ($request_id <= 0) {
                 echo json_encode(['success' => false, 'error' => 'Invalid request ID']);
@@ -161,6 +178,11 @@ try {
 
         // ── Admin rejects a discount ──
         case 'reject':
+            if (!isAdmin()) {
+                http_response_code(403);
+                echo json_encode(['success' => false, 'error' => 'Forbidden']);
+                break;
+            }
             $request_id = (int) ($input['request_id'] ?? 0);
             if ($request_id <= 0) {
                 echo json_encode(['success' => false, 'error' => 'Invalid request ID']);
@@ -182,5 +204,6 @@ try {
 
 } catch (PDOException $e) {
     http_response_code(500);
-    echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
+    error_log('discount.php DB error: ' . $e->getMessage());
+    echo json_encode(['success' => false, 'error' => 'Database error. Please try again.']);
 }

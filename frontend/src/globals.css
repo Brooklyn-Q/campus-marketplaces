@@ -1,0 +1,141 @@
+/*
+ * Global styles for the React SPA.
+ * Tailwind provides utility classes used by Hero.tsx and other components.
+ * The main design system lives in /public/assets/css/style.css (loaded via index.html).
+ * This file adds Tailwind + dark-mode variable overrides.
+ */
+
+/* ── Tailwind Base ── */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Dark Mode Variable Overrides ──
+   The legacy style.css defines :root vars for the light theme.
+   When ThemeContext adds .dark-mode to <html>, these overrides kick in.
+*/
+:root.dark-mode {
+  --bg: #000000;
+  --bg-color: #000000;
+  --card-bg: rgba(28, 28, 30, 0.85);
+  --border: rgba(255, 255, 255, 0.1);
+  --text-main: #f5f5f7;
+  --text-muted: #98989d;
+  --danger: #ff453a;
+  --success: #30d158;
+  --warning: #ffd60a;
+  --gold: #ffd60a;
+  --darkest: #000000;
+  --deep: #1c1c1e;
+  --mid: #2c2c2e;
+  --soft: #3a3a3c;
+  --mint: #64d2ff;
+  --light: #f5f5f7;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 16px rgba(100, 210, 255, 0.15);
+}
+
+:root.dark-mode body {
+  background: #000000;
+  color: #f5f5f7;
+}
+
+:root.dark-mode nav {
+  background: rgba(28, 28, 30, 0.85) !important;
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+:root.dark-mode .glass {
+  background: rgba(44, 44, 46, 0.65);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+:root.dark-mode .form-control {
+  background: rgba(44, 44, 46, 0.8);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #f5f5f7;
+}
+
+:root.dark-mode .form-control:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.25);
+}
+
+:root.dark-mode select.form-control option {
+  background: #1c1c1e;
+  color: #f5f5f7;
+}
+
+:root.dark-mode .product-card {
+  background: rgba(44, 44, 46, 0.65);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+:root.dark-mode footer {
+  background: #1c1c1e !important;
+  border-top-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* ── Dark mode Hero sections ── */
+:root.dark-mode .hiw-section {
+  background: #111111 !important;
+}
+
+:root.dark-mode .why-section {
+  background: #0a0a0a !important;
+}
+
+:root.dark-mode .liquid-glass-card {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.08) !important;
+}
+
+:root.dark-mode .liquid-glass-card:hover {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.12), 0 0 0 1px rgba(100, 210, 255, 0.1) !important;
+}
+
+/* ── Theme Toggle Button ── */
+.theme-toggle-btn {
+  background: none;
+  border: 1px solid var(--border);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  color: var(--text-main);
+  flex-shrink: 0;
+}
+
+.theme-toggle-btn:hover {
+  background: rgba(0, 113, 227, 0.08);
+  border-color: var(--primary);
+  transform: rotate(15deg);
+}
+
+/* ── Smooth transitions when toggling theme ── */
+body,
+nav,
+footer,
+.glass,
+.product-card,
+.form-control {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* ── Scrollbar hide utility for carousels ── */
+.hide-scrollbar::-webkit-scrollbar { display: none; }
+.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Fallback Media Queries for layout (bypassing Tailwind v4 bug) ── */
+.hero-desktop { display: none; }
+@media (min-width: 768px) {
+  .hero-desktop { display: block; }
+  .hero-mobile { display: none !important; }
+}

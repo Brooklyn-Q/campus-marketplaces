@@ -93,7 +93,8 @@ if ($action === 'get') {
             $stmt->execute([$me, $receiver, $message ?: '', $attachment_url, $message_type]);
             echo json_encode(['success' => true]);
         } catch(PDOException $e) {
-            echo json_encode(['success' => false, 'error' => 'Database error: ' . $e->getMessage()]);
+            error_log('chat.php send DB error: ' . $e->getMessage());
+            echo json_encode(['success' => false, 'error' => 'Database error. Please try again.']);
         }
     } else {
         echo json_encode(['success' => false, 'error' => 'Invalid data. Missing receiver, message, or attachment.']);

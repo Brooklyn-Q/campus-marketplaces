@@ -52,6 +52,14 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['buy']) && isLoggedIn() && $product['status'] === 'approved' && !$isOwner) {
     try {
         $pdo->beginTransaction();
+        
+        $prodStmt = $pdo->prepare("SELECT quantity FROM products WHERE id = ? FOR UPDATE");
+        $prodStmt->execute([$pid]);
+        $lockedProd = $prodStmt->fetch();
+        if (!$lockedProd || $lockedProd['quantity'] <= 0) {
+            throw new Exception("Product is currently out of stock.");
+        }
+
         $stmt = $pdo->prepare("SELECT balance FROM users WHERE id = ? FOR UPDATE");
         $stmt->execute([$_SESSION['user_id']]);
         $buyer = $stmt->fetch();

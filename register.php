@@ -69,12 +69,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $new_ref = generateReferralCode();
                 $role = ($mode === 'seller') ? 'seller' : 'buyer';
                 
-                // Get next available ID to reuse holes
-                $nextId = findNextAvailableId($pdo, 'users');
-
-                $stmt = $pdo->prepare("INSERT INTO users (id, username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, accepted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW())");
-                $stmt->execute([$nextId, $username, $email, $hashed, $role, $faculty, $department ?: null, $level ?: null, $hall ?: null, $hall_residence ?: null, $phone ?: null, $pic, $new_ref, $referred_by, 1]);
-                $user_id = $nextId;
+                $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, accepted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,NOW())");
+                $stmt->execute([$username, $email, $hashed, $role, $faculty, $department ?: null, $level ?: null, $hall ?: null, $hall_residence ?: null, $phone ?: null, $pic, $new_ref, $referred_by]);
+                $user_id = (int)$pdo->lastInsertId();
 
                 // Referral bonuses
                 if ($referred_by) {
@@ -241,17 +238,6 @@ require_once 'includes/header.php';
         </div>
     </div>
 </div>
-
-<style>
-    @media (max-width: 600px) {
-        .form-container {
-            width: 95% !important;
-            padding: 2.5rem 1.5rem !important;
-            margin: 1rem auto !important;
-        }
-        h1 { font-size: 1.7rem !important; }
-    }
-</style>
 
 <?php require_once 'includes/footer.php'; ?>
 

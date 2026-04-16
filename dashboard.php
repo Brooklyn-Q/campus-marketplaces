@@ -208,7 +208,14 @@ try {
     $stmt->execute([$user['id']]);
     $products = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 } catch (PDOException $e) {
-    die("Database error: " . $e->getMessage());
+    error_log('dashboard.php DB error: ' . $e->getMessage());
+    $msg = "Temporary database issue. Please refresh in a moment.";
+    $products = [];
+    $totalProducts = 0;
+    $totalApproved = 0;
+    $totalPending = 0;
+    $salesAmount = 0;
+    $viewsTotal = 0;
 }
 
 // Transactions
