@@ -66,9 +66,10 @@ marketplace/
 ### Frontend (Netlify)
 - **Build Command**: `npm run build`
 - **Publish Directory**: `frontend/dist`
-- **Env Variable**: Set `VITE_API_URL` to your Render backend URL.
+- **Env Variable**: Set `VITE_API_URL` to `https://campus-marketplace-api-x55w.onrender.com/api`
 
 ### Backend (Render)
+- **Live URL**: `https://campus-marketplace-api-x55w.onrender.com`
 - **Build Command**: `composer install` (if using composer) or skip.
 - **Runtime**: PHP 8.1+
 - **Env Variables**: Ensure `JWT_SECRET`, `CLOUDINARY_*`, and `PAYSTACK_*` are set.
