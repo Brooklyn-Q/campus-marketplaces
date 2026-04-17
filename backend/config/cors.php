@@ -1,12 +1,13 @@
 <?php
 /**
  * CORS Configuration
- * Allows the frontend (Vercel) to call the backend API
+ * Allows the frontend (Netlify) to call the backend API
  */
 
 $allowedOrigins = [
-    'http://localhost:3000',       // Local Next.js dev
-    'http://localhost:5173',       // Local Vite dev
+    'http://localhost:3000',
+    'http://localhost:5173',
+    'https://campusmarketplaces.netlify.app', // Explicitly allow production domain
 ];
 
 // Add production frontend URL from env
@@ -19,18 +20,13 @@ $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
 if (in_array($origin, $allowedOrigins)) {
     header("Access-Control-Allow-Origin: $origin");
-} elseif ($envFrontend) {
-    // Production: Reject any origin not in whitelist
+} elseif (in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', 'localhost:5173', 'localhost:3000', '127.0.0.1:5173', '127.0.0.1:3000'])) {
+    // Development fallback
+    header("Access-Control-Allow-Origin: http://" . $_SERVER['HTTP_HOST']);
+} else {
+    // Production rejection
     http_response_code(403);
     exit;
-} else {
-    // Development: Allow localhost only
-    if (in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', 'localhost:5173', 'localhost:3000', '127.0.0.1:5173', '127.0.0.1:3000'])) {
-        header("Access-Control-Allow-Origin: http://" . $_SERVER['HTTP_HOST']);
-    } else {
-        http_response_code(403);
-        exit;
-    }
 }
 
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");

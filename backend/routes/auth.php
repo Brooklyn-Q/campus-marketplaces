@@ -40,7 +40,8 @@ switch ($action) {
             jsonError('Invalid credentials', 401);
         }
 
-        if ($user['suspended']) {
+        $isSuspended = filter_var($user['suspended'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if ($isSuspended) {
             logSecurityEvent($pdo, 'suspended_account_login', "Suspended account login attempt: " . $user['username'], $user['id'], $clientIp);
             jsonError('Your account has been suspended. Contact admin for assistance.', 403);
         }
