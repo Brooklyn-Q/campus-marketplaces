@@ -1,10 +1,8 @@
 services:
   - type: web
     name: campus-marketplace
-    env: php
+    env: docker
     plan: free
-    buildCommand: composer install
-    startCommand: php -S 0.0.0.0:$PORT
     healthCheckPath: /
     envVars:
       - key: DB_TYPE
