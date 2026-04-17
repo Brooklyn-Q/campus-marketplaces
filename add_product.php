@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/db.php';
+require_once 'includes/storage_helper.php';
 if (!isLoggedIn()) redirect('login.php');
 if (!isSeller() && !isAdmin()) redirect('dashboard.php');
 
@@ -78,23 +79,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     if (!$image) continue; // Invalid image
 
-                    $fname = 'products/' . uniqid('p_') . '.' . $ext;
-                    $uploadPath = __DIR__ . '/uploads/' . $fname;
+                    $fname = uniqid('p_') . '.' . $ext;
+                    $tempReEncoded = sys_get_temp_dir() . '/' . $fname;
 
                     // Save re-encoded image (strips EXIF)
                     if ($ext === 'jpg' || $ext === 'jpeg') {
-                        imagejpeg($image, $uploadPath, 85);
+                        imagejpeg($image, $tempReEncoded, 85);
                     } elseif ($ext === 'png') {
-                        imagepng($image, $uploadPath, 8);
+                        imagepng($image, $tempReEncoded, 8);
                     } elseif ($ext === 'webp') {
-                        imagewebp($image, $uploadPath, 85);
+                        imagewebp($image, $tempReEncoded, 85);
                     }
                     imagedestroy($image);
 
-                    if (file_exists($uploadPath)) {
-                        $pdo->prepare("INSERT INTO product_images (product_id, image_path, sort_order) VALUES (?,?,?)")->execute([$productId, $fname, $imgCount]);
+                    $storedPath = storage_upload($tempReEncoded, 'products', $fname, $mimeType);
+
+                    if ($storedPath) {
+                        $pdo->prepare("INSERT INTO product_images (product_id, image_path, sort_order) VALUES (?,?,?)")->execute([$productId, $storedPath, $imgCount]);
                         $imgCount++;
                     }
+                    if (file_exists($tempReEncoded)) @unlink($tempReEncoded);
                 }
             }
 

@@ -1,5 +1,6 @@
 <?php
 require_once 'includes/db.php';
+require_once 'includes/storage_helper.php';
 if (!isLoggedIn()) redirect('login.php');
 
 $user = getUser($pdo, $_SESSION['user_id']);
@@ -42,10 +43,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] == 0) {
         $ext = strtolower(pathinfo($_FILES['profile_pic']['name'], PATHINFO_EXTENSION));
         if (in_array($ext, ['jpg','jpeg','png','webp'])) {
-            if (!is_dir('uploads/avatars')) mkdir('uploads/avatars', 0777, true);
-            $pic = 'avatars/' . uniqid('av_') . '.' . $ext;
-            move_uploaded_file($_FILES['profile_pic']['tmp_name'], 'uploads/' . $pic);
-            $pdo->prepare("UPDATE users SET profile_pic=? WHERE id=?")->execute([$pic, $user['id']]);
+            $fname = uniqid('av_') . '.' . $ext;
+            $mime = 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
+            $storedPath = storage_upload($_FILES['profile_pic']['tmp_name'], 'avatars', $fname, $mime);
+            if ($storedPath) {
+                $pic = $storedPath;
+                $pdo->prepare("UPDATE users SET profile_pic=? WHERE id=?")->execute([$pic, $user['id']]);
+            }
         }
     }
 
@@ -54,10 +58,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_FILES['shop_banner']) && $_FILES['shop_banner']['error'] == 0) {
         $ext = strtolower(pathinfo($_FILES['shop_banner']['name'], PATHINFO_EXTENSION));
         if (in_array($ext, ['jpg','jpeg','png','webp'])) {
-            if (!is_dir('uploads/banners')) mkdir('uploads/banners', 0777, true);
-            $banner = 'banners/' . uniqid('bn_') . '.' . $ext;
-            move_uploaded_file($_FILES['shop_banner']['tmp_name'], 'uploads/' . $banner);
-            $pdo->prepare("UPDATE users SET shop_banner=? WHERE id=?")->execute([$banner, $user['id']]);
+            $fname = uniqid('bn_') . '.' . $ext;
+            $mime = 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
+            $storedPath = storage_upload($_FILES['shop_banner']['tmp_name'], 'banners', $fname, $mime);
+            if ($storedPath) {
+                $banner = $storedPath;
+                $pdo->prepare("UPDATE users SET shop_banner=? WHERE id=?")->execute([$banner, $user['id']]);
+            }
         }
     }
 

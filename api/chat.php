@@ -1,5 +1,6 @@
 <?php
 require_once '../includes/db.php';
+require_once '../includes/storage_helper.php';
 header('Content-Type: application/json');
 
 if (!isLoggedIn()) { http_response_code(401); echo json_encode(['error' => 'Unauthorized']); exit; }
@@ -79,8 +80,9 @@ if ($action === 'get') {
 
         if (in_array($ext, array_merge($allowed_images, $allowed_videos, $allowed_audio)) && in_array($mimeType, $allowedMimes)) {
             $newName = 'chat_' . bin2hex(random_bytes(8)) . '.' . $ext;
-            if (move_uploaded_file($file['tmp_name'], '../uploads/' . $newName)) {
-                $attachment_url = $newName;
+            $storedPath = storage_upload($file['tmp_name'], 'chat', $newName, $mimeType);
+            if ($storedPath) {
+                $attachment_url = $storedPath;
                 // Auto-detect voice notes by prefix
                 if (strpos($file['name'], 'voice_note_') === 0) {
                     $message_type = 'audio';
@@ -92,7 +94,7 @@ if ($action === 'get') {
                     $message_type = 'image';
                 }
             } else {
-                echo json_encode(['success' => false, 'error' => 'Failed to move uploaded file.']);
+                echo json_encode(['success' => false, 'error' => 'Failed to upload attachment.']);
                 exit;
             }
         } else {

@@ -1,47 +1,36 @@
-# Dependencies
-node_modules/
-.pnp
-.pnp.js
-
-# Build Outputs
-dist/
-build/
-*.log
-
-# Local Config & Environment
+# Deployment & System Exclusions
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# IDE Config
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# OS Files
 .DS_Store
 Thumbs.db
+*.log
+*.tmp
 
-# XAMPP Specifics
-php.ini
-*.bak
-php_errors.log
+# Local Storage (Production uses Supabase Storage)
+uploads/
+legacy/uploads/
+backend/uploads/
 
-# Temporary Assets
-convert_to_webp.php
-FINAL_DB_READY.sql
+# Dependency Management
+vendor/
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# XAMPP specific
+/cgi-bin/
+
+# Temporary artifacts
+BUG_REPORT.md
 GOLIVE_*.sql
-campus_marketplace_structure.sql
-out.txt
-error.txt
+FINAL_DB_READY.sql
+out*.txt
+test.html
+view_images.html
+gitlog.txt
+git_status.txt
+error*.txt
 extracted_url*.txt
 others_search.txt
 products_list.txt
-test*.html
-test*.php
+users_structure.txt
+messages_structure.txt

@@ -1,6 +1,7 @@
 <?php
 $page_title = 'Ad Manager';
 require_once 'header.php';
+require_once '../includes/storage_helper.php';
 
 // Create ads table
 try {
@@ -40,11 +41,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 
             if (in_array($ext, $allowedExts) && in_array($mimeType, $allowedMimes)) {
-                $filename = 'ad_' . time() . '_' . rand(1000,9999) . '.' . $ext;
-                if (!is_dir('../uploads/ads')) mkdir('../uploads/ads', 0777, true);
-                $target = '../uploads/ads/' . $filename;
-                if (move_uploaded_file($_FILES['ad_file']['tmp_name'], $target)) {
-                    $image_url = 'uploads/ads/' . $filename; // Store relative path
+                $fname = 'ad_' . time() . '_' . rand(1000,9999) . '.' . $ext;
+                $storedPath = storage_upload($_FILES['ad_file']['tmp_name'], 'ads', $fname, $mimeType);
+                if ($storedPath) {
+                    $image_url = $storedPath; // Store cloud URL
                 } else {
                     $msg = "❌ Failed to upload image.";
                 }

@@ -1,29 +1,37 @@
 services:
   - type: web
-    name: campus-marketplace-api
+    name: campus-marketplace
     env: php
     plan: free
     buildCommand: composer install
     startCommand: php -S 0.0.0.0:$PORT
-    healthCheckPath: /backend
+    healthCheckPath: /
     envVars:
+      - key: DB_TYPE
+        value: pgsql
       - key: DB_HOST
-        value: aws.connect.psdb.cloud
-      - key: DB_NAME
-        value: campus_marketplace
-      - key: DB_USER
         sync: false
+      - key: DB_PORT
+        value: '5432'
+      - key: DB_NAME
+        value: postgres
+      - key: DB_USER
+        value: postgres
       - key: DB_PASS
         sync: false
+      - key: SUPABASE_PROJECT_REF
+        sync: false
+      - key: SUPABASE_ANON_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: uploads
       - key: JWT_SECRET
         generateValue: true
-      - key: JWT_EXPIRY
-        value: '604800'
       - key: PAYSTACK_PUBLIC_KEY
         sync: false
       - key: PAYSTACK_SECRET_KEY
         sync: false
       - key: FRONTEND_URL
-        value: https://campus-marketplace.netlify.app
+        value: https://your-app-name.netlify.app
       - key: APP_ENV
         value: production

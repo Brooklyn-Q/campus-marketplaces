@@ -1,18 +1,25 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) session_start();
 
-$host = get_env_var('DB_HOST', 'localhost');
-$dbname = get_env_var('DB_NAME', 'campus_marketplace');
-$db_user = get_env_var('DB_USER', 'root');
-$db_pass = get_env_var('DB_PASS', '');
+$host = env('DB_HOST', 'localhost');
+$dbname = env('DB_NAME', 'campus_marketplace');
+$db_user = env('DB_USER', 'root');
+$db_pass = env('DB_PASS', '');
+$db_port = env('DB_PORT', '3306');
+$db_type = env('DB_TYPE', 'mysql'); // 'mysql' or 'pgsql'
 
 try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $db_user, $db_pass);
+    if ($db_type === 'pgsql' || $db_port == '5432') {
+        $dsn = "pgsql:host=$host;port=$db_port;dbname=$dbname";
+        $pdo = new PDO($dsn, $user = $db_user, $pass = $db_pass);
+    } else {
+        $dsn = "mysql:host=$host;port=$db_port;dbname=$dbname;charset=utf8mb4";
+        $pdo = new PDO($dsn, $db_user, $db_pass);
+    }
+    
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
     $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
-
-    // Unique constraint initialization moved to migrate.php
 
 } catch(PDOException $e) {
     if (strpos($e->getMessage(), 'Unknown database') !== false) {
@@ -52,7 +59,12 @@ function check_csrf(): void {
     }
 }
 
-function get_env_var(string $key, $default = '') {
+function env(string $key, $default = '') {
+    // 1. Check system environment (e.g. Render/Netlify)
+    $val = getenv($key);
+    if ($val !== false) return $val;
+
+    // 2. Check local .env file
     static $env = null;
     if ($env === null) {
         $env = [];
@@ -66,7 +78,6 @@ function get_env_var(string $key, $default = '') {
                 if (count($parts) === 2) {
                     $k = trim($parts[0]);
                     $v = trim($parts[1]);
-                    // Remove surrounding quotes if they exist
                     $v = trim($v, "\"'");
                     $env[$k] = $v;
                 }
