@@ -10,6 +10,7 @@ $maintenance_file = '../.maintenance';
 $is_maintenance = file_exists($maintenance_file);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
     if (isset($_POST['toggle_maintenance'])) {
         if ($is_maintenance) {
             unlink($maintenance_file);
@@ -56,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <form method="POST">
+            <?= csrf_field() ?>
             <button type="submit" name="toggle_maintenance" class="btn <?= $is_maintenance ? 'btn-success' : 'btn-warning' ?>" style="width:100%; justify-content:center; font-size:1.1rem; padding:1rem;">
                 <?= $is_maintenance ? '✅ Disable Maintenance Mode' : '⚠️ Enable Maintenance Mode' ?>
             </button>
@@ -71,6 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </p>
 
         <form method="POST">
+            <?= csrf_field() ?>
             <button type="submit" name="backup_db" class="btn btn-primary" style="width:100%; justify-content:center; padding:1rem;">
                 ⬇️ Create New Backup
             </button>

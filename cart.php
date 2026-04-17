@@ -77,9 +77,10 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('cart-total').textContent = '₵' + cmCart.total().toFixed(2);
         
         // Fetch AI suggestions based on cart payload
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
         fetch('cart_suggestions.php', {
             method: 'POST',
-            body: JSON.stringify(cart),
+            body: JSON.stringify({...cart, csrf_token: csrfToken}),
             headers: {'Content-Type': 'application/json'}
         })
         .then(res => res.text())

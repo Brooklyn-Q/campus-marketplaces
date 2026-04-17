@@ -4,6 +4,7 @@ if (isLoggedIn()) redirect('index.php');
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
     $login_id = trim($_POST['login_id'] ?? '');
     $password = $_POST['password'] ?? '';
 
@@ -20,6 +21,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (!empty($user['suspended'])) {
                 $error = "⛔ Your account has been suspended. Contact admin for assistance.";
             } else {
+                session_regenerate_id(true);
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'];
@@ -62,6 +64,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
 
         <form method="POST">
+            <?= csrf_field() ?>
             <div class="form-group">
                 <label>Email or Username</label>
                 <input type="text" name="login_id" class="form-control" placeholder="Enter your identifier" required autocomplete="username">

@@ -5,7 +5,11 @@
  */
 
 function jwtEncode(array $payload): string {
-    $secret = env('JWT_SECRET', 'campus_marketplace_secret_key_change_me');
+    $secret = env('JWT_SECRET');
+    // SECURITY: Fail fast if JWT_SECRET not configured or still uses default
+    if (empty($secret) || $secret === 'campus_marketplace_secret_key_change_me') {
+        throw new Exception('FATAL: JWT_SECRET not configured. Set a strong secret in .env file');
+    }
     $expiry = (int) env('JWT_EXPIRY', 604800); // 7 days
 
     $header = base64url_encode(json_encode(['typ' => 'JWT', 'alg' => 'HS256']));
@@ -22,7 +26,11 @@ function jwtEncode(array $payload): string {
 }
 
 function jwtDecode(string $token): ?array {
-    $secret = env('JWT_SECRET', 'campus_marketplace_secret_key_change_me');
+    $secret = env('JWT_SECRET');
+    // SECURITY: Fail fast if JWT_SECRET not configured or still uses default
+    if (empty($secret) || $secret === 'campus_marketplace_secret_key_change_me') {
+        throw new Exception('FATAL: JWT_SECRET not configured. Set a strong secret in .env file');
+    }
 
     $parts = explode('.', $token);
     if (count($parts) !== 3) return null;

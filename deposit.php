@@ -61,10 +61,11 @@ async function verifyDeposit(reference) {
     document.getElementById('processingArea').style.display = 'block';
 
     try {
+        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
         const res = await fetch('api/paystack_verify.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reference: reference, type: 'deposit' })
+            body: JSON.stringify({ reference: reference, type: 'deposit', csrf_token: csrfToken })
         });
         const data = await res.json();
         if(data.status === 'success') {

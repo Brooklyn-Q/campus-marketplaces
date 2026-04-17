@@ -5,6 +5,7 @@ if (!isLoggedIn()) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
+    check_csrf();
     $ids = explode(',', $_POST['item_ids'] ?? '');
     $ids = array_filter(array_map('intval', $ids));
     if (!empty($ids)) {
@@ -87,6 +88,7 @@ require_once 'includes/header.php';
         }
         
         echo '<form method="POST" style="text-align:center; margin-top:2rem;">';
+        echo csrf_field();
         echo '<input type="hidden" name="item_ids" value="'.htmlspecialchars($_GET['ids']).'">';
         echo '<p style="color:var(--text-main); font-weight:600; font-size:1.1rem; margin-bottom:1rem;">Payment Method: Pay on Delivery Only</p>';
         echo '<button type="submit" name="place_order" class="btn btn-primary" onclick="cmCart.clear();">Mark as Ordered</button>';

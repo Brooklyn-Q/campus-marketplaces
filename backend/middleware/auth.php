@@ -17,10 +17,8 @@ function authenticate(): array {
         }
     }
 
-    if (!$header) {
-        // Try from query string (fallback for some environments)
-        $header = isset($_GET['token']) ? 'Bearer ' . $_GET['token'] : '';
-    }
+    // SECURITY: Do NOT accept tokens from query string - they get logged in server logs
+    // Only accept from Authorization header
 
     if (!$header || !str_starts_with($header, 'Bearer ')) {
         http_response_code(401);
@@ -56,9 +54,7 @@ function optionalAuth(): ?array {
         }
     }
 
-    if (!$header) {
-        $header = isset($_GET['token']) ? 'Bearer ' . $_GET['token'] : '';
-    }
+    // SECURITY: Do NOT accept tokens from query string - they get logged in server logs
 
     if (!$header || !str_starts_with($header, 'Bearer ')) {
         return null;

@@ -214,6 +214,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData();
             formData.append('receiver', otherUserId);
             
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+            if (csrfToken) formData.append('csrf_token', csrfToken);
+            
             // Explicitly allow empty text if there is a file
             if (txt) formData.append('message', txt);
             if (file) formData.append('attachment', file);

@@ -39,6 +39,7 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Campus Marketplace — Buy and sell safely within your university community.">
+    <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?? '' ?>">
     <title>Campus Marketplace</title>
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
@@ -89,7 +90,7 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
             body { font-size: 14px; }
             .form-row { grid-template-columns: 1fr !important; }
             .product-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
-            .footer-grid { grid-template-columns: 1fr !important; }
+            .footer-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 1rem !important; }
             .nav-links { width: 100vw !important; }
         }
 
@@ -206,6 +207,7 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
             openIcon.style.display = '';
             closeIcon.style.display = 'none';
             document.body.style.overflow = '';
+            document.body.classList.remove('nav-open');
             navBar.style.backdropFilter = '';
             navBar.style.webkitBackdropFilter = '';
             navBar.style.background = '';
@@ -214,6 +216,7 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
             openIcon.style.display = 'none';
             closeIcon.style.display = '';
             document.body.style.overflow = 'hidden';
+            document.body.classList.add('nav-open');
             navBar.style.backdropFilter = 'none';
             navBar.style.webkitBackdropFilter = 'none';
             navBar.style.background = document.documentElement.classList.contains('dark-mode') ? '#1c1c1e' : '#ffffff';

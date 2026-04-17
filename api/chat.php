@@ -40,6 +40,7 @@ if ($action === 'get') {
     echo json_encode($messages);
 
 } elseif ($action === 'send') {
+    check_csrf();
     $receiver = 0; $message = ''; $attachment_url = null; $message_type = 'text';
 
     if (!empty($_FILES['attachment'])) {
@@ -57,8 +58,26 @@ if ($action === 'get') {
         $allowed_images = ['jpg','jpeg','png','gif','webp'];
         $allowed_videos = ['mp4','webm','mov'];
         $allowed_audio  = ['mp3','wav','m4a','ogg'];
-        
-        if (in_array($ext, array_merge($allowed_images, $allowed_videos, $allowed_audio))) {
+
+        // SECURITY: Validate MIME type
+        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+        $mimeType = finfo_file($finfo, $file['tmp_name']);
+        finfo_close($finfo);
+
+        $allowedMimes = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/webp',
+            'video/mp4', 'video/webm', 'video/quicktime',
+            'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/ogg'
+        ];
+
+        // SECURITY: Check file size (100MB max for chat)
+        $maxFileSize = 100 * 1024 * 1024;
+        if ($file['size'] > $maxFileSize) {
+            echo json_encode(['success' => false, 'error' => 'File exceeds maximum size of 100MB']);
+            exit;
+        }
+
+        if (in_array($ext, array_merge($allowed_images, $allowed_videos, $allowed_audio)) && in_array($mimeType, $allowedMimes)) {
             $newName = 'chat_' . bin2hex(random_bytes(8)) . '.' . $ext;
             if (move_uploaded_file($file['tmp_name'], '../uploads/' . $newName)) {
                 $attachment_url = $newName;

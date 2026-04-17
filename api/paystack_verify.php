@@ -8,6 +8,7 @@ if(!isLoggedIn()) {
     echo json_encode(['status' => 'error', 'message' => 'Unauthorized']);
     exit;
 }
+check_csrf();
 
 $input = json_decode(file_get_contents('php://input'), true);
 $reference = $input['reference'] ?? '';
@@ -42,7 +43,7 @@ if($response['status'] && $response['data']['status'] === 'success') {
 
     try {
         $pdo->beginTransaction();
-        
+
         if($tier && in_array($tier, ['pro', 'premium'])) {
             // TIER UPGRADE
             $allTiers = getAccountTiers($pdo);
@@ -50,31 +51,45 @@ if($response['status'] && $response['data']['status'] === 'success') {
             if(!$targetTier) throw new Exception("Target tier configuration missing.");
 
             $durStr = $targetTier['duration'];
-            $expire_sql = "NULL";
-            if($durStr === '2_weeks') $expire_sql = "DATE_ADD(NOW(), INTERVAL 14 DAY)";
-            if($durStr === 'weekly') $expire_sql = "DATE_ADD(NOW(), INTERVAL 7 DAY)";
-
-            $stmt = $pdo->prepare("UPDATE users SET seller_tier = ?, tier_expires_at = $expire_sql WHERE id = ?");
-            $stmt->execute([$tier, $user_id]);
+            // Use parameterized query with CASE statement instead of string interpolation
+            $stmt = $pdo->prepare("UPDATE users SET seller_tier = ?, tier_expires_at = CASE WHEN ? = '2_weeks' THEN DATE_ADD(NOW(), INTERVAL 14 DAY) WHEN ? = 'weekly' THEN DATE_ADD(NOW(), INTERVAL 7 DAY) ELSE NULL END WHERE id = ?");
+            $stmt->execute([$tier, $durStr, $durStr, $user_id]);
 
             $stmt = $pdo->prepare("INSERT INTO transactions (user_id, type, amount, status, reference, description) VALUES (?, 'premium', ?, 'completed', ?, ?)");
             $stmt->execute([$user_id, $amount, $reference, ucfirst($tier) . " Upgrade"]);
-            
+
+            // Log successful payment
+            logPaymentVerification($pdo, $user_id, $reference, 'success', null);
+
             $msg = "Upgrade successful! Welcome to " . ucfirst($tier);
         } else {
             // WALLET DEPOSIT
             $pdo->prepare("UPDATE users SET balance = balance + ? WHERE id = ?")->execute([$amount, $user_id]);
             $pdo->prepare("INSERT INTO transactions (user_id, type, amount, status, reference, description) VALUES (?, 'deposit', ?, 'completed', ?, 'Wallet Deposit (Paystack)')")->execute([$user_id, $amount, $reference]);
+
+            // Log successful payment
+            logPaymentVerification($pdo, $user_id, $reference, 'success', null);
+
             $msg = "₵" . number_format($amount, 2) . " deposited successfully!";
         }
-        
+
         $pdo->commit();
         echo json_encode(['status' => 'success', 'message' => $msg]);
     } catch(Exception $e) {
         $pdo->rollBack();
-        error_log('paystack_verify.php DB error: ' . $e->getMessage());
+        $error = $e->getMessage();
+        error_log('paystack_verify.php DB error: ' . $error);
+
+        // Log payment failure
+        logPaymentVerification($pdo, $user_id, $reference, 'failed', $error);
+
         echo json_encode(['status' => 'error', 'message' => 'Database error. Please try again.']);
     }
 } else {
+    $error = $response['message'] ?? 'Payment validation failed at Paystack';
+
+    // Log payment failure
+    logPaymentVerification($pdo, $_SESSION['user_id'], $reference, 'failed', $error);
+
     echo json_encode(['status' => 'error', 'message' => 'Payment validation failed at Paystack.']);
 }

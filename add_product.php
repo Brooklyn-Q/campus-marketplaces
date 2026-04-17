@@ -17,6 +17,7 @@ $error = ''; $success = '';
 $categories = ['Computer & Accessories','Phone & Accessories','Electrical Appliances','Fashion','Food & Groceries','Education & Books','Hostels for Rent'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
     $title       = trim($_POST['title'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $price       = filter_input(INPUT_POST, 'price', FILTER_VALIDATE_FLOAT);
@@ -42,18 +43,58 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Handle multiple image uploads
             if (!is_dir(__DIR__ . '/uploads/products')) mkdir(__DIR__ . '/uploads/products', 0777, true);
             $allowed = ['jpg','jpeg','png','webp'];
+            $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+            $maxFileSize = 50 * 1024 * 1024; // 50MB
             $imgCount = 0;
             if (isset($_FILES['images'])) {
                 foreach ($_FILES['images']['tmp_name'] as $i => $tmp) {
                     if ($imgCount >= $maxImages) break;
                     if ($_FILES['images']['error'][$i] !== 0) continue;
+
+                    // SECURITY: Check file extension
                     $ext = strtolower(pathinfo($_FILES['images']['name'][$i], PATHINFO_EXTENSION));
                     if (!in_array($ext, $allowed)) continue;
 
+                    // SECURITY: Check file size
+                    if ($_FILES['images']['size'][$i] > $maxFileSize) continue;
+
+                    // SECURITY: Validate MIME type with finfo
+                    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                    $mimeType = finfo_file($finfo, $tmp);
+                    finfo_close($finfo);
+                    if (!in_array($mimeType, $allowedMimes)) continue;
+
+                    // SECURITY: Strip EXIF data and re-encode image
+                    $image = null;
+                    $stripExif = false;
+                    if ($mimeType === 'image/jpeg') {
+                        $image = @imagecreatefromjpeg($tmp);
+                        $stripExif = true;
+                    } elseif ($mimeType === 'image/png') {
+                        $image = @imagecreatefrompng($tmp);
+                    } elseif ($mimeType === 'image/webp') {
+                        $image = @imagecreatefromwebp($tmp);
+                    }
+
+                    if (!$image) continue; // Invalid image
+
                     $fname = 'products/' . uniqid('p_') . '.' . $ext;
-                    move_uploaded_file($tmp, __DIR__ . '/uploads/' . $fname);
-                    $pdo->prepare("INSERT INTO product_images (product_id, image_path, sort_order) VALUES (?,?,?)")->execute([$productId, $fname, $imgCount]);
-                    $imgCount++;
+                    $uploadPath = __DIR__ . '/uploads/' . $fname;
+
+                    // Save re-encoded image (strips EXIF)
+                    if ($ext === 'jpg' || $ext === 'jpeg') {
+                        imagejpeg($image, $uploadPath, 85);
+                    } elseif ($ext === 'png') {
+                        imagepng($image, $uploadPath, 8);
+                    } elseif ($ext === 'webp') {
+                        imagewebp($image, $uploadPath, 85);
+                    }
+                    imagedestroy($image);
+
+                    if (file_exists($uploadPath)) {
+                        $pdo->prepare("INSERT INTO product_images (product_id, image_path, sort_order) VALUES (?,?,?)")->execute([$productId, $fname, $imgCount]);
+                        $imgCount++;
+                    }
                 }
             }
 
@@ -101,6 +142,7 @@ require_once 'includes/header.php';
         <a href="dashboard.php" class="btn btn-primary" style="width:100%;justify-content:center;">Back to Dashboard</a>
     <?php else: ?>
     <form method="POST" enctype="multipart/form-data" id="addProductForm">
+        <?= csrf_field() ?>
         <div class="form-group">
             <label>Product Title *</label>
             <input type="text" name="title" class="form-control" required maxlength="150" id="productTitle">

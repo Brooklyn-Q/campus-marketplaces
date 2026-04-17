@@ -403,10 +403,10 @@ textarea.form-control { resize: vertical; min-height: 110px; line-height: 1.5; }
     gap: 1.5rem;
 }
 @media (max-width: 900px) {
-    .footer-grid { grid-template-columns: 1fr 1fr; }
+    .footer-grid { grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
 }
 @media (max-width: 500px) {
-    .footer-grid { grid-template-columns: 1fr; }
+    .footer-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
 }
 
 /* UPDATED: Premium Alerts (Light mode compatible) */
@@ -640,7 +640,7 @@ tbody tr:hover {
     .product-price { font-size: 0.75rem !important; margin-top: 2px !important; }
     .product-meta { font-size: 0.65rem !important; }
     
-    .footer-grid { grid-template-columns: 1fr 1fr !important; gap: 1rem !important; }
+    .footer-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 1rem !important; }
     
     .chat-container { flex-direction: column; height: calc(100vh - 120px); min-height: 500px; }
     .chat-users { width: 100%; max-height: 180px; border-right: none; border-bottom: 1px solid var(--border); flex-shrink: 0; }
@@ -1208,10 +1208,43 @@ audio.msg-attachment { min-width: 250px; height: 48px; background: none; box-sha
         padding: 4px;
     }
 
-    /* Fix footer layout on mobile */
+    /* Fix footer layout on mobile — horizontal compact row (pic 2 wireframe) */
     .footer-grid {
-        grid-template-columns: 1fr !important;
-        gap: 1rem !important;
+        grid-template-columns: repeat(4, 1fr) !important;
+        gap: 0.75rem !important;
+    }
+
+    footer {
+        padding: 1rem 0.75rem 0.5rem !important;
+    }
+
+    footer h3 {
+        font-size: 0.8rem !important;
+    }
+
+    footer h4 {
+        font-size: 0.65rem !important;
+        margin-bottom: 0.25rem !important;
+    }
+
+    footer p,
+    footer a,
+    footer li {
+        font-size: 0.6rem !important;
+        line-height: 1.3 !important;
+    }
+
+    footer ul {
+        gap: 0.15rem !important;
+    }
+
+    footer svg {
+        width: 10px !important;
+        height: 10px !important;
+    }
+
+    footer .container {
+        margin-bottom: 0.5rem !important;
     }
 
     /* Ensure forms are full width on mobile */
@@ -1230,6 +1263,29 @@ audio.msg-attachment { min-width: 250px; height: 48px; background: none; box-sha
     .form-group {
         width: 100%;
         box-sizing: border-box;
+    }
+
+    /* Compact search/filter bar on mobile (pic 3 fix) */
+    .filter-bar {
+        padding: 0.6rem !important;
+        border-radius: 14px !important;
+    }
+
+    .filter-bar .form-control {
+        padding: 0.45rem 0.7rem !important;
+        min-height: 36px !important;
+        font-size: 0.8rem !important;
+        border-radius: 10px !important;
+    }
+
+    .filter-bar .btn.btn-primary {
+        padding: 0.45rem 1rem !important;
+        min-height: 36px !important;
+        font-size: 0.8rem !important;
+    }
+
+    .filter-bar form {
+        gap: 0.4rem !important;
     }
 
     /* Fix text sizing on small devices */
@@ -1256,11 +1312,7 @@ audio.msg-attachment { min-width: 250px; height: 48px; background: none; box-sha
         max-width: none !important;
     }
 
-    /* Ensure images scale properly */
-    img {
-        max-width: 100%;
-        height: auto;
-    }
+    /* Removed img global override to fix aspect-ratio collapse */
 
     /* Fix table overflow */
     table {
@@ -1315,6 +1367,45 @@ audio.msg-attachment { min-width: 250px; height: 48px; background: none; box-sha
     #ai-chat-btn {
         width: 50px;
         height: 50px;
+    }
+
+    /* ── Mobile Section Spacing Fixes ── */
+    /* Tighten "How It Works" section */
+    .hiw-section {
+        padding-top: 2rem !important;
+        padding-bottom: 1.5rem !important;
+    }
+
+    /* Tighten "Why Campus Marketplace" section */
+    .why-section {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1.5rem !important;
+    }
+
+    /* Tighten "Browse by Category" header */
+    .text-center.py-8 {
+        padding-top: 1.5rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    /* ── Product Detail Page Mobile Spacing ── */
+    .product-detail-grid {
+        gap: 1rem !important;
+    }
+
+    /* Main product image — compact height on mobile */
+    .product-detail-grid #mainImg {
+        height: 280px !important;
+        border-radius: 14px !important;
+    }
+
+    /* Reduce glass container padding on product page */
+    .fade-in > .glass {
+        padding: 1rem !important;
+    }
+
+    .fade-in > .glass .product-detail-grid {
+        gap: 1rem !important;
     }
 }
 
@@ -1497,6 +1588,206 @@ body.module-failed .glass {
     }
 }
 
+/* ── MOBILE UX FIXES (2026-04-16) ── */
+
+/* FIX #6: Sign Up Button Truncation - Reduce text size on small screens */
+@media (max-width: 480px) {
+    /* Sign Up button responsive sizing */
+    a[href*="register.php"][style*="background:#0071e3"] {
+        font-size: 0.7rem !important;
+        padding: 0.4rem 0.8rem !important;
+        min-height: 44px !important;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    /* Login button responsive sizing */
+    a[href*="login.php"][style*="nav-pill-link"] {
+        font-size: 0.7rem !important;
+        padding: 0.35rem 0.7rem !important;
+    }
+}
+
+@media (max-width: 600px) {
+    a[href*="register.php"][style*="background:#0071e3"] {
+        font-size: 0.75rem !important;
+        padding: 0.45rem 0.9rem !important;
+    }
+}
+
+/* FIX #5: Product Image Fallback - Improve placeholder display */
+.product-img-wrap {
+    background: #f5f5f7;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.product-img-wrap .product-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* Fallback icon styling */
+.product-img-wrap div[style*="display:flex"][style*="color:#555"] {
+    font-size: 2rem;
+    text-align: center;
+    color: #86868b;
+}
+
+/* FIX #7: Hero Section Background Image */
+.hero-section {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    min-height: 400px;
+}
+
+@media (max-width: 768px) {
+    .hero-section {
+        min-height: 300px;
+        background-size: cover;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-section {
+        min-height: 240px;
+    }
+}
+
+/* FIX #7: Hero Section Background Image - Optimize for mobile */
+.php-hero-fallback > div[style*="position:relative"] {
+    min-height: 60vh;
+    height: auto;
+}
+
+@media (max-width: 768px) {
+    .php-hero-fallback > div[style*="position:relative"] {
+        height: 50vh;
+    }
+
+    /* Fallback background for mobile when video doesn't load */
+    .php-hero-fallback > div[style*="position:relative"] {
+        background: linear-gradient(135deg, #0071e3 0%, #34aaff 100%);
+        background-attachment: fixed;
+    }
+}
+
+@media (max-width: 480px) {
+    .php-hero-fallback > div[style*="position:relative"] {
+        height: 45vh;
+        padding-top: 8vh;
+    }
+
+    .php-hero-fallback h1 {
+        font-size: 1.8rem !important;
+    }
+
+    .php-hero-fallback > div > div[style*="z-index:10"] {
+        padding-top: 6vh !important;
+    }
+}
+@media (max-width: 768px) {
+    /* Search filter container */
+    div[style*="display:flex"][style*="gap:0.5rem"] {
+        flex-direction: column !important;
+        gap: 0.75rem !important;
+    }
+
+    /* Min/Max price inputs */
+    input[placeholder*="Min"],
+    input[placeholder*="Max"] {
+        width: 100% !important;
+    }
+
+    /* Search button full width on mobile */
+    .btn.btn-primary {
+        width: 100% !important;
+    }
+
+    /* Category dropdown full width */
+    select[name="category"] {
+        width: 100% !important;
+    }
+}
+
+/* FIX #9: Chat Button Accessibility - Better positioning */
+#ai-chat-btn {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    min-width: 56px;
+    min-height: 56px;
+}
+
+@media (max-width: 480px) {
+    #ai-chat-btn {
+        bottom: 20px;
+        right: 16px;
+        width: 52px;
+        height: 52px;
+        min-width: 52px;
+        min-height: 52px;
+    }
+}
+
+/* Ensure chat window doesn't overlap critical content */
+#ai-chat-window {
+    max-height: 70vh !important;
+}
+
+@media (max-width: 480px) {
+    #ai-chat-window {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        max-height: 60vh !important;
+        bottom: 70px !important;
+    }
+}
+
+/* FIX #10: Mobile Nav Layout Shift Prevention */
+body.nav-open {
+    overflow: hidden;
+}
+
+.nav-links.open {
+    max-height: calc(100vh - 58px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Smooth transition for nav toggle */
+.nav-links {
+    transition: all 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Prevent layout shift on mobile nav toggle */
+@media (max-width: 768px) {
+    html {
+        overflow-y: scroll; /* Force scroll bar to prevent layout shift */
+    }
+
+    .container {
+        transition: transform 0.25s ease;
+    }
+
+    .nav-links {
+        position: fixed;
+        top: 58px;
+        left: 0;
+        right: 0;
+        z-index: 999;
+        background: var(--card-bg);
+        backdrop-filter: blur(24px);
+        -webkit-backdrop-filter: blur(24px);
+    }
+}
+
 @media (max-width: 480px) {
     /* Extra small devices - reduce card size further */
     a[style*="flex:0 0 80vw"] {
@@ -1509,3 +1800,30 @@ body.module-failed .glass {
     }
 }
 
+/* ── FIX: Upgrade Modal Pricing Cards on Mobile (pic 4) ── */
+@media (max-width: 640px) {
+    .tier-card {
+        position: relative;
+        padding: 1.5rem 1rem !important;
+    }
+
+    .tier-card .badge {
+        position: static !important;
+        display: inline-block !important;
+        margin-bottom: 0.5rem;
+    }
+
+    .upgrade-modal-content > button[onclick*="toggleUpgradeModal"] {
+        top: 10px !important;
+        right: 10px !important;
+        width: 32px !important;
+        height: 32px !important;
+        font-size: 1.2rem !important;
+        z-index: 20 !important;
+    }
+
+    .upgrade-modal-content h2 {
+        font-size: 1.3rem !important;
+        padding-right: 2.5rem;
+    }
+}

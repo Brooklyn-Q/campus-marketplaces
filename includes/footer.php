@@ -154,13 +154,19 @@
                         <li style="margin-bottom:1rem; padding:10px; border:1px solid <?= htmlspecialchars($tier['badge']) ?>40; border-left: 4px solid <?= htmlspecialchars($tier['badge']) ?>; border-radius:12px; background: rgba(0,0,0,0.02);">
                             <h6 style="font-size:0.95rem; font-weight:800; margin-bottom:0.4rem; text-transform:capitalize;"><?= htmlspecialchars($tier['tier_name']) ?> Account</h6>
                             <p style="margin:0; font-size:0.85rem; line-height:1.5;">
-                                The <strong><?= ucfirst($tier['tier_name']) ?></strong> account allows users to upload up to 
-                                <strong><?= $tier['product_limit'] ?></strong> products with 
-                                <strong><?= $tier['images_per_product'] ?></strong> image(s) per product.
-                                This account <?= $tier['price'] <= 0 ? 'is completely <strong>free</strong>' : 'requires a fee of <strong>GHS ' . number_format($tier['price'], 2) . '</strong>' ?> 
-                                and assigns a customized badge color (<?= htmlspecialchars($tier['badge']) ?>) wrapping an update horizon of <strong><?= str_replace('_', ' ', $tier['duration']) ?></strong>. 
-                                Ads Boost feature is <?= $tier['ads_boost'] ? '<strong>enabled</strong>' : 'not available' ?> limit-wide.
+                                The <strong><?= ucfirst($tier['tier_name']) ?></strong> account is designed for <?= $tier['tier_name'] === 'basic' ? 'casual sellers' : 'serious businesses' ?>.
+                                <?= $tier['price'] <= 0 ? 'It is completely <strong>free</strong> and valid for ' . htmlspecialchars($tier['duration']) . ' month' . ($tier['duration'] == 1 ? '' : 's') . '.' : 'It requires a fee of <strong>₵' . number_format($tier['price'], 2) . '</strong> and is valid for ' . htmlspecialchars($tier['duration']) . ' month' . ($tier['duration'] == 1 ? '' : 's') . '.' ?>
                             </p>
+                            <?php 
+                                $bens = json_decode($tier['benefits'] ?? '[]', true) ?: []; 
+                                if(count($bens) > 0): 
+                            ?>
+                            <ul style="margin-top:0.75rem; margin-bottom:0.25rem; font-size:0.85rem; color:var(--text-main); padding-left:1.5rem;">
+                                <?php foreach($bens as $b): ?>
+                                    <li style="margin-bottom:0.25rem;"><strong><?= htmlspecialchars($b) ?></strong></li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <?php endif; ?>
                         </li>
                     <?php endforeach; ?>
                     </ul>
@@ -293,10 +299,11 @@
                 const isMarketplace = pathParts.includes('marketplace');
                 const base = isMarketplace ? '<?= $baseUrl ?>' : '/';
                 
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
                 const res = await fetch(base + 'api/chat_ai.php', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: msg })
+                    body: JSON.stringify({ message: msg, csrf_token: csrfToken })
                 });
                 const data = await res.json();
                 document.getElementById(typingId)?.remove();
@@ -351,7 +358,7 @@
                 // Replace broken image with placeholder
                 const wrapper = event.target.closest('.product-img-wrap');
                 if (wrapper) {
-                    wrapper.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;color:#86868b;background:rgba(0,0,0,0.08);width:100%;height:100%;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></div>';
+                    wrapper.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;color:#86868b;background:#f5f5f7;width:100%;height:100%;border-radius:8px;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="m21 15-5-5L5 21"/></svg></div>';
                     console.warn('Product image failed to load, showing placeholder');
                 }
             }

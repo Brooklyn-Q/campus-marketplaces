@@ -12,6 +12,14 @@ switch ($action) {
     case 'login':
         if ($method !== 'POST') jsonError('Method not allowed', 405);
 
+        // SECURITY: Rate limiting
+        $clientIp = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $rateLimit = checkRateLimit($clientIp, 5, 900); // 5 attempts per 15 minutes
+        if (!$rateLimit['allowed']) {
+            logSecurityEvent($pdo, 'rate_limit_exceeded', "Login rate limit exceeded for IP $clientIp", null, $clientIp);
+            jsonError('Too many login attempts. Try again in ' . ceil($rateLimit['cooldown'] / 60) . ' minutes.', 429);
+        }
+
         $body = getJsonBody();
         $identifier = trim($body['email'] ?? $body['username'] ?? '');
         $password = $body['password'] ?? '';
@@ -26,12 +34,20 @@ switch ($action) {
         $user = $stmt->fetch();
 
         if (!$user || !password_verify($password, $user['password'])) {
+            // Record failed attempt
+            recordFailedLogin($clientIp);
+            logSecurityEvent($pdo, 'failed_login', "Failed login attempt for identifier: $identifier from IP $clientIp", null, $clientIp);
             jsonError('Invalid credentials', 401);
         }
 
         if ($user['suspended']) {
+            logSecurityEvent($pdo, 'suspended_account_login', "Suspended account login attempt: " . $user['username'], $user['id'], $clientIp);
             jsonError('Your account has been suspended. Contact admin for assistance.', 403);
         }
+
+        // Clear rate limit on successful login
+        clearRateLimit($clientIp);
+        logSecurityEvent($pdo, 'successful_login', "User logged in: " . $user['username'], $user['id'], $clientIp);
 
         // Update last seen
         updateLastSeen($pdo, $user['id']);
@@ -74,8 +90,13 @@ switch ($action) {
         if (!validateEmail($email)) {
             jsonError('Invalid email address');
         }
-        if (!validateMinLength($password, 6)) {
-            jsonError('Password must be at least 6 characters');
+        // SECURITY: Require 12+ character passwords with complexity
+        if (strlen($password) < 12) {
+            jsonError('Password must be at least 12 characters');
+        }
+        // Optional: Add complexity requirements (uppercase + number)
+        if (!preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password)) {
+            jsonError('Password must contain at least one uppercase letter and one number');
         }
         if (!in_array($role, ['buyer', 'seller'])) {
             jsonError('Role must be buyer or seller');

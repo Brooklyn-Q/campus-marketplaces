@@ -47,6 +47,7 @@ if ($chat_user_id) {
 
 // Handle fast sending (Contact Admin)
 if (isset($_GET['action']) && $_GET['action'] === 'send_fast' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
     $receiver = (int)$_POST['receiver_id'];
     $msg = trim($_POST['message'] ?? '');
     if ($receiver > 0 && $msg) {

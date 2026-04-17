@@ -38,17 +38,37 @@ if (!isLoggedIn()) {
 $input = json_decode(file_get_contents('php://input'), true) ?? [];
 $action = $input['action'] ?? ($_GET['action'] ?? '');
 
+// CSRF check for write actions (POST)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $action !== 'get_products' && $action !== 'get_pending') {
+    check_csrf();
+}
+
 try {
     switch ($action) {
 
-        // ── Get all products for seller panel ──
+        // ── Get all products for seller panel (Paginated) ──
         case 'get_products':
-            $stmt = $pdo->query("SELECT id, title AS name, price, 
+            $limit = (int)($input['limit'] ?? 50);
+            $offset = (int)($input['offset'] ?? 0);
+            
+            $stmt = $pdo->prepare("SELECT id, title AS name, price, 
                 COALESCE(discount_percent, 0) AS discount, 
                 status 
-                FROM products ORDER BY created_at DESC");
+                FROM products ORDER BY created_at DESC LIMIT ? OFFSET ?");
+            $stmt->execute([$limit, $offset]);
             $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            echo json_encode(['success' => true, 'products' => $products]);
+            
+            $total = $pdo->query("SELECT COUNT(*) FROM products")->fetchColumn();
+            
+            echo json_encode([
+                'success' => true, 
+                'products' => $products,
+                'pagination' => [
+                    'total' => (int)$total,
+                    'limit' => $limit,
+                    'offset' => $offset
+                ]
+            ]);
             break;
 
         // ── Seller submits a discount request ──

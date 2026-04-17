@@ -62,8 +62,11 @@ run_query($pdo, "CREATE TABLE IF NOT EXISTS account_tiers (
     images_per_product INT NOT NULL DEFAULT 1,
     badge VARCHAR(50) NOT NULL DEFAULT 'blue',
     ads_boost TINYINT(1) NOT NULL DEFAULT 0,
-    priority VARCHAR(50) NOT NULL DEFAULT 'normal'
+    priority VARCHAR(50) NOT NULL DEFAULT 'normal',
+    benefits JSON DEFAULT NULL
 ) ENGINE=InnoDB", "Account Tiers Table");
+
+run_query($pdo, "ALTER TABLE account_tiers ADD COLUMN IF NOT EXISTS benefits JSON DEFAULT NULL", "Adding benefits column to account_tiers");
 
 run_query($pdo, "INSERT IGNORE INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost, priority) VALUES 
     ('basic', 0.00, 'forever', 2, 1, 'blue', 0, 'normal'),

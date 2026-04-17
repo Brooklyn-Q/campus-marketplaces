@@ -3,6 +3,7 @@ $page_title = 'Audit Log';
 require_once 'header.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_logs'])) {
+    check_csrf();
     $pdo->exec("TRUNCATE TABLE audit_log");
     auditLog($pdo, $_SESSION['user_id'], "Cleared all audit logs");
     echo "<div class='alert alert-success mt-2 fade-in'>Audit logs cleared.</div>";
@@ -17,6 +18,7 @@ $logs = $pdo->query("SELECT a.*, u.username FROM audit_log a JOIN users u ON a.a
         <p class="text-muted">Complete history of all admin actions.</p>
     </div>
     <form method="POST" onsubmit="return confirm('Are you sure you want to clear ALL audit logs?');">
+        <?= csrf_field() ?>
         <button type="submit" name="clear_logs" class="btn btn-danger btn-sm">🗑️ Clear All Logs</button>
     </form>
 </div>

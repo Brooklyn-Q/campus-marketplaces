@@ -23,6 +23,7 @@ $faculties = [
 $approval_fields = ['bio', 'department', 'level', 'hall', 'phone', 'faculty', 'whatsapp', 'instagram', 'linkedin'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
     $bio   = trim($_POST['bio'] ?? '');
     $hall   = trim($_POST['hall'] ?? '');
     $phone  = trim($_POST['phone'] ?? '');
@@ -130,6 +131,7 @@ require_once 'includes/header.php';
     <?php endif; ?>
 
     <form method="POST" enctype="multipart/form-data">
+        <?= csrf_field() ?>
         <div class="form-group text-center">
             <?php if($user['profile_pic']): ?>
                 <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['profile_pic'])) ?>" class="profile-pic profile-pic-lg mb-2" alt="Profile">

@@ -309,6 +309,7 @@ try {
 
 require_once 'includes/ai_recommendations.php';
 
+require_once 'includes/header.php';
 ?>
 <style>
 /* ═══════════════════════════════════════
@@ -488,10 +489,7 @@ require_once 'includes/ai_recommendations.php';
 </style>
 <?php
 
-require_once 'includes/header.php';
-?>
-
-<?php if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
+if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
 
 <!-- Global Announcements -->
 <?php if(count($announcements) > 0): ?>
@@ -596,6 +594,7 @@ require_once 'includes/header.php';
                 flex-direction: column;
                 background: rgba(0,0,0,0.02);
                 border: 1px solid var(--border);
+                position: relative;
             }
             .dark-mode .tier-card {
                 background: rgba(255,255,255,0.05);
@@ -669,38 +668,21 @@ require_once 'includes/header.php';
                             
                             <h3 class="tier-title" style="text-transform:capitalize; margin-bottom:0.4rem; font-weight:800; font-size:1.5rem;"><?= htmlspecialchars($tier['tier_name']) ?></h3>
                             <div class="tier-price" style="font-size:2.8rem; font-weight:900; margin-bottom:1.5rem; color:var(--primary); letter-spacing:-0.05em;">
-                                ₵<?= number_format($tier['price'], 0) ?><span style="font-size:0.9rem; font-weight:600; color:var(--text-muted); margin-left:6px;">/ request</span>
+                                ₵<?= number_format($tier['price'], 0) ?>
+                                <p style="font-size:0.9rem; margin-top:0.3rem; margin-bottom:0; color:var(--text-muted); font-weight:600; letter-spacing:normal;">
+                                    Valid for <?= htmlspecialchars($tier['duration']) ?> month<?= $tier['duration'] == 1 ? '' : 's' ?>
+                                </p>
                             </div>
                             
                             <ul style="list-style:none; padding:0; margin-bottom:1.5rem; flex-grow:1;">
+                                <?php
+                                $d_bens = json_decode($tier['benefits'] ?? '[]', true) ?: [];
+                                foreach($d_bens as $b): 
+                                ?>
                                 <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500;">
-                                    <span style="color:var(--primary); font-weight:800;">✓</span> <?= $tier['product_limit'] ?> Active Listings
+                                    <span style="color:var(--primary); font-weight:800;">✓</span> <?= htmlspecialchars($b) ?>
                                 </li>
-                                <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500;">
-                                    <span style="color:var(--primary); font-weight:800;">✓</span> <?= $tier['images_per_product'] ?> Images per product
-                                </li>
-                                <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500;">
-                                    <span style="color:var(--primary); font-weight:800;">✓</span> <?= $tier['ads_boost'] ? '<b>Top Featured</b> Rank' : 'Standard Rank' ?>
-                                </li>
-                                <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500;">
-                                    <span style="color:var(--primary); font-weight:800;">✓</span> <?= ucfirst($tier['priority']) ?> Search Priority
-                                </li>
-                                <?php if($tier['tier_name'] !== 'basic'): ?>
-                                <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500;">
-                                    <span style="color:var(--primary); font-weight:800;">✓</span> <?= ucfirst($tier['badge']) ?> Badge Verified
-                                </li>
-                                <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500;">
-                                    <span style="color:var(--primary); font-weight:800;">✓</span> AI Recommendations Boost
-                                </li>
-                                <?php endif; ?>
-                                <?php if($tier['tier_name'] === 'premium'): ?>
-                                <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500;">
-                                    <span style="color:var(--primary); font-weight:800;">✓</span> 24/7 Priority Admin Support
-                                </li>
-                                <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500;">
-                                    <span style="color:var(--primary); font-weight:800;">✓</span> Zero Sales Commission
-                                </li>
-                                <?php endif; ?>
+                                <?php endforeach; ?>
                             </ul>
                             
                             <?php if(!$active): ?>
@@ -761,6 +743,7 @@ require_once 'includes/header.php';
             <h4 class="mb-2">📞 Contact Admin</h4>
             <p class="text-muted" style="font-size:0.8rem; margin-bottom:1rem;">Need clarification? Chat directly with the platform administrator.</p>
             <form method="POST" action="chat.php?action=send_fast" class="flex-column gap-1">
+                <?= csrf_field() ?>
                 <input type="hidden" name="receiver_id" value="1">
                 <textarea name="message" placeholder="Type your question here..." class="form-control" style="font-size:0.85rem; min-height:80px; padding:0.75rem; border-radius:12px;"></textarea>
                 <button class="btn btn-primary btn-sm" style="width:100%; border-radius:10px;">Send Message</button>

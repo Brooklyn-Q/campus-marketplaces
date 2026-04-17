@@ -6,6 +6,7 @@ $error = '';
 $mode = $_GET['mode'] ?? 'buyer'; // buyer or seller
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
     $mode       = $_POST['mode'] ?? 'buyer';
     $username   = trim($_POST['username'] ?? '');
     $email      = trim($_POST['email'] ?? '');
@@ -28,7 +29,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!empty($honeypot)) { $error = "Bot detected."; }
     elseif (empty($terms)) { $error = "You must accept the Terms & Conditions."; }
     elseif (empty($username) || empty($email) || empty($password)) { $error = "Please fill in all required fields."; }
-    elseif (strlen($password) < 6) { $error = "Password must be at least 6 characters."; }
+    elseif (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password)) { 
+        $error = "Password must be at least 8 characters and include at least one uppercase letter and one number."; 
+    }
     elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) { $error = "Enter a valid email address."; }
     elseif (empty($faculty)) { $error = "Please select your faculty."; }
     elseif ($mode === 'seller' && (empty($department) || empty($level) || empty($phone))) { $error = "Sellers must fill department, level, and phone."; }
@@ -54,9 +57,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($mode === 'seller' && isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] == 0) {
                     $ext = strtolower(pathinfo($_FILES['profile_pic']['name'], PATHINFO_EXTENSION));
                     if (in_array($ext, ['jpg','jpeg','png','webp'])) {
-                        if (!is_dir('uploads/avatars')) mkdir('uploads/avatars', 0777, true);
-                        $pic = 'avatars/' . uniqid('av_') . '.' . $ext;
-                        move_uploaded_file($_FILES['profile_pic']['tmp_name'], 'uploads/' . $pic);
+                        // SECURITY: Validate MIME type
+                        $finfo = finfo_open(FILEINFO_MIME_TYPE);
+                        $mimeType = finfo_file($finfo, $_FILES['profile_pic']['tmp_name']);
+                        finfo_close($finfo);
+                        $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
+
+                        // SECURITY: Check file size (10MB max for avatars)
+                        $maxFileSize = 10 * 1024 * 1024;
+                        if (in_array($mimeType, $allowedMimes) && $_FILES['profile_pic']['size'] <= $maxFileSize) {
+                            if (!is_dir('uploads/avatars')) mkdir('uploads/avatars', 0777, true);
+
+                            // SECURITY: Strip EXIF and re-encode
+                            $image = null;
+                            if ($mimeType === 'image/jpeg') {
+                                $image = @imagecreatefromjpeg($_FILES['profile_pic']['tmp_name']);
+                            } elseif ($mimeType === 'image/png') {
+                                $image = @imagecreatefrompng($_FILES['profile_pic']['tmp_name']);
+                            } elseif ($mimeType === 'image/webp') {
+                                $image = @imagecreatefromwebp($_FILES['profile_pic']['tmp_name']);
+                            }
+
+                            if ($image) {
+                                $pic = 'avatars/' . uniqid('av_') . '.' . $ext;
+                                if ($ext === 'jpg' || $ext === 'jpeg') {
+                                    imagejpeg($image, 'uploads/' . $pic, 85);
+                                } elseif ($ext === 'png') {
+                                    imagepng($image, 'uploads/' . $pic, 8);
+                                } elseif ($ext === 'webp') {
+                                    imagewebp($image, 'uploads/' . $pic, 85);
+                                }
+                                imagedestroy($image);
+                            }
+                        }
                     }
                 }
 
@@ -127,6 +160,7 @@ require_once 'includes/header.php';
         <?php endif; ?>
 
         <form method="POST" enctype="multipart/form-data" id="registerForm">
+            <?= csrf_field() ?>
             <input type="hidden" name="mode" value="<?= $mode ?>">
             <div style="display:none;"><input type="text" name="website" tabindex="-1"></div>
 
@@ -144,7 +178,7 @@ require_once 'includes/header.php';
             <div class="form-row">
                 <div class="form-group">
                     <label>Password *</label>
-                    <input type="password" name="password" class="form-control" id="regPassword" required minlength="6">
+                    <input type="password" name="password" class="form-control" id="regPassword" required minlength="8" pattern="(?=.*\d)(?=.*[A-Z]).{8,}" title="Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters">
                 </div>
                 <div class="form-group">
                     <label>Referral Code (Optional)</label>

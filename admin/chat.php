@@ -32,6 +32,7 @@ if ($selected_u1 && $selected_u2) {
 
 // Handle Admin Reply
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
+    check_csrf();
     $reply = trim($_POST['message'] ?? '');
     $to_id = (int)$_POST['to_id']; // Which user to reply to specifically? or both?
     // Usually Omni chat means joining the thread. 
@@ -108,6 +109,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
 
             <!-- Omni Reply Form -->
             <form method="POST" style="display:flex; gap:0.75rem; align-items:flex-end;">
+                <?= csrf_field() ?>
                 <div style="flex:1;">
                     <label style="font-size:0.75rem; color:var(--text-muted); display:block; margin-bottom:8px;">Send a message as Support:</label>
                     <select name="to_id" class="form-control" style="margin-bottom:8px; font-size:0.85rem; padding:0.4rem;">

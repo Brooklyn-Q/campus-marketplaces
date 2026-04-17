@@ -37,6 +37,7 @@ $reviewCount = $pdo->prepare("SELECT COUNT(*) FROM reviews WHERE product_id = ?"
 // Handle review submission
 $reviewMsg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review']) && isLoggedIn() && !$isOwner) {
+    check_csrf();
     $r_rating = max(1, min(5, (int)($_POST['rating'] ?? 5)));
     $r_comment = trim($_POST['comment'] ?? '');
     try {
@@ -50,6 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review']) && isLogged
 // Handle purchase
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['buy']) && isLoggedIn() && $product['status'] === 'approved' && !$isOwner) {
+    check_csrf();
     try {
         $pdo->beginTransaction();
         
@@ -149,7 +151,7 @@ require_once 'includes/header.php';
     <?php endif; ?>
 
     <!-- FIXED: Responsive grid — stacked on mobile, side-by-side on desktop -->
-    <div class="glass" style="padding:2rem; display:grid; grid-template-columns:1fr; gap:2rem;">
+    <div class="glass" style="padding:1.25rem; display:grid; grid-template-columns:1fr; gap:1.25rem;">
         <style>
             @media(min-width:768px) { .product-detail-grid { grid-template-columns:1fr 1fr !important; } }
             .btn-add-cart { background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none; padding:0.9rem 1.5rem; border-radius:12px; font-size:1rem; font-weight:700; cursor:pointer; width:100%; text-align:center; transition:all 0.3s; box-shadow:0 4px 15px rgba(16,185,129,0.3); }
@@ -159,7 +161,7 @@ require_once 'includes/header.php';
             .btn-wishlist.wishlist-active { background:rgba(239,68,68,0.15); border-color:rgba(239,68,68,0.3); }
         </style>
         <!-- Images -->
-        <div class="product-detail-grid" style="display:grid; grid-template-columns:1fr; gap:2.5rem; align-items:start;">
+        <div class="product-detail-grid" style="display:grid; grid-template-columns:1fr; gap:1.5rem; align-items:start;">
         <div style="display:flex; flex-direction:column; align-items:center;">
             <?php if(count($images) > 0): ?>
                 <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($images[0]['image_path'])) ?>" id="mainImg" alt="<?= htmlspecialchars($product['title']) ?>" style="width:100%; max-width:450px; height:340px; object-fit:fill; border-radius:18px; box-shadow:0 12px 32px rgba(0,0,0,0.08); cursor:pointer;" onclick="toggleAutoPlay()">
@@ -271,7 +273,7 @@ require_once 'includes/header.php';
                 </div>
 
                 <!-- SELLER TRUST PANEL -->
-                <div class="glass" style="padding:1.25rem; border-radius:16px; margin:0.8rem 0;">
+                <div class="glass" style="padding:1rem; border-radius:16px; margin:0.5rem 0;">
                     <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.8rem;">
                         <?php if($product['seller_pic']): ?>
                             <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($product['seller_pic'])) ?>" class="profile-pic" style="width:44px;height:44px;" alt="">
@@ -328,7 +330,7 @@ require_once 'includes/header.php';
                     $jsPrice = $product['price'];
                     $jsId = $product['id'];
                 ?>
-                <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top:1.5rem;">
+                <div style="display:flex; flex-direction:column; gap:0.75rem; margin-top:1rem;">
                     <div style="display:flex; gap:0.5rem; align-items:center;">
                         <button 
                             type="button" 
@@ -421,6 +423,7 @@ require_once 'includes/header.php';
 
         <?php if(isLoggedIn() && !$isOwner): ?>
         <form method="POST" style="margin-bottom:1.5rem; display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
+            <?= csrf_field() ?>
             <div class="form-group" style="margin:0;">
                 <label>Rating</label>
                 <select name="rating" class="form-control" style="width:80px;">

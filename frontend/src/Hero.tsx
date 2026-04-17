@@ -279,14 +279,14 @@ export default function Hero() {
       {/* ═══════════════════════════════════════
           HOW IT WORKS
       ═══════════════════════════════════════ */}
-      <div id="how-it-works" className="hiw-section" style={{ padding: '5rem 1.5rem 4rem', position: 'relative', zIndex: 10 }}>
+      <div id="how-it-works" className="hiw-section" style={{ padding: '3rem 1.5rem 2rem', position: 'relative', zIndex: 10 }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.55 }}
-            style={{ textAlign: 'center', marginBottom: '3.5rem' }}
+            style={{ textAlign: 'center', marginBottom: '2rem' }}
           >
             <span style={{
               display: 'inline-block', fontSize: '0.72rem', fontWeight: 700,
@@ -344,14 +344,14 @@ export default function Hero() {
       {/* ═══════════════════════════════════════
           WHY CHOOSE US — Directly under How It Works
       ═══════════════════════════════════════ */}
-      <div className="why-section" style={{ padding: '4rem 1.5rem 5rem', position: 'relative', zIndex: 10 }}>
+      <div className="why-section" style={{ padding: '2rem 1.5rem 2.5rem', position: 'relative', zIndex: 10 }}>
         <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.55 }}
-            style={{ textAlign: 'center', marginBottom: '3rem' }}
+            style={{ textAlign: 'center', marginBottom: '2rem' }}
           >
             <span style={{
               display: 'inline-block', fontSize: '0.72rem', fontWeight: 700,
@@ -405,7 +405,7 @@ export default function Hero() {
       ═══════════════════════════════════════ */}
       <div className="relative z-10 w-full pb-1">
         <div className="w-full">
-          <div className="text-center py-16 md:py-20 px-6">
+          <div className="text-center py-8 md:py-16 px-6">
             <motion.p
               initial={{ opacity: 0 }} whileInView={{ opacity: 1 }} viewport={{ once: true }} transition={{ duration: 0.6 }}
               style={{ color: '#0071e3', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.16em', fontWeight: 700, marginBottom: '0.7rem' }}

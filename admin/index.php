@@ -158,17 +158,22 @@ $pending = $pdo->query("SELECT p.*, u.username as seller FROM products p JOIN us
 
 // Handle settings update
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_tiers'])) {
+    check_csrf();
     $tiers = ['basic', 'pro', 'premium'];
     foreach($tiers as $t) {
         $limit = max(0, (int)$_POST["{$t}_product_limit"]);
         $img = max(1, (int)$_POST["{$t}_image_limit"]);
         $price = max(0, (float)$_POST["{$t}_fee"]);
-        $dur = $_POST["{$t}_duration"] ?? 'forever';
+        $dur = max(1, (int)($_POST["{$t}_duration"] ?? 1));
         $badge = $_POST["badge_color_{$t}"] ?? 'blue';
         $ads = isset($_POST["{$t}_ads_boost"]) ? 1 : 0;
         
-        $pdo->prepare("UPDATE account_tiers SET product_limit=?, images_per_product=?, price=?, duration=?, badge=?, ads_boost=? WHERE tier_name=?")
-            ->execute([$limit, $img, $price, $dur, $badge, $ads, $t]);
+        $benefits = isset($_POST["{$t}_benefits"]) && is_array($_POST["{$t}_benefits"]) ? $_POST["{$t}_benefits"] : [];
+        $benefits = array_filter(array_map('trim', $benefits));
+        $benefits_json = json_encode(array_values($benefits));
+        
+        $pdo->prepare("UPDATE account_tiers SET product_limit=?, images_per_product=?, price=?, duration=?, badge=?, ads_boost=?, benefits=? WHERE tier_name=?")
+            ->execute([$limit, $img, $price, $dur, $badge, $ads, $benefits_json, $t]);
     }
     auditLog($pdo, $_SESSION['user_id'], "Updated marketplace tier settings in account_tiers");
     $disc_msg = "✅ Tier configurations globally updated!";
@@ -196,6 +201,7 @@ if (isset($_GET['vacation_action']) && isset($_GET['vac_id'])) {
 
 // Handle global announcements
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_announcement'])) {
+    check_csrf();
     $msg_content = trim($_POST['announcement_msg'] ?? '');
     $ann_type = $_POST['ann_type'] ?? 'info';
     if ($msg_content) {
@@ -237,12 +243,16 @@ $tm = $aTiers['premium'] ?? ['product_limit'=>15, 'images_per_product'=>3, 'badg
 <div class="glass fade-in mb-3" style="padding:1.5rem; border:1px solid var(--gold);">
     <h4 class="mb-2">⚙️ Tier & Pricing Management</h4>
     <form method="POST">
+        <?= csrf_field() ?>
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem; margin-bottom:1.5rem;">
             <!-- Basic -->
             <div style="background:rgba(0,113,227,0.05); padding:1rem; border-radius:16px; border:1px solid rgba(0,113,227,0.1);">
-                <h5 style="color:#0071e3; margin-bottom:1rem; display:flex; justify-content:space-between;">Basic Tier <span style="font-size:0.7rem; opacity:0.7;">Forever Free</span></h5>
+                <h5 style="color:#0071e3; margin-bottom:1rem; display:flex; justify-content:space-between;">Basic Tier <span style="font-size:0.7rem; opacity:0.7;">Free</span></h5>
                 <input type="hidden" name="basic_fee" value="0">
-                <input type="hidden" name="basic_duration" value="forever">
+                <div class="form-group mb-1">
+                    <label style="font-size:0.75rem;">Duration (Months)</label>
+                    <input type="number" name="basic_duration" class="form-control" value="<?= htmlspecialchars($tb['duration']) ?>" min="1">
+                </div>
                 <div class="form-group mb-1">
                     <label style="font-size:0.75rem;">Product Limit</label>
                     <input type="number" name="basic_product_limit" class="form-control" value="<?= $tb['product_limit'] ?>">
@@ -251,9 +261,25 @@ $tm = $aTiers['premium'] ?? ['product_limit'=>15, 'images_per_product'=>3, 'badg
                     <label style="font-size:0.75rem;">Images Per Product</label>
                     <input type="number" name="basic_image_limit" class="form-control" value="<?= $tb['images_per_product'] ?>">
                 </div>
-                <div class="form-group">
+                <div class="form-group mb-1">
                     <label style="font-size:0.75rem;">Badge Color</label>
                     <input type="color" name="badge_color_basic" class="form-control" value="<?= htmlspecialchars($tb['badge']) ?>" style="height:35px; padding:2px;">
+                </div>
+                <div class="form-group mb-1">
+                    <label style="font-size:0.75rem; font-weight:700;">Included Benefits</label>
+                    <div id="benefits_wrap_basic" style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.5rem; min-height:28px;">
+                        <?php foreach(json_decode($tb['benefits'] ?? '[]', true) ?: [] as $ben): ?>
+                            <div class="badge" style="background:#0071e320; color:#0071e3; display:flex; align-items:center; gap:4px; padding:4px 8px;">
+                                <?= htmlspecialchars($ben) ?>
+                                <input type="hidden" name="basic_benefits[]" value="<?= htmlspecialchars($ben) ?>">
+                                <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; cursor:pointer; font-weight:bold; padding:0;">&times;</button>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div style="display:flex; gap:0.4rem;">
+                        <input type="text" id="add_ben_basic" class="form-control" style="font-size:0.75rem; padding:0.4rem;" placeholder="E.g. Priority Support" onkeypress="if(event.key==='Enter'){ event.preventDefault(); addBenefit('basic', '#0071e3'); }">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="addBenefit('basic', '#0071e3')">+</button>
+                    </div>
                 </div>
             </div>
 
@@ -276,17 +302,30 @@ $tm = $aTiers['premium'] ?? ['product_limit'=>15, 'images_per_product'=>3, 'badg
                         <input type="number" name="pro_fee" class="form-control" value="<?= $tp['price'] ?>">
                     </div>
                     <div class="form-group mb-1">
-                        <label style="font-size:0.75rem;">Upload Frequency</label>
-                        <select name="pro_duration" class="form-control">
-                            <option value="forever" <?= $tp['duration']=='forever'?'selected':'' ?>>Forever</option>
-                            <option value="2_weeks" <?= $tp['duration']=='2_weeks'?'selected':'' ?>>Bi-Weekly</option>
-                            <option value="weekly" <?= $tp['duration']=='weekly'?'selected':'' ?>>Weekly</option>
-                        </select>
+                        <label style="font-size:0.75rem;">Duration (Months)</label>
+                        <input type="number" name="pro_duration" class="form-control" value="<?= htmlspecialchars($tp['duration']) ?>" min="1">
                     </div>
                 </div>
-                <div class="form-group">
+                <div class="form-group mb-1">
                     <label style="font-size:0.75rem;">Badge Color</label>
                     <input type="color" name="badge_color_pro" class="form-control" value="<?= htmlspecialchars($tp['badge']) ?>" style="height:35px; padding:2px;">
+                </div>
+                <!-- Pro Benefits -->
+                <div class="form-group mb-1">
+                    <label style="font-size:0.75rem; font-weight:700;">Included Benefits</label>
+                    <div id="benefits_wrap_pro" style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.5rem; min-height:28px;">
+                        <?php foreach(json_decode($tp['benefits'] ?? '[]', true) ?: [] as $ben): ?>
+                            <div class="badge" style="background:#8e8e9320; color:#8e8e93; display:flex; align-items:center; gap:4px; padding:4px 8px;">
+                                <?= htmlspecialchars($ben) ?>
+                                <input type="hidden" name="pro_benefits[]" value="<?= htmlspecialchars($ben) ?>">
+                                <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; cursor:pointer; font-weight:bold; padding:0;">&times;</button>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div style="display:flex; gap:0.4rem;">
+                        <input type="text" id="add_ben_pro" class="form-control" style="font-size:0.75rem; padding:0.4rem;" placeholder="E.g. Analytics Dashboard" onkeypress="if(event.key==='Enter'){ event.preventDefault(); addBenefit('pro', '#8e8e93'); }">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="addBenefit('pro', '#8e8e93')">+</button>
+                    </div>
                 </div>
             </div>
 
@@ -309,23 +348,78 @@ $tm = $aTiers['premium'] ?? ['product_limit'=>15, 'images_per_product'=>3, 'badg
                         <input type="number" name="premium_fee" class="form-control" value="<?= $tm['price'] ?>">
                     </div>
                     <div class="form-group mb-1">
-                        <label style="font-size:0.75rem;">Upload Frequency</label>
-                         <select name="premium_duration" class="form-control">
-                            <option value="forever" <?= $tm['duration']=='forever'?'selected':'' ?>>Forever</option>
-                            <option value="2_weeks" <?= $tm['duration']=='2_weeks'?'selected':'' ?>>Bi-Weekly</option>
-                            <option value="weekly" <?= $tm['duration']=='weekly'?'selected':'' ?>>Weekly</option>
-                        </select>
+                        <label style="font-size:0.75rem;">Duration (Months)</label>
+                        <input type="number" name="premium_duration" class="form-control" value="<?= htmlspecialchars($tm['duration']) ?>" min="1">
                     </div>
                 </div>
-                <div class="form-group">
+                <div class="form-group mb-1">
                     <label style="font-size:0.75rem;">Badge Color</label>
                     <input type="color" name="badge_color_premium" class="form-control" value="<?= htmlspecialchars($tm['badge']) ?>" style="height:35px; padding:2px;">
+                </div>
+                <!-- Premium Benefits -->
+                <div class="form-group mb-1">
+                    <label style="font-size:0.75rem; font-weight:700;">Included Benefits</label>
+                    <div id="benefits_wrap_premium" style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.5rem; min-height:28px;">
+                        <?php foreach(json_decode($tm['benefits'] ?? '[]', true) ?: [] as $ben): ?>
+                            <div class="badge" style="background:#ff9f0a20; color:#ff9f0a; display:flex; align-items:center; gap:4px; padding:4px 8px;">
+                                <?= htmlspecialchars($ben) ?>
+                                <input type="hidden" name="premium_benefits[]" value="<?= htmlspecialchars($ben) ?>">
+                                <button type="button" onclick="this.parentElement.remove()" style="background:none; border:none; color:inherit; cursor:pointer; font-weight:bold; padding:0;">&times;</button>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                    <div style="display:flex; gap:0.4rem;">
+                        <input type="text" id="add_ben_premium" class="form-control" style="font-size:0.75rem; padding:0.4rem;" placeholder="E.g. Ad Boost Access" onkeypress="if(event.key==='Enter'){ event.preventDefault(); addBenefit('premium', '#ff9f0a'); }">
+                        <button type="button" class="btn btn-sm btn-outline" onclick="addBenefit('premium', '#ff9f0a')">+</button>
+                    </div>
                 </div>
             </div>
         </div>
         <button type="submit" name="update_tiers" class="btn btn-primary" style="width:100%; border-radius:14px; font-weight:700;">Save All Tier Changes</button>
     </form>
 </div>
+
+<script>
+function addBenefit(tier, colorHex) {
+    const input = document.getElementById('add_ben_' + tier);
+    const val = input.value.trim();
+    if (!val) return;
+    
+    // Prevent duplicate benefits client-side
+    const wrap = document.getElementById('benefits_wrap_' + tier);
+    const existings = wrap.querySelectorAll('input[type="hidden"]');
+    for (let eq of existings) {
+        if (eq.value.toLowerCase() === val.toLowerCase()) {
+            input.value = '';
+            return;
+        }
+    }
+    
+    // Create new chip element
+    const div = document.createElement('div');
+    div.className = 'badge';
+    div.style.cssText = `background:${colorHex}20; color:${colorHex}; display:flex; align-items:center; gap:4px; padding:4px 8px;`;
+    
+    const textNode = document.createTextNode(val + " ");
+    div.appendChild(textNode);
+    
+    const hidden = document.createElement('input');
+    hidden.type = 'hidden';
+    hidden.name = tier + '_benefits[]';
+    hidden.value = val;
+    div.appendChild(hidden);
+    
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.innerHTML = '&times;';
+    btn.style.cssText = 'background:none; border:none; color:inherit; cursor:pointer; font-weight:bold; padding:0;';
+    btn.onclick = function() { div.remove(); };
+    div.appendChild(btn);
+    
+    wrap.appendChild(div);
+    input.value = '';
+}
+</script>
 
 <!-- GLOBAL ANNOUNCEMENT SYSTEM -->
 <div class="glass fade-in mb-4" style="padding:2rem; border-radius:24px; border:1px solid #10b981; background:rgba(16,185,129,0.05);">
@@ -336,6 +430,7 @@ $tm = $aTiers['premium'] ?? ['product_limit'=>15, 'images_per_product'=>3, 'badg
     <p class="text-muted" style="font-size:0.9rem; margin-bottom:1.5rem;">Blast an update that will appear at the top of every dashboard (Seller & Buyer). <b>Use with power!</b></p>
     
     <form method="POST" class="mb-4">
+        <?= csrf_field() ?>
         <div style="display:grid; grid-template-columns: 1fr 200px auto; gap:1rem; align-items:flex-end;" class="grid-1-col-mobile">
             <div>
                 <label style="font-size:0.8rem; font-weight:700; color:var(--text-main); display:block; margin-bottom:0.5rem;">Broadcast Message</label>
@@ -641,7 +736,8 @@ $tm = $aTiers['premium'] ?? ['product_limit'=>15, 'images_per_product'=>3, 'badg
 
 <?php
 // Handle dispute resolution
-if (isset($_GET['dispute_action']) && isset($_GET['dispute_id'])) {
+if (isset($_GET['dispute_action']) && isset($_GET['dispute_id']) && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
     $did = (int)$_GET['dispute_id'];
     $dact = $_GET['dispute_action'];
     $note = $_POST['admin_note'] ?? 'Resolved by admin';
@@ -683,6 +779,7 @@ if (isset($_GET['dispute_action']) && isset($_GET['dispute_id'])) {
                 "<?= htmlspecialchars($d['reason']) ?>"
             </div>
             <form method="POST" action="?dispute_action=resolve_dispute&dispute_id=<?= $d['id'] ?>" class="flex gap-1" onsubmit="return confirm('Resolve dispute? Verify with both parties first.')">
+                <?= csrf_field() ?>
                 <input type="text" name="admin_note" placeholder="Resolution note..." class="form-control" style="font-size:0.8rem; height:auto; padding:0.5rem;" required>
                 <button class="btn btn-primary btn-sm">Resolve</button>
                 <a href="messages.php?view=chat&u1=<?= $d['complainant_id'] ?>&u2=<?= $d['target_id'] ?>" class="btn btn-outline btn-sm">Monitor Chat</a>

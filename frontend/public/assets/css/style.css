@@ -400,7 +400,7 @@ textarea.form-control { resize: vertical; min-height: 110px; line-height: 1.5; }
     .footer-grid { grid-template-columns: 1fr 1fr; }
 }
 @media (max-width: 500px) {
-    .footer-grid { grid-template-columns: 1fr; }
+    .footer-grid { grid-template-columns: 1fr 1fr; }
 }
 
 /* UPDATED: Premium Alerts (Light mode compatible) */

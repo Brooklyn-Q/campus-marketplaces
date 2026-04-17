@@ -1,6 +1,7 @@
 <?php
 require_once 'includes/db.php';
 require_once 'includes/ai_recommendations.php';
+check_csrf();
 
 $raw = file_get_contents('php://input');
 $items = json_decode($raw, true);
@@ -20,9 +21,9 @@ if (count($suggestions) > 0) {
     echo '<div class="product-grid" style="grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:1rem;">';
     foreach($suggestions as $sp) {
         $img = $sp['main_image'] ? getAssetUrl('uploads/'.htmlspecialchars($sp['main_image'])) : '';
-        $img_fallback = $img ? '' : '<div class="product-img" style="display:flex;align-items:center;justify-content:center;color:#555;background:rgba(0,0,0,0.2);">No Image</div>';
-        $img_tag = $img ? '<img src="'.$img.'" class="product-img" style="aspect-ratio:1/1;object-fit:cover;" loading="lazy">' : $img_fallback;
-        
+        $img_fallback = '<div class="product-img-fallback" style="display:flex;align-items:center;justify-content:center;background:#f5f5f7;width:100%;height:100%;color:#86868b;"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5" fill="currentColor"/><path d="m21 15-5-5L5 21"/></svg></div>';
+        $img_tag = $img ? '<img src="'.$img.'" class="product-img" style="aspect-ratio:1/1;object-fit:cover;width:100%;height:100%;" loading="lazy" onerror="this.parentElement.innerHTML=\''.$img_fallback.'\';">' : $img_fallback;
+
         echo '
         <a href="product.php?id='.$sp['id'].'" class="glass product-card fade-in" style="background:rgba(255,255,255,0.8); text-decoration:none; color:inherit;">
             <div class="product-img-wrap" style="aspect-ratio:1/1; border-radius:12px; overflow:hidden;">

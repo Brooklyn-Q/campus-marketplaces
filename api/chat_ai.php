@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 try {
     require_once '../includes/db.php';
     require_once '../includes/ai_recommendations.php';
+    check_csrf();
 
     $input = json_decode(file_get_contents('php://input'), true);
     $query = trim($input['message'] ?? '');

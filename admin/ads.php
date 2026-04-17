@@ -20,6 +20,7 @@ try {
 // Handle actions
 $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    check_csrf();
     if (isset($_POST['create_ad'])) {
         $title = trim($_POST['ad_title'] ?? '');
         $image_url = trim($_POST['ad_image'] ?? '');
@@ -85,6 +86,7 @@ $ads = $pdo->query("SELECT * FROM ad_placements ORDER BY created_at DESC")->fetc
 <div class="glass fade-in mb-3" style="padding:1.5rem;">
     <h4 class="mb-2">📢 Create New Ad Placement</h4>
     <form method="POST" enctype="multipart/form-data" style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+        <?= csrf_field() ?>
         <div class="form-group">
             <label>Ad Title *</label>
             <input type="text" name="ad_title" class="form-control" required placeholder="e.g. Back to School Sale">

@@ -19,9 +19,18 @@ $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
 
 if (in_array($origin, $allowedOrigins)) {
     header("Access-Control-Allow-Origin: $origin");
-} elseif (!$envFrontend) {
-    // Dev: allow all origins if no FRONTEND_URL is set
-    header("Access-Control-Allow-Origin: *");
+} elseif ($envFrontend) {
+    // Production: Reject any origin not in whitelist
+    http_response_code(403);
+    exit;
+} else {
+    // Development: Allow localhost only
+    if (in_array($_SERVER['HTTP_HOST'] ?? '', ['localhost', '127.0.0.1', 'localhost:5173', 'localhost:3000', '127.0.0.1:5173', '127.0.0.1:3000'])) {
+        header("Access-Control-Allow-Origin: http://" . $_SERVER['HTTP_HOST']);
+    } else {
+        http_response_code(403);
+        exit;
+    }
 }
 
 header("Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS");

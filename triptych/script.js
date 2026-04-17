@@ -144,13 +144,15 @@ function submitForApproval(index) {
   showToast(`📨 "${product.name}" submitted for admin approval`);
 
   // Try to also save to DB via API
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
   fetch(`${window.MARKETPLACE_BASE_URL || '/'}api/discount.php`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       action: 'submit_discount',
       product_id: product.id,
-      discount: product.discount
+      discount: product.discount,
+      csrf_token: csrfToken
     })
   }).catch(() => { /* API optional, simulation works standalone */ });
 

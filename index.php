@@ -168,8 +168,8 @@ if ($is_default_home) {
         <noscript><style>.php-hero-fallback{display:block !important;}</style></noscript>
         <div class="php-hero-fallback" id="phpHeroFallback">
             <!-- Video Hero -->
-            <div style="position:relative; width:100%; height:100vh; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; overflow:hidden;">
-                <video autoplay loop muted playsinline style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;">
+            <div style="position:relative; width:100%; height:100vh; display:flex; flex-direction:column; justify-content:flex-start; align-items:center; overflow:hidden; background:linear-gradient(135deg, #0071e3 0%, #34aaff 100%);">
+                <video autoplay loop muted playsinline poster="<?= getAssetUrl('assets/dist/IMG_5825.webp') ?>" style="position:absolute; inset:0; width:100%; height:100%; object-fit:cover; object-position:center;">
                     <source src="<?= getAssetUrl('assets/dist/hero.mp4') ?>" type="video/mp4">
                 </video>
                 <!-- Gradient overlay -->
@@ -204,7 +204,7 @@ if ($is_default_home) {
             </div>
 
             <!-- Categories Section -->
-            <div style="text-align:center; padding:4rem 1.5rem 2rem;">
+            <div style="text-align:center; padding:2.5rem 1.5rem 1.5rem;">
                 <p style="color:#0071e3; font-size:0.72rem; text-transform:uppercase; letter-spacing:0.16em; font-weight:700; margin-bottom:0.7rem;">Categories</p>
                 <h2 style="font-size:clamp(2rem, 5vw, 3rem); font-weight:800; letter-spacing:-0.03em; line-height:1.1;">Browse by category.</h2>
             </div>

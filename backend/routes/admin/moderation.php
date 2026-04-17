@@ -74,7 +74,19 @@ case 'profiles':
 
         global $ALLOWED_PROFILE_FIELDS;
         if (in_array($pr['field_name'], $ALLOWED_PROFILE_FIELDS)) {
-            $pdo->prepare("UPDATE users SET `{$pr['field_name']}` = ? WHERE id = ?")->execute([$pr['new_value'], $pr['user_id']]);
+            // Use CASE statement instead of dynamic field interpolation
+            $allowedFields = implode("','", $ALLOWED_PROFILE_FIELDS);
+            if ($pr['field_name'] === 'bio' || $pr['field_name'] === 'phone' || $pr['field_name'] === 'location' || $pr['field_name'] === 'department' || $pr['field_name'] === 'level') {
+                $sql = match($pr['field_name']) {
+                    'bio' => "UPDATE users SET bio = ? WHERE id = ?",
+                    'phone' => "UPDATE users SET phone = ? WHERE id = ?",
+                    'location' => "UPDATE users SET location = ? WHERE id = ?",
+                    'department' => "UPDATE users SET department = ? WHERE id = ?",
+                    'level' => "UPDATE users SET level = ? WHERE id = ?",
+                    default => null
+                };
+                if ($sql) $pdo->prepare($sql)->execute([$pr['new_value'], $pr['user_id']]);
+            }
         }
         $pdo->prepare("UPDATE profile_edit_requests SET status='approved', admin_id=?, resolved_at=NOW() WHERE id=?")->execute([$auth['user_id'], $modId]);
         auditLog($pdo, $auth['user_id'], "Approved profile edit #$modId", 'profile', $modId);
@@ -89,7 +101,18 @@ case 'profiles':
         $reqs->execute([$uid]);
         foreach ($reqs->fetchAll() as $pr) {
             if (in_array($pr['field_name'], $ALLOWED_PROFILE_FIELDS)) {
-                $pdo->prepare("UPDATE users SET `{$pr['field_name']}` = ? WHERE id = ?")->execute([$pr['new_value'], $pr['user_id']]);
+                // Use CASE statement instead of dynamic field interpolation
+                if ($pr['field_name'] === 'bio' || $pr['field_name'] === 'phone' || $pr['field_name'] === 'location' || $pr['field_name'] === 'department' || $pr['field_name'] === 'level') {
+                    $sql = match($pr['field_name']) {
+                        'bio' => "UPDATE users SET bio = ? WHERE id = ?",
+                        'phone' => "UPDATE users SET phone = ? WHERE id = ?",
+                        'location' => "UPDATE users SET location = ? WHERE id = ?",
+                        'department' => "UPDATE users SET department = ? WHERE id = ?",
+                        'level' => "UPDATE users SET level = ? WHERE id = ?",
+                        default => null
+                    };
+                    if ($sql) $pdo->prepare($sql)->execute([$pr['new_value'], $pr['user_id']]);
+                }
             }
             $pdo->prepare("UPDATE profile_edit_requests SET status='approved', admin_id=?, resolved_at=NOW() WHERE id=?")->execute([$auth['user_id'], $pr['id']]);
         }
