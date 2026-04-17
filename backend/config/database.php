@@ -63,11 +63,12 @@ function getDbConnection(): PDO {
 
         $pdo = new PDO($dsn, $user, $pass, $options);
     } catch (PDOException $e) {
-        error_log('Database connection failed: ' . $e->getMessage());
+        error_log('RESCUE_DB_FAILED: ' . $e->getMessage());
+        header('Content-Type: application/json');
         http_response_code(503);
         echo json_encode([
-            'error' => 'Database connection failed',
-            'details' => $e->getMessage() // TEMPORARILY show raw error for rescue
+            'error' => 'RESCUE_DATABASE_CONNECTION_ERROR',
+            'details' => $e->getMessage()
         ]);
         exit;
     }
