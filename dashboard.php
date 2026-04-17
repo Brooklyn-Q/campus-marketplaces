@@ -31,13 +31,17 @@ if (isset($_GET['action'])) {
             $restock_pid = (int)($_POST['pid'] ?? 0);
             if ($qty > 0 && $restock_pid > 0) {
                 // Also un-pause or re-approve if it was sold out
-                $pdo->prepare("UPDATE products SET quantity = quantity + ?, status=IF(status='sold', 'approved', status) WHERE id=? AND user_id=?")->execute([$qty, $restock_pid, $user['id']]);
+                $status_sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
+                    ? "CASE WHEN status='sold' THEN 'approved' ELSE status END" 
+                    : "IF(status='sold', 'approved', status)";
+                $pdo->prepare("UPDATE products SET quantity = quantity + ?, status=$status_sql WHERE id=? AND user_id=?")->execute([$qty, $restock_pid, $user['id']]);
                 $msg = "Product successfully restocked with +$qty items!";
             }
             break;
         case 'toggle_vacation':
             if ($user['vacation_mode']) {
-                $pdo->prepare("UPDATE users SET vacation_mode=0 WHERE id=?")->execute([$user['id']]);
+                $boolF = sqlBool(false, $pdo);
+                $pdo->prepare("UPDATE users SET vacation_mode=$boolF WHERE id=?")->execute([$user['id']]);
                 $user['vacation_mode'] = 0;
                 $msg = "Welcome back! Your listings are visible again.";
             } else {
@@ -62,7 +66,11 @@ if (isset($_GET['action'])) {
                     $pdo->prepare("UPDATE users SET balance = balance - ? WHERE id = ?")->execute([$boostPrice, $user['id']]);
                 }
                 
-                $pdo->prepare("UPDATE products SET boosted_until = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id=? AND user_id=? AND status='approved'")->execute([$pid, $user['id']]);
+                if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+                    $pdo->prepare("UPDATE products SET boosted_until = CURRENT_TIMESTAMP + INTERVAL '24 hours' WHERE id=? AND user_id=? AND status='approved'")->execute([$pid, $user['id']]);
+                } else {
+                    $pdo->prepare("UPDATE products SET boosted_until = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id=? AND user_id=? AND status='approved'")->execute([$pid, $user['id']]);
+                }
                 $pdo->prepare("INSERT INTO transactions (user_id,type,amount,status,reference,description) VALUES (?,'boost',?,?,?,?)")->execute([$user['id'], $boostPrice, 'completed', generateRef('BST'), "Boosted Product #$pid" . ($isPremium ? " (Free Premium Benefit)" : "")]);
                 
                 $pdo->commit();
@@ -103,13 +111,23 @@ if (isset($_GET['action'])) {
                 $prod_data = $prod_check->fetch(PDO::FETCH_ASSOC);
                 if ($prod_data) {
                     $discounted = $prod_data['price'] * (1 - $discount_pct / 100);
-                    $pdo->exec("CREATE TABLE IF NOT EXISTS discount_requests (
-                        id INT AUTO_INCREMENT PRIMARY KEY, product_id INT NOT NULL, seller_id INT NOT NULL,
-                        original_price DECIMAL(10,2) NOT NULL, discount_percent INT NOT NULL,
-                        discounted_price DECIMAL(10,2) NOT NULL,
-                        status ENUM('pending','approved','rejected') DEFAULT 'pending',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    ) ENGINE=InnoDB");
+                    if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+                        $pdo->exec("CREATE TABLE IF NOT EXISTS discount_requests (
+                            id SERIAL PRIMARY KEY, product_id INT NOT NULL, seller_id INT NOT NULL,
+                            original_price DECIMAL(10,2) NOT NULL, discount_percent INT NOT NULL,
+                            discounted_price DECIMAL(10,2) NOT NULL,
+                            status VARCHAR(20) DEFAULT 'pending',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )");
+                    } else {
+                        $pdo->exec("CREATE TABLE IF NOT EXISTS discount_requests (
+                            id INT AUTO_INCREMENT PRIMARY KEY, product_id INT NOT NULL, seller_id INT NOT NULL,
+                            original_price DECIMAL(10,2) NOT NULL, discount_percent INT NOT NULL,
+                            discounted_price DECIMAL(10,2) NOT NULL,
+                            status ENUM('pending','approved','rejected') DEFAULT 'pending',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        ) ENGINE=InnoDB");
+                    }
                     $pdo->prepare("INSERT INTO discount_requests (product_id, seller_id, original_price, discount_percent, discounted_price) VALUES (?,?,?,?,?)")
                         ->execute([$pid, $user['id'], $prod_data['price'], $discount_pct, $discounted]);
                     $msg = "📨 Discount request ({$discount_pct}% off \"{$prod_data['title']}\") submitted for admin approval!";
@@ -136,7 +154,11 @@ if (isset($_GET['action'])) {
         case 'deliver_order':
             $oid = (int)($_GET['oid'] ?? 0);
             if ($oid > 0) {
-                $pdo->prepare("UPDATE orders SET seller_confirmed=1, status=IF(buyer_confirmed=1, 'completed', 'delivered') WHERE id=? AND seller_id=?")->execute([$oid, $user['id']]);
+                $boolT = sqlBool(true, $pdo);
+                $status_sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
+                    ? "CASE WHEN buyer_confirmed = $boolT THEN 'completed' ELSE 'delivered' END"
+                    : "IF(buyer_confirmed = 1, 'completed', 'delivered')";
+                $pdo->prepare("UPDATE orders SET seller_confirmed=$boolT, status=$status_sql WHERE id=? AND seller_id=?")->execute([$oid, $user['id']]);
                 // Notify admin/buyer
                 $o = $pdo->prepare("SELECT buyer_id, p.id as pid FROM orders o JOIN products p ON o.product_id=p.id WHERE o.id=?"); $o->execute([$oid]); $ord = $o->fetch();
                 if ($ord) {
@@ -149,7 +171,11 @@ if (isset($_GET['action'])) {
         case 'receive_order':
             $oid = (int)($_GET['oid'] ?? 0);
             if ($oid > 0) {
-                $pdo->prepare("UPDATE orders SET buyer_confirmed=1, status=IF(seller_confirmed=1, 'completed', 'delivered') WHERE id=? AND buyer_id=?")->execute([$oid, $user['id']]);
+                $boolT = sqlBool(true, $pdo);
+                $status_sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
+                    ? "CASE WHEN seller_confirmed = $boolT THEN 'completed' ELSE 'delivered' END"
+                    : "IF(seller_confirmed = 1, 'completed', 'delivered')";
+                $pdo->prepare("UPDATE orders SET buyer_confirmed=$boolT, status=$status_sql WHERE id=? AND buyer_id=?")->execute([$oid, $user['id']]);
                 $o = $pdo->prepare("SELECT seller_id, p.id as pid FROM orders o JOIN products p ON o.product_id=p.id WHERE o.id=?"); $o->execute([$oid]); $ord = $o->fetch();
                 if ($ord) {
                     $pdo->prepare("INSERT INTO notifications (user_id, type, message, reference_id) VALUES (?, 'order_update', ?, ?)")->execute([$ord['seller_id'], "Buyer confirmed Item Received. Transaction complete.", $oid]);
@@ -224,7 +250,8 @@ $stmt->execute([$user['id']]);
 $transactions = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
 // Announcements
-$stmt = $pdo->prepare("SELECT a.*, u.username as admin_name FROM announcements a JOIN users u ON a.admin_id = u.id WHERE a.is_active = 1 ORDER BY a.created_at DESC LIMIT 5");
+$announcement_active = sqlBool(true, $pdo);
+$stmt = $pdo->prepare("SELECT a.*, u.username as admin_name FROM announcements a JOIN users u ON a.admin_id = u.id WHERE a.is_active = $announcement_active ORDER BY a.created_at DESC LIMIT 5");
 $stmt->execute();
 $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
@@ -275,11 +302,20 @@ if ($user['role'] === 'seller' || $user['role'] === 'admin') {
     for ($i = 6; $i >= 0; $i--) {
         $date = date('Y-m-d', strtotime("-$i days"));
         $dayLabel = date('M d', strtotime($date));
+        $date_cast = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' ? "::DATE" : "";
+        $date_func = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' ? "" : "DATE";
+        
         try {
-            $s = $pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND type='sale' AND DATE(created_at)=?"); $s->execute([$user['id'], $date]); $amt = (float)$s->fetchColumn();
+            $sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
+                ? "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND type='sale' AND created_at::DATE=?"
+                : "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND type='sale' AND DATE(created_at)=?";
+            $s = $pdo->prepare($sql); $s->execute([$user['id'], $date]); $amt = (float)$s->fetchColumn();
         } catch(PDOException $e) { $amt = 0; }
         try {
-            $s2 = $pdo->prepare("SELECT COALESCE(SUM(views),0) FROM products WHERE user_id=? AND DATE(updated_at)=?"); $s2->execute([$user['id'], $date]); $vw = (int)$s2->fetchColumn();
+            $sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
+                ? "SELECT COALESCE(SUM(views),0) FROM products WHERE user_id=? AND updated_at::DATE=?"
+                : "SELECT COALESCE(SUM(views),0) FROM products WHERE user_id=? AND DATE(updated_at)=?";
+            $s2 = $pdo->prepare($sql); $s2->execute([$user['id'], $date]); $vw = (int)$s2->fetchColumn();
         } catch(PDOException $e) { $vw = 0; }
         $sellerWeeklySales[] = ['label' => $dayLabel, 'sales' => $amt, 'views' => $vw];
     }

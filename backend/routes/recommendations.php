@@ -30,7 +30,7 @@ $excludeStr = empty($exclude) ? '0' : implode(',', $exclude);
 if ($categoryHint) {
     $stmt = $pdo->prepare("
         SELECT p.*, u.username as seller_name, u.seller_tier, u.verified as seller_verified,
-            (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
+            (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
         FROM products p
         JOIN users u ON p.user_id = u.id
         WHERE p.status = 'approved' AND p.category = ? AND p.id NOT IN ($excludeStr) AND u.vacation_mode = 0
@@ -47,13 +47,16 @@ if ($categoryHint) {
 }
 
 // Fallback: trending/popular products
+$driver = getenv('DB_DRIVER') ?: 'mysql';
+$orderByRand = $driver === 'pgsql' ? 'RANDOM()' : 'RAND()';
+
 $stmt = $pdo->prepare("
     SELECT p.*, u.username as seller_name, u.seller_tier, u.verified as seller_verified,
         (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
     FROM products p
     JOIN users u ON p.user_id = u.id
     WHERE p.status = 'approved' AND p.id NOT IN ($excludeStr) AND u.vacation_mode = 0
-    ORDER BY (u.seller_tier = 'premium') DESC, p.views DESC, RAND()
+    ORDER BY (u.seller_tier = 'premium') DESC, p.views DESC, $orderByRand
     LIMIT ?
 ");
 $stmt->execute([$limit]);

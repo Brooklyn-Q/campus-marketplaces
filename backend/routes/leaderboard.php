@@ -6,17 +6,20 @@
 
 if ($method !== 'GET') jsonError('Method not allowed', 405);
 
-$stmt = $pdo->query("
-    SELECT u.id, u.username, u.profile_pic, u.department, u.seller_tier, u.verified,
-        (SELECT COUNT(*) FROM products WHERE user_id = u.id AND status='approved') as active_listings,
-        (SELECT COUNT(*) FROM transactions WHERE user_id = u.id AND type='sale' AND created_at >= NOW() - INTERVAL 1 DAY) as sales_today,
-        (SELECT COUNT(*) FROM transactions WHERE user_id = u.id AND type='sale') as lifetime_sales,
-        COALESCE((SELECT SUM(amount) FROM transactions WHERE user_id = u.id AND type='sale'), 0) as total_earnings
-    FROM users u
-    WHERE u.role IN ('seller', 'admin')
-    ORDER BY sales_today DESC, lifetime_sales DESC, active_listings DESC
-    LIMIT 10
-");
+    $driver = getenv('DB_DRIVER') ?: 'mysql';
+    $intervalSql = $driver === 'pgsql' ? "CURRENT_TIMESTAMP - INTERVAL '1 day'" : "NOW() - INTERVAL 1 DAY";
+
+    $stmt = $pdo->query("
+        SELECT u.id, u.username, u.profile_pic, u.department, u.seller_tier, u.verified,
+            (SELECT COUNT(*) FROM products WHERE user_id = u.id AND status='approved') as active_listings,
+            (SELECT COUNT(*) FROM transactions WHERE user_id = u.id AND type='sale' AND created_at >= $intervalSql) as sales_today,
+            (SELECT COUNT(*) FROM transactions WHERE user_id = u.id AND type='sale') as lifetime_sales,
+            COALESCE((SELECT SUM(amount) FROM transactions WHERE user_id = u.id AND type='sale'), 0) as total_earnings
+        FROM users u
+        WHERE u.role IN ('seller', 'admin')
+        ORDER BY sales_today DESC, lifetime_sales DESC, active_listings DESC
+        LIMIT 10
+    ");
 $leaders = $stmt->fetchAll();
 
 foreach ($leaders as &$l) {

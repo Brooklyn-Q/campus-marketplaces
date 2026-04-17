@@ -10,14 +10,16 @@ if ($method === 'GET' && ($action === 'suggest' || !$action)) {
     if (strlen($q) < 2) jsonResponse(['suggestions' => []]);
 
     $stmt = $pdo->prepare("
-        SELECT DISTINCT p.title, p.category, p.price, 
-            (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as image
+        SELECT p.id, p.title, p.price, p.category,
+            (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as image
         FROM products p
-        WHERE p.status = 'approved' AND (p.title LIKE ? OR p.category LIKE ?)
-        ORDER BY p.views DESC
-        LIMIT 5
+        JOIN users u ON p.user_id = u.id
+        WHERE p.status = 'approved' AND u.vacation_mode = $vac_bool
+        AND (p.title LIKE ? OR p.description LIKE ? OR p.category LIKE ?)
+        ORDER BY p.created_at DESC
+        LIMIT 10
     ");
-    $stmt->execute(["%$q%", "%$q%"]);
+    $stmt->execute(["%$q%", "%$q%", "%$q%"]);
 
     jsonResponse(['suggestions' => $stmt->fetchAll()]);
 }

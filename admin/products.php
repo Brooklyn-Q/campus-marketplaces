@@ -37,7 +37,8 @@ $query = "SELECT p.*, u.username as seller, u.seller_tier,
           FROM products p JOIN users u ON p.user_id = u.id";
 $params = [];
 if ($filter !== 'all') { $query .= " WHERE p.status = ?"; $params[] = $filter; }
-$query .= " ORDER BY FIELD(p.status, 'pending', 'deletion_requested', 'approved', 'rejected', 'paused'), p.created_at DESC";
+$order_sql = "CASE p.status WHEN 'pending' THEN 1 WHEN 'deletion_requested' THEN 2 WHEN 'approved' THEN 3 WHEN 'rejected' THEN 4 WHEN 'paused' THEN 5 ELSE 6 END ASC";
+$query .= " ORDER BY $order_sql, p.created_at DESC";
 $stmt = $pdo->prepare($query); $stmt->execute($params); $products = $stmt->fetchAll();
 ?>
 

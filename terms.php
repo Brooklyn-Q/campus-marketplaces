@@ -12,7 +12,8 @@ if (isset($user['terms_accepted']) && $user['terms_accepted']) redirect('dashboa
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['accept_terms'])) {
-        $stmt = $pdo->prepare("UPDATE users SET terms_accepted = 1, accepted_at = NOW() WHERE id = ?");
+        $boolT = sqlBool(true, $pdo);
+        $stmt = $pdo->prepare("UPDATE users SET terms_accepted = $boolT, accepted_at = CURRENT_TIMESTAMP WHERE id = ?");
         if ($stmt->execute([$user['id']])) {
             redirect('dashboard.php');
         } else {

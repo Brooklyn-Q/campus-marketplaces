@@ -4,13 +4,13 @@ require_once __DIR__ . '/db.php';
 // 2. Main Suggestion Entry
 function get_smart_suggestions($pdo, $context_type, $context_data, $limit = 4, $premium_only = false) {
 
-    // Ensure cache table exists
+    // Ensure cache table exists (PostgreSQL version)
     try {
         $pdo->exec("CREATE TABLE IF NOT EXISTS ai_recommendations_cache (
-            id INT AUTO_INCREMENT PRIMARY KEY,
+            id SERIAL PRIMARY KEY,
             context_hash VARCHAR(64) UNIQUE NOT NULL,
             recommended_product_ids VARCHAR(255) NOT NULL,
-            expires_at DATETIME NOT NULL
+            expires_at TIMESTAMP NOT NULL
         )");
     } catch(Exception $e) {}
 
@@ -33,7 +33,7 @@ function get_smart_suggestions($pdo, $context_type, $context_data, $limit = 4, $
 
 
     // Call Gemini if API details are present
-    $api_key = get_env_var('GEMINI_API_KEY');
+    $api_key = env('GEMINI_API_KEY');
     if ($api_key) {
         $prompt = build_ai_prompt($context_type, $context_data, $limit);
         $ai_keywords = call_gemini_api($api_key, $prompt);
@@ -42,7 +42,11 @@ function get_smart_suggestions($pdo, $context_type, $context_data, $limit = 4, $
             if (count($recommended_ids) > 0) {
 
                 // Cache it for 2 hours
-                $stmt = $pdo->prepare("REPLACE INTO ai_recommendations_cache (context_hash, recommended_product_ids, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 2 HOUR))");
+                if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+                    $stmt = $pdo->prepare("INSERT INTO ai_recommendations_cache (context_hash, recommended_product_ids, expires_at) VALUES (?, ?, CURRENT_TIMESTAMP + INTERVAL '2 hours') ON CONFLICT (context_hash) DO UPDATE SET recommended_product_ids = EXCLUDED.recommended_product_ids, expires_at = EXCLUDED.expires_at");
+                } else {
+                    $stmt = $pdo->prepare("REPLACE INTO ai_recommendations_cache (context_hash, recommended_product_ids, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 2 HOUR))");
+                }
                 $stmt->execute([$context_hash, implode(',', $recommended_ids)]);
                 return fetch_products_by_ids($pdo, implode(',', $recommended_ids), $exclude_ids, $limit);
             }
@@ -54,7 +58,11 @@ function get_smart_suggestions($pdo, $context_type, $context_data, $limit = 4, $
     if (!empty($fallback_ids)) {
 
         // Cache fallback results for 10 minutes to reduce DB load
-        $stmt = $pdo->prepare("REPLACE INTO ai_recommendations_cache (context_hash, recommended_product_ids, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+            $stmt = $pdo->prepare("INSERT INTO ai_recommendations_cache (context_hash, recommended_product_ids, expires_at) VALUES (?, ?, CURRENT_TIMESTAMP + INTERVAL '10 minutes') ON CONFLICT (context_hash) DO UPDATE SET recommended_product_ids = EXCLUDED.recommended_product_ids, expires_at = EXCLUDED.expires_at");
+        } else {
+            $stmt = $pdo->prepare("REPLACE INTO ai_recommendations_cache (context_hash, recommended_product_ids, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 10 MINUTE))");
+        }
         $stmt->execute([$context_hash, implode(',', $fallback_ids)]);
         return fetch_products_by_ids($pdo, implode(',', $fallback_ids), $exclude_ids, $limit);
     }
@@ -187,7 +195,13 @@ function perform_fallback_search($pdo, $type, $data, $exclude_ids, $limit, $prem
     }
     
     // General fallback: Prioritize premium sellers, then most viewed
-    $stmt = $pdo->prepare("SELECT p.id FROM products p JOIN users u ON p.user_id = u.id WHERE p.status='approved' AND p.id NOT IN ($exclude_str) $p_sql ORDER BY (u.seller_tier = 'premium') DESC, p.views DESC, RAND() LIMIT " . (int)$limit);
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    $rand = $driver === 'pgsql' ? 'RANDOM()' : 'RAND()';
+    $order = $driver === 'pgsql' 
+        ? "CASE WHEN u.seller_tier = 'premium' THEN 1 ELSE 2 END ASC"
+        : "(u.seller_tier = 'premium') DESC";
+        
+    $stmt = $pdo->prepare("SELECT p.id FROM products p JOIN users u ON p.user_id = u.id WHERE p.status='approved' AND p.id NOT IN ($exclude_str) $p_sql ORDER BY $order, p.views DESC, $rand LIMIT " . (int)$limit);
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
 

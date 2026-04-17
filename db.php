@@ -89,6 +89,12 @@ function env(string $key, $default = '') {
 
 // ── Helper Functions ──
 
+function sqlBool(bool $val, PDO $pdo): string {
+    return $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
+        ? ($val ? 'true' : 'false') 
+        : ($val ? '1' : '0');
+}
+
 function isLoggedIn(): bool {
     return isset($_SESSION['user_id']);
 }
@@ -119,7 +125,7 @@ function getAssetUrl(string $path): string {
     static $asset_domains = null;
     
     if ($asset_domains === null) {
-        $domains_str = get_env_var('ASSET_DOMAINS', '');
+        $domains_str = env('ASSET_DOMAINS', '');
         $asset_domains = $domains_str ? array_filter(array_map('trim', explode(',', $domains_str))) : [];
     }
     
@@ -173,7 +179,8 @@ function getUser(PDO $pdo, int $id): ?array {
 }
 
 function getUnreadCount(PDO $pdo, int $userId): int {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = 0");
+    $bool = sqlBool(false, $pdo);
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = $bool");
     $stmt->execute([$userId]);
     return (int)$stmt->fetchColumn();
 }
@@ -305,10 +312,13 @@ function getAccountTiers(PDO $pdo): array {
 
         if(empty($tiers)) {
             // Auto-seed if somehow empty during a query
-            $pdo->exec("REPLACE INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost, priority) VALUES 
-                ('basic', 0.00, '0', 2, 1, 'blue', 0, 'normal'),
-                ('pro', 10.00, '1', 5, 2, 'silver', 0, 'normal'),
-                ('premium', 20.00, '1', 15, 3, 'gold', 1, 'top')
+            $boolF = sqlBool(false, $pdo);
+            $boolT = sqlBool(true, $pdo);
+            $pdo->exec("INSERT INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
+                ('basic', 0.00, '0', 2, 1, 'blue', $boolF),
+                ('pro', 10.00, '1', 5, 2, 'silver', $boolF),
+                ('premium', 20.00, '1', 15, 3, 'gold', $boolT)
+                ON CONFLICT (tier_name) DO NOTHING
             ");
             // Retry fetch
             $stmt = $pdo->query("SELECT * FROM account_tiers");

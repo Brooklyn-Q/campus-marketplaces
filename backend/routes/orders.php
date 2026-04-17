@@ -180,7 +180,7 @@ elseif ($method === 'PUT' && $orderId && $subAction === 'accept') {
 
         $pdo->prepare("
             UPDATE orders
-            SET status = 'seller_seen', delivery_note = ?, updated_at = NOW()
+            SET status = 'seller_seen', delivery_note = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ")->execute([$note, $orderId]);
 
@@ -318,7 +318,7 @@ elseif ($method === 'PUT' && $orderId && $subAction === 'confirm-sold') {
 
         $pdo->prepare("
             UPDATE orders
-            SET seller_confirmed = 1, status = ?, updated_at = NOW()
+            SET seller_confirmed = 1, status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ")->execute([$nextStatus, $orderId]);
 
@@ -366,7 +366,7 @@ elseif ($method === 'PUT' && $orderId && $subAction === 'confirm-received') {
 
         $pdo->prepare("
             UPDATE orders
-            SET buyer_confirmed = 1, status = ?, updated_at = NOW()
+            SET buyer_confirmed = 1, status = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
         ")->execute([$nextStatus, $orderId]);
 
@@ -410,7 +410,7 @@ elseif ($method === 'POST' && $orderId && $subAction === 'dispute') {
     $pdo->prepare("INSERT INTO disputes (order_id, complainant_id, target_id, reason) VALUES (?, ?, ?, ?)")
         ->execute([$orderId, $auth['user_id'], $targetId, $reason]);
 
-    $pdo->prepare("UPDATE orders SET status = 'disputed', updated_at = NOW() WHERE id = ?")
+    $pdo->prepare("UPDATE orders SET status = 'disputed', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
         ->execute([$orderId]);
 
     $pdo->prepare("INSERT INTO notifications (user_id, type, message, reference_id) VALUES (1, 'dispute', ?, ?)")

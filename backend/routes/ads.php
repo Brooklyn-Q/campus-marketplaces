@@ -8,7 +8,10 @@
 if ($method === 'GET' && !$action) {
     $placement = getQueryParam('placement', 'homepage');
 
-    $stmt = $pdo->prepare("SELECT id, title, image_url, link_url, placement FROM ad_placements WHERE is_active = 1 AND placement = ? ORDER BY RAND()");
+    $driver = getenv('DB_DRIVER') ?: 'mysql';
+    $randSql = $driver === 'pgsql' ? "RANDOM()" : "RAND()";
+
+    $stmt = $pdo->prepare("SELECT id, title, image_url, link_url, placement FROM ad_placements WHERE is_active = 1 AND placement = ? ORDER BY $randSql");
     $stmt->execute([$placement]);
     $ads = $stmt->fetchAll();
 

@@ -16,7 +16,8 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
         auditLog($pdo, $_SESSION['user_id'], "Promoted user #$id to admin", 'user', $id);
         $msg = "User #$id promoted to admin.";
     } elseif ($act === 'verify') {
-        $pdo->prepare("UPDATE users SET verified = 1 WHERE id = ?")->execute([$id]);
+        $boolT = sqlBool(true, $pdo);
+        $pdo->prepare("UPDATE users SET verified = $boolT WHERE id = ?")->execute([$id]);
         auditLog($pdo, $_SESSION['user_id'], "Verified user #$id", 'user', $id);
         $msg = "User #$id verified.";
     } elseif ($act === 'upgrade_pro' || $act === 'upgrade_premium') {
@@ -46,11 +47,13 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
         auditLog($pdo, $_SESSION['user_id'], "Downgraded user #$id to basic seller", 'user', $id);
         $msg = "User #$id downgraded to Basic Seller.";
     } elseif ($act === 'suspend') {
-        $pdo->prepare("UPDATE users SET suspended = 1 WHERE id = ? AND role != 'admin'")->execute([$id]);
+        $boolT = sqlBool(true, $pdo);
+        $pdo->prepare("UPDATE users SET suspended = $boolT WHERE id = ? AND role != 'admin'")->execute([$id]);
         auditLog($pdo, $_SESSION['user_id'], "Suspended user #$id", 'user', $id);
         $msg = "⛔ User #$id suspended.";
     } elseif ($act === 'reactivate') {
-        $pdo->prepare("UPDATE users SET suspended = 0 WHERE id = ?")->execute([$id]);
+        $boolF = sqlBool(false, $pdo);
+        $pdo->prepare("UPDATE users SET suspended = $boolF WHERE id = ?")->execute([$id]);
         auditLog($pdo, $_SESSION['user_id'], "Reactivated user #$id", 'user', $id);
         $msg = "✅ User #$id reactivated.";
     }

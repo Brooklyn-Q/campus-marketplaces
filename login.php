@@ -17,8 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password'])) {
-            // Check if account is suspended
-            if (!empty($user['suspended'])) {
+            // Check if account is suspended (robust boolean check for PG/MySQL)
+            $isSuspended = filter_var($user['suspended'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            if ($isSuspended) {
                 $error = "⛔ Your account has been suspended. Contact admin for assistance.";
             } else {
                 session_regenerate_id(true);

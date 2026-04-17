@@ -215,7 +215,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_announcement']))
 if (isset($_GET['ann_action']) && isset($_GET['ann_id'])) {
     $ann_id = (int)$_GET['ann_id'];
     if ($_GET['ann_action'] === 'deactivate') {
-        $pdo->prepare("UPDATE announcements SET is_active = 0 WHERE id = ?")->execute([$ann_id]);
+        $boolF = sqlBool(false, $pdo);
+    $pdo->prepare("UPDATE announcements SET is_active = $boolF WHERE id = ?")->execute([$ann_id]);
         $disc_msg = "✅ Announcement deactivated.";
     } elseif ($_GET['ann_action'] === 'delete') {
         $pdo->prepare("DELETE FROM announcements WHERE id = ?")->execute([$ann_id]);
@@ -452,7 +453,8 @@ function addBenefit(tier, colorHex) {
     <div>
         <h5 style="font-size:0.95rem; margin-bottom:1rem; font-weight:700;">Currently Active Updates</h5>
         <?php
-        $activeAnn = $pdo->query("SELECT * FROM announcements WHERE is_active = 1 ORDER BY created_at DESC LIMIT 5")->fetchAll();
+        $boolT = sqlBool(true, $pdo);
+    $activeAnn = $pdo->query("SELECT * FROM announcements WHERE is_active = $boolT ORDER BY created_at DESC LIMIT 5")->fetchAll();
         ?>
         <?php if(count($activeAnn) > 0): ?>
             <div style="display:grid; gap:0.75rem;">

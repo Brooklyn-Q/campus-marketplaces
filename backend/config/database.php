@@ -37,21 +37,31 @@ function getDbConnection(): PDO {
     static $pdo = null;
     if ($pdo !== null) return $pdo;
 
+    $driver = env('DB_DRIVER', 'mysql');
     $host = env('DB_HOST', 'localhost');
-    $port = env('DB_PORT', '3306');
+    $port = env('DB_PORT', $driver === 'pgsql' ? '5432' : '3306');
     $name = env('DB_NAME', 'campus_marketplace');
     $user = env('DB_USER', 'root');
     $pass = env('DB_PASS', '');
 
-    $dsn = "mysql:host=$host;port=$port;dbname=$name;charset=utf8mb4";
+    if ($driver === 'pgsql') {
+        $dsn = "pgsql:host=$host;port=$port;dbname=$name";
+    } else {
+        $dsn = "mysql:host=$host;port=$port;dbname=$name;charset=utf8mb4";
+    }
 
     try {
-        $pdo = new PDO($dsn, $user, $pass, [
+        $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
-        ]);
+        ];
+
+        if ($driver === 'mysql') {
+            $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci";
+        }
+
+        $pdo = new PDO($dsn, $user, $pass, $options);
     } catch (PDOException $e) {
         error_log('Database connection failed: ' . $e->getMessage());
         http_response_code(503);

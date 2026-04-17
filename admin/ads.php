@@ -6,9 +6,9 @@ require_once '../includes/storage_helper.php';
 // Create ads table
 try {
     $pdo->exec("CREATE TABLE IF NOT EXISTS ad_placements (
-        id INT AUTO_INCREMENT PRIMARY KEY,
+        id SERIAL PRIMARY KEY,
         title VARCHAR(255) NOT NULL,
-        image_url VARCHAR(500) DEFAULT '',
+        image_path VARCHAR(500) DEFAULT '',
         link_url VARCHAR(500) DEFAULT '#',
         placement ENUM('homepage','category','product') DEFAULT 'homepage',
         is_active TINYINT(1) DEFAULT 1,
@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($title && !$msg) {
-            $pdo->prepare("INSERT INTO ad_placements (title, image_url, link_url, placement) VALUES (?,?,?,?)")
+            $pdo->prepare("INSERT INTO ad_placements (title, image_path, link_url, placement) VALUES (?,?,?,?)")
                 ->execute([$title, $image_url, $link, $placement]);
             $msg = "✅ Ad created successfully!";
         }
@@ -128,9 +128,9 @@ $ads = $pdo->query("SELECT * FROM ad_placements ORDER BY created_at DESC")->fetc
             <tr>
                 <td style="font-weight:600;">
                     <div class="flex gap-1" style="align-items:center;">
-                        <?php if($ad['image_url']): ?>
+                        <?php if($ad['image_path']): ?>
                             <?php 
-                                $src = (strpos($ad['image_url'], 'http') === 0) ? $ad['image_url'] : '../' . $ad['image_url'];
+                                $src = (strpos($ad['image_path'], 'http') === 0) ? $ad['image_path'] : '../' . $ad['image_path'];
                             ?>
                             <img src="<?= htmlspecialchars($src) ?>" style="width:40px; height:30px; border-radius:4px; object-fit:cover; border:1px solid rgba(0,0,0,0.1);">
                         <?php endif; ?>

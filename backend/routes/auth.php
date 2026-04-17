@@ -185,7 +185,7 @@ switch ($action) {
                 'role' => $role,
                 'seller_tier' => 'basic',
                 'profile_pic' => $profilePic,
-                'terms_accepted' => 0,
+                'terms_accepted' => false,
                 'referral_code' => $myReferralCode,
             ]
         ], 201);
@@ -220,7 +220,8 @@ switch ($action) {
 
         $auth = authenticate();
 
-        $pdo->prepare("UPDATE users SET terms_accepted = 1, accepted_at = NOW() WHERE id = ?")
+        $boolT = sqlBool(true, $pdo);
+        $pdo->prepare("UPDATE users SET terms_accepted = $boolT, accepted_at = CURRENT_TIMESTAMP WHERE id = ?")
             ->execute([$auth['user_id']]);
 
         jsonSuccess('Terms accepted');

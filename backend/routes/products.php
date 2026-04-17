@@ -26,14 +26,15 @@ if ($method === 'GET' && $action === 'my') {
     $auth = authenticate();
     requireSeller($pdo, $auth);
 
-    $stmt = $pdo->prepare("
-        SELECT p.*, u.username as seller_name, u.seller_tier, u.verified as seller_verified,
-            (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
-        FROM products p
-        JOIN users u ON p.user_id = u.id
-        WHERE p.user_id = ? AND p.is_deleted = 0
-        ORDER BY p.created_at DESC
-    ");
+        $is_deleted_check = sqlBool(false, $pdo);
+        $stmt = $pdo->prepare("
+            SELECT p.*, u.username as seller_name, u.seller_tier, u.verified as seller_verified,
+                (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
+            FROM products p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.user_id = ? AND p.is_deleted = $is_deleted_check
+            ORDER BY p.created_at DESC
+        ");
     $stmt->execute([$auth['user_id']]);
 
     jsonResponse(['products' => $stmt->fetchAll()]);
@@ -49,7 +50,8 @@ if ($method === 'GET' && !$productId) {
     $params = [];
 
     // Exclude vacation sellers
-    $where[] = "u.vacation_mode = 0";
+    $vacation_check = sqlBool(false, $pdo);
+    $where[] = "u.vacation_mode = $vacation_check";
 
     // Search
     $q = trim(getQueryParam('q', ''));
@@ -95,12 +97,19 @@ if ($method === 'GET' && !$productId) {
 
     // Sort: premium → pro → basic, boosted, then newest
     $sort = getQueryParam('sort', 'default');
+    $driver = getenv('DB_DRIVER') ?: 'mysql';
+    $now = $driver === 'pgsql' ? 'CURRENT_TIMESTAMP' : 'NOW()';
+    
     $orderBy = match ($sort) {
         'price_asc' => "p.price ASC",
         'price_desc' => "p.price DESC",
         'popular' => "p.views DESC",
         'oldest' => "p.created_at ASC",
-        default => "(u.seller_tier = 'premium') DESC, (u.seller_tier = 'pro') DESC, (p.boosted_until > NOW()) DESC, p.created_at DESC",
+        default => "
+            CASE u.seller_tier WHEN 'premium' THEN 1 WHEN 'pro' THEN 2 ELSE 3 END ASC,
+            CASE WHEN p.boosted_until > $now THEN 1 ELSE 2 END ASC,
+            p.created_at DESC
+        ",
     };
 
     $stmt = $pdo->prepare("
@@ -117,17 +126,19 @@ if ($method === 'GET' && !$productId) {
     $stmt->execute($params);
     $products = $stmt->fetchAll();
 
-    // If search returned 0 results, try SOUNDEX fallback
-    if (empty($products) && $q && strlen($q) >= 3) {
-        $stmt = $pdo->prepare("
-            SELECT p.*, u.username as seller_name, u.seller_tier, u.verified as seller_verified, u.profile_pic as seller_pic,
-                (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
-            FROM products p
-            JOIN users u ON p.user_id = u.id
-            WHERE p.status = 'approved' AND u.vacation_mode = 0 AND SOUNDEX(p.title) = SOUNDEX(?)
-            ORDER BY $orderBy
-            LIMIT $perPage
-        ");
+    // If search returned 0 results, try SOUNDEX fallback (MySQL only for now)
+    $driver = getenv('DB_DRIVER') ?: 'mysql';
+    if (empty($products) && $q && strlen($q) >= 3 && $driver === 'mysql') {
+            $vacation_check = sqlBool(false, $pdo);
+            $stmt = $pdo->prepare("
+                SELECT p.*, u.username as seller_name, u.seller_tier, u.verified as seller_verified, u.profile_pic as seller_pic,
+                    (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
+                FROM products p
+                JOIN users u ON p.user_id = u.id
+                WHERE p.status = 'approved' AND u.vacation_mode = $vacation_check AND SOUNDEX(p.title) = SOUNDEX(?)
+                ORDER BY $orderBy
+                LIMIT $perPage
+            ");
         $stmt->execute([$q]);
         $products = $stmt->fetchAll();
         $total = count($products);
@@ -167,7 +178,7 @@ elseif ($method === 'GET' && $productId && !$subAction) {
     if (!$product) jsonError('Product not found', 404);
 
     // Get images
-    $imgStmt = $pdo->prepare("SELECT id, image_url, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order");
+    $imgStmt = $pdo->prepare("SELECT id, image_path, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order");
     $imgStmt->execute([$productId]);
     $product['images'] = $imgStmt->fetchAll();
 
@@ -259,7 +270,7 @@ elseif ($method === 'POST' && !$productId) {
 
                 $url = uploadToCloudinary($file, 'marketplace/products');
                 if ($url) {
-                    $pdo->prepare("INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)")
+                    $pdo->prepare("INSERT INTO product_images (product_id, image_path, sort_order) VALUES (?, ?, ?)")
                         ->execute([$nextId, $url, $imgCount]);
                     $imgCount++;
                 }
@@ -361,7 +372,9 @@ elseif ($method === 'POST' && $productId && $subAction === 'boost') {
             ->execute([$auth['user_id'], $boostPrice, generateRef('BST')]);
     }
 
-    $pdo->prepare("UPDATE products SET boosted_until = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id = ?")->execute([$productId]);
+    $driver = getenv('DB_DRIVER') ?: 'mysql';
+    $intervalSql = $driver === 'pgsql' ? "CURRENT_TIMESTAMP + INTERVAL '24 hours'" : "DATE_ADD(NOW(), INTERVAL 24 HOUR)";
+    $pdo->prepare("UPDATE products SET boosted_until = $intervalSql WHERE id = ?")->execute([$productId]);
     jsonSuccess('Product boosted for 24 hours');
 }
 

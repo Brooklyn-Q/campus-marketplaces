@@ -130,7 +130,8 @@ $ai_suggestions = get_smart_suggestions($pdo, 'product', $product, 4);
 // Fetch Product-Specific Ads
 $product_ads = [];
 try {
-    $stmt_ads = $pdo->prepare("SELECT * FROM ad_placements WHERE placement = 'product' AND is_active = 1 ORDER BY created_at DESC LIMIT 5");
+    $is_active_check = sqlBool(true, $pdo);
+    $stmt_ads = $pdo->prepare("SELECT * FROM ad_placements WHERE placement = 'product' AND is_active = $is_active_check ORDER BY created_at DESC LIMIT 5");
     $stmt_ads->execute();
     $product_ads = $stmt_ads->fetchAll();
     

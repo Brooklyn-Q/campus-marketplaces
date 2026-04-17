@@ -15,6 +15,11 @@ $targetUserId = is_numeric($action) ? (int) $action : null;
 
 // ── LIST CONVERSATIONS ──
 if ($method === 'GET' && $action === 'conversations') {
+    $driver = getenv('DB_DRIVER') ?: 'mysql';
+    $caseSql = $driver === 'pgsql' 
+        ? "CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END" 
+        : "IF(sender_id = ?, receiver_id, sender_id)";
+
     $stmt = $pdo->prepare("
         SELECT u.id, u.username, u.profile_pic, u.last_seen,
             (SELECT message FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id) ORDER BY created_at DESC LIMIT 1) as last_msg,
@@ -23,11 +28,11 @@ if ($method === 'GET' && $action === 'conversations') {
             (SELECT COUNT(*) FROM messages WHERE sender_id = u.id AND receiver_id = ? AND is_read = 0) as unread,
             (SELECT MAX(created_at) FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id)) as last_msg_time
         FROM users u
-        WHERE u.id IN (SELECT DISTINCT IF(sender_id = ?, receiver_id, sender_id) FROM messages WHERE sender_id = ? OR receiver_id = ?)
+        WHERE u.id IN (SELECT DISTINCT $caseSql FROM messages WHERE sender_id = ? OR receiver_id = ?)
         AND u.id != ?
         ORDER BY last_msg_time DESC
     ");
-    $stmt->execute([$me,$me, $me,$me, $me,$me, $me, $me,$me, $me,$me,$me, $me]);
+    $stmt->execute([$me, $me, $me, $me, $me, $me, $me, $me, $me, $me, $me, $me, $me, $me]);
     $conversations = $stmt->fetchAll();
 
     foreach ($conversations as &$c) {

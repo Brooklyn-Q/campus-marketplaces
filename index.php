@@ -82,14 +82,14 @@ if ($search) {
 } else {
     $seller_filter = trim($_GET['seller'] ?? '');
 
-    // Base query - only approved + not on vacation
+    $vacation_check = "u.vacation_mode = " . ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' ? 'false' : '0');
     $query = "SELECT p.*, u.username, u.seller_tier, u.profile_pic as seller_pic,
               (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image,
               (SELECT dr.original_price FROM discount_requests dr WHERE dr.product_id = p.id AND dr.status = 'approved' ORDER BY dr.created_at DESC LIMIT 1) as original_price_before_discount
               FROM products p
               JOIN users u ON p.user_id = u.id
-              WHERE p.status = 'approved' AND u.vacation_mode = 0";
-    $count_query = "SELECT COUNT(*) FROM products p JOIN users u ON p.user_id = u.id WHERE p.status = 'approved' AND u.vacation_mode = 0";
+              WHERE p.status = 'approved' AND $vacation_check";
+    $count_query = "SELECT COUNT(*) FROM products p JOIN users u ON p.user_id = u.id WHERE p.status = 'approved' AND $vacation_check";
     $params = [];
 
     if ($min_price !== '') { $query .= " AND p.price >= ?"; $count_query .= " AND p.price >= ?"; $params[] = $min_price; }
@@ -97,7 +97,8 @@ if ($search) {
     if ($category)         { $query .= " AND p.category = ?"; $count_query .= " AND p.category = ?"; $params[] = $category; }
     if ($seller_filter)    { $query .= " AND u.username = ?"; $count_query .= " AND u.username = ?"; $params[] = $seller_filter; }
 
-    $query .= " ORDER BY FIELD(u.seller_tier, 'premium', 'pro', 'basic'), (p.boosted_until > NOW()) DESC, p.created_at DESC LIMIT $per_page OFFSET $offset";
+    $order_sql = "CASE u.seller_tier WHEN 'premium' THEN 1 WHEN 'pro' THEN 2 WHEN 'basic' THEN 3 ELSE 4 END ASC";
+    $query .= " ORDER BY $order_sql, (p.boosted_until > NOW()) DESC, p.created_at DESC LIMIT $per_page OFFSET $offset";
 
     $stmt = $pdo->prepare($count_query); $stmt->execute($params);
     $total = (int)$stmt->fetchColumn();

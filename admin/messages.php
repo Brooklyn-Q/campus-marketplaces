@@ -11,7 +11,8 @@ if (isset($_GET['delete_chat'])) {
     // Soft delete a specific conversation thread from admin view
     $u1 = (int)$_GET['u1'];
     $u2 = (int)$_GET['u2'];
-    $pdo->prepare("UPDATE messages SET admin_deleted = 1 WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)")->execute([$u1, $u2, $u2, $u1]);
+    $boolT = sqlBool(true, $pdo);
+    $pdo->prepare("UPDATE messages SET admin_deleted = $boolT WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)")->execute([$u1, $u2, $u2, $u1]);
     auditLog($pdo, $_SESSION['user_id'], "Admin cleared chat view between User #$u1 and User #$u2");
     header("Location: messages.php"); exit;
 }
@@ -21,16 +22,18 @@ $view = isset($_GET['view']) ? $_GET['view'] : 'list';
 if ($view === 'chat') {
     $u1 = (int)$_GET['u1'];
     $u2 = (int)$_GET['u2'];
+    $boolF = sqlBool(false, $pdo);
     $msgs = $pdo->prepare("SELECT m.*, s.username as sender_name, r.username as receiver_name 
         FROM messages m 
         JOIN users s ON m.sender_id = s.id 
         JOIN users r ON m.receiver_id = r.id 
-        WHERE m.admin_deleted = 0 AND ((m.sender_id=? AND m.receiver_id=?) OR (m.sender_id=? AND m.receiver_id=?)) 
+        WHERE m.admin_deleted = $boolF AND ((m.sender_id=? AND m.receiver_id=?) OR (m.sender_id=? AND m.receiver_id=?)) 
         ORDER BY m.created_at ASC");
     $msgs->execute([$u1, $u2, $u2, $u1]);
     $chatLogs = $msgs->fetchAll();
 } else {
     // Group conversations by unique pairs
+    $boolF = sqlBool(false, $pdo);
     $conversations = $pdo->query("
         SELECT 
             LEAST(m.sender_id, m.receiver_id) as u1,
@@ -38,7 +41,7 @@ if ($view === 'chat') {
             MAX(m.created_at) as last_msg_time,
             COUNT(*) as total_msgs
         FROM messages m
-        WHERE m.admin_deleted = 0
+        WHERE m.admin_deleted = $boolF
         GROUP BY u1, u2
         ORDER BY last_msg_time DESC
         LIMIT 100

@@ -20,7 +20,7 @@ if ($method === 'GET' && $userId) {
     // Get their products
     $stmt = $pdo->prepare("
         SELECT p.*, 
-            (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
+            (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
         FROM products p 
         WHERE p.user_id = ? AND p.status = 'approved' 
         ORDER BY p.created_at DESC LIMIT 20

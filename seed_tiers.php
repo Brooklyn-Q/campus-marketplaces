@@ -12,10 +12,11 @@ try {
         priority VARCHAR(50) NOT NULL DEFAULT 'normal'
     ) ENGINE=InnoDB");
 
-    $pdo->exec("REPLACE INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost, priority) VALUES 
-        ('basic', 0.00, 'forever', 2, 1, 'blue', 0, 'normal'),
-        ('pro', 10.00, '2_weeks', 5, 2, 'silver', 0, 'normal'),
-        ('premium', 20.00, 'weekly', 15, 3, 'gold', 1, 'top')
+    $pdo->exec("INSERT INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
+        ('basic', 0.00, '0', 2, 1, 'blue', FALSE),
+        ('pro', 10.00, '1', 5, 2, 'silver', FALSE),
+        ('premium', 20.00, '1', 15, 3, 'gold', TRUE)
+        ON CONFLICT (tier_name) DO NOTHING
     ");
     echo "Tiers seeded successfully!";
 } catch(Exception $e) {

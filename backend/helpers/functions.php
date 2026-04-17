@@ -3,6 +3,14 @@
  * Global Helper Functions
  */
 
+// ── DATABASE HELPERS ──
+
+function sqlBool(bool $val, PDO $pdo): string {
+    return $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
+        ? ($val ? 'true' : 'false') 
+        : ($val ? '1' : '0');
+}
+
 // ── JSON RESPONSES ──
 
 function jsonResponse($data, int $code = 200): void {
@@ -87,10 +95,17 @@ function getSetting(PDO $pdo, string $key, $default = ''): string {
     $stmt->execute([$key]);
     return $stmt->fetchColumn() ?: (string) $default;
 }
-
 function setSetting(PDO $pdo, string $key, string $value): void {
-    $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)")
-        ->execute([$key, $value]);
+    $driver = getenv('DB_DRIVER') ?: 'mysql';
+    if ($driver === 'pgsql') {
+        $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) 
+                       ON CONFLICT (setting_key) DO UPDATE SET setting_value = EXCLUDED.setting_value")
+            ->execute([$key, $value]);
+    } else {
+        $pdo->prepare("INSERT INTO settings (setting_key, setting_value) VALUES (?, ?) 
+                       ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)")
+            ->execute([$key, $value]);
+    }
 }
 
 
@@ -105,10 +120,25 @@ function getAccountTiers(PDO $pdo): array {
         }
         if (empty($tiers)) {
             // Auto-seed
-            $pdo->exec("INSERT IGNORE INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
-                ('basic', 0, 'forever', 2, 1, '#0071e3', 0),
-                ('pro', 10, '2_weeks', 5, 2, '#8e8e93', 0),
-                ('premium', 20, 'weekly', 15, 3, '#ff9f0a', 1)");
+            $driver = getenv('DB_DRIVER') ?: 'mysql';
+            $sql = $driver === 'pgsql' 
+                ? "INSERT INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
+                    ('basic', 0, 'forever', 2, 1, '#0071e3', FALSE) ON CONFLICT (tier_name) DO NOTHING"
+                : "INSERT IGNORE INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
+                    ('basic', 0, 'forever', 2, 1, '#0071e3', 0)";
+            
+            $pdo->exec($sql);
+            
+            // Seed remaining
+            if ($driver === 'pgsql') {
+                $pdo->exec("INSERT INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
+                    ('pro', 10, '2_weeks', 5, 2, '#8e8e93', FALSE),
+                    ('premium', 20, 'weekly', 15, 3, '#ff9f0a', TRUE) ON CONFLICT (tier_name) DO NOTHING");
+            } else {
+                $pdo->exec("INSERT IGNORE INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
+                    ('pro', 10, '2_weeks', 5, 2, '#8e8e93', 0),
+                    ('premium', 20, 'weekly', 15, 3, '#ff9f0a', 1)");
+            }
             return getAccountTiers($pdo);
         }
         return $tiers;
@@ -150,13 +180,15 @@ function hasUnreviewedOrders(PDO $pdo, int $userId): bool {
 }
 
 function getUnreadMessageCount(PDO $pdo, int $userId): int {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = 0");
+    $bool = sqlBool(false, $pdo);
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = $bool");
     $stmt->execute([$userId]);
     return (int) $stmt->fetchColumn();
 }
 
 function getUnreadNotificationCount(PDO $pdo, int $userId): int {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = 0");
+    $bool = sqlBool(false, $pdo);
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = $bool");
     $stmt->execute([$userId]);
     return (int) $stmt->fetchColumn();
 }
