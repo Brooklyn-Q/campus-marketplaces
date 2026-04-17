@@ -692,8 +692,20 @@ tbody tr:hover {
 :root.dark-mode .cat-item:hover { background:rgba(255,255,255,0.08); }
 @media (max-width: 768px) {
     .cat-dropdown { width: 100%; display:block; }
-    #catMenu { position: relative !important; top: 0 !important; left: 0 !important; transform: none !important; width: 100% !important; box-shadow: none !important; border: none !important; background: transparent !important; margin-top: 8px; }
-    :root.dark-mode .cat-dropdown-menu { background: transparent !important; }
+    #catMenu { 
+        position: absolute !important; 
+        top: 100% !important; 
+        left: 0 !important; 
+        transform: none !important; 
+        width: 100% !important; 
+        max-width: 280px;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.15) !important; 
+        border: 1px solid var(--border) !important; 
+        background: var(--card-bg) !important; 
+        backdrop-filter: blur(24px) !important; 
+        margin-top: 4px; 
+    }
+    :root.dark-mode .cat-dropdown-menu { background: rgba(28,28,30,0.95) !important; }
 }
 
 /* Ad Banner Styles (Moved from index.php) */
