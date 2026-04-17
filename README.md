@@ -1,88 +1,77 @@
-# Campus Marketplace
+# 🛒 Campus Marketplace
 
-A modern, scalable, full-stack marketplace platform built for university students to buy, sell, and trade safely.
+A modern, scalable, full-stack marketplace platform built for university students to buy, sell, and trade safely. This version has been fully refactored into a **React (Vite) + Tailwind CSS** frontend and a **RESTful PHP** backend.
 
-## Features
+## ✨ Features
 
-- **Dynamic Dashboards**: Role-based routing for Admin, Sellers, and Buyers with clickable analytics cards.
-- **Glassmorphism UI**: Premium, responsive, dark-mode CSS aesthetics.
-- **Wallet & Fintech System**: Internal point/currency system with deposit and transaction receipts.
-- **Real-Time Features**: AJAX polling for chat capability.
-- **AI-Ready Modules**: Mock API endpoints for dynamic description generation and image flyer generation.
-- **Security & Moderation**: PDO Prepared statements, admin approval workflows, audit logging, and Vacation mode.
+- **Dynamic Dashboards**: Role-based routing for Admin, Sellers, and Buyers with real-time analytics.
+- **Modern UI/UX**: Premium Glassmorphism design system with full Dark Mode support.
+- **Fintech Integration**: Internal wallet system with Paystack integration for secure payments.
+- **Real-Time Communication**: Integrated chat system for buyers and sellers.
+- **AI-Powered**: Ready for Gemini AI integrations for product descriptions and automated social media flyers.
+- **Production Ready**: Configured for deployment on **Netlify** (Frontend) and **Render** (Backend).
 
-## Tech Stack
+## 🏗️ Architecture
 
-- **Frontend**: HTML5, Vanilla JavaScript, CSS3 (Glassmorphism design system)
-- **Backend**: Procedural PHP 8+
-- **Database**: MySQL (InnoDB)
+### Frontend (React SPA)
+- **Vite**: Ultra-fast development and build tool.
+- **Tailwind CSS**: Utility-first styling with custom glassmorphism components.
+- **React Router**: Client-side routing for seamless transitions.
+- **Context API**: Global state management for Auth and Theme.
 
-## Folder Structure
+### Backend (PHP REST API)
+- **RESTful Routes**: Clean API endpoints for all marketplace actions.
+- **PDO Security**: Fully prepared statements to prevent SQL injection.
+- **JWT Auth**: Secure, token-based authentication.
+- **Cloudinary**: Cloud-based image management for high-performance asset delivery.
+
+## 📂 Folder Structure
 
 ```
 marketplace/
-│
-├── api/
-│   └── chat.php              # Real-time chat & username availability endpoints
-├── admin/
-│   ├── index.php             # Admin Dashboard (Stats, top sellers, clickables)
-│   ├── users.php             # User Management (Verify, suspend, upgrade)
-│   ├── products.php          # Moderation Desk (Approve/Reject products)
-│   ├── messages.php          # Omni Chat View
-│   ├── audit.php             # Platform Audit Log
-│   ├── settings.php          # Maintenance mode & Database backup
-│   ├── header.php            # Admin partial
-│   └── footer.php            # Admin partial
-├── assets/
-│   ├── css/
-│   │   └── style.css         # Core CSS design system
-│   └── js/
-│       └── main.js           # AJAX handlers, password strength, polling
-├── includes/
-│   ├── db.php                # Core logic: PDO connection, auth checks, helper functions
-│   ├── header.php            # Main site header (Maintenance check logic)
-│   └── footer.php            # Main site footer
-├── uploads/                  # User generated content
-│   ├── avatars/              
-│   ├── banners/              
-│   └── products/             
-├── index.php                 # Homepage (Dynamic product grid with filters)
-├── login.php                 # Authentication login
-├── register.php              # Dual-mode (Buyer/Seller) registration
-├── dashboard.php             # Seller/Buyer Dashboard (Clickable metrics, tools)
-├── product.php               # Detailed product view (Reviews, gallery, Buy action)
-├── add_product.php           # AI integration & multiple image upload
-├── edit_profile.php          # Profile management
-├── deposit.php               # Wallet deposit simulation
-├── chat.php                  # User-to-user messaging UI
-├── generate_flyer.php        # Auto-generates social media promo images
-├── receipt.php               # Digital receipt generator
-└── setup.php                 # Database schema initialization
+├── frontend/             # React (Vite) Single Page Application
+│   ├── src/              # Application logic, components, and hooks
+│   ├── public/           # Static assets and legacy CSS
+│   └── netlify.toml      # Netlify deployment configuration
+├── backend/              # PHP REST API
+│   ├── config/           # Database, JWT, and Cloudinary configuration
+│   ├── routes/           # REST API endpoint handlers
+│   ├── models/           # Data access logic
+│   └── render.yaml       # Render deployment configuration
+└── .gitignore            # Root git ignore
 ```
 
-## Setup Instructions
+## 🚀 Setup & Local Development
 
-1. **Environment Requirements**: 
-   - Ensure you are running a local server like **XAMPP**, **MAMP**, or **WAMP**.
-   - Make sure Apache and MySQL are running.
-   - PHP versions 8.0+ are highly recommended.
+### 1. Backend Setup (XAMPP/PHP)
+1. Ensure PHP 8.1+ and MySQL are running via XAMPP/MAMP.
+2. Navigate to `backend/` and copy `.env.example` to `.env`.
+3. Configure your database credentials.
+4. Run `http://localhost/marketplace/backend/setup.php` to initialize the database.
 
-2. **Installation**:
-   - Clone or copy this entire folder into your local `htdocs` or `www` directory (name the folder `marketplace`).
-   
-3. **Database Initialization**:
-   - Open your browser and navigate to `http://localhost/marketplace/setup.php`.
-   - Wait for the setup script to drop existing tables and recreate the entire schema perfectly.
-   - Using this script automatically registers a default admin user.
+### 2. Frontend Setup (React)
+1. Navigate to the `frontend/` directory.
+2. Copy `.env.example` to `.env`.
+3. Install dependencies:
+   ```bash
+   npm install
+   ```
+4. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-4. **Running Locally**:
-   - Navigate to the homepage at `http://localhost/marketplace/index.php`.
-   - **Admin Login:** Use `admin@campus.com` / `admin123`.
+## 🌍 Production Deployment
 
-## Database Schema (High-Level)
-* **users**: Manages identities, balances, roles (buyer/seller/admin), and tier management (basic/premium).
-* **products**: Tracks product states, stock, pricing, and moderation states (pending/approved/paused).
-* **transactions**: ACID compliant financial tracking for purchases, boosts, and referrals.
-* **messages**: Inter-user messaging with read receipts.
-* **reviews**: Products feedback tracking.
-* **audit_log**: Administrator oversight history.
+### Frontend (Netlify)
+- **Build Command**: `npm run build`
+- **Publish Directory**: `frontend/dist`
+- **Env Variable**: Set `VITE_API_URL` to your Render backend URL.
+
+### Backend (Render)
+- **Build Command**: `composer install` (if using composer) or skip.
+- **Runtime**: PHP 8.1+
+- **Env Variables**: Ensure `JWT_SECRET`, `CLOUDINARY_*`, and `PAYSTACK_*` are set.
+
+## 🛠️ Credits & License
+Built for students, by students. Free to fork and improve.

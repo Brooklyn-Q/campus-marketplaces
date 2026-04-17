@@ -694,7 +694,7 @@ tbody tr:hover {
     .cat-dropdown { width: 100%; display:block; position: relative; }
     #catMenu { 
         position: absolute !important; 
-        top: 48px !important; 
+        top: 42px !important; 
         left: 0 !important; 
         right: 0 !important;
         transform: none !important; 
@@ -706,7 +706,7 @@ tbody tr:hover {
         backdrop-filter: blur(30px) !important; 
         -webkit-backdrop-filter: blur(30px) !important;
         margin-top: 4px; 
-        z-index: 9999999 !important;
+        z-index: 10000 !important;
         border-radius: 12px !important;
     }
     :root.dark-mode .cat-dropdown-menu { 

@@ -8,13 +8,13 @@ const LiquidMetalButton = lazy(() => import('./components/ui/liquid-metal-button
 
 import './globals.css';
 
-console.log('MARKETPLACE_REACT: Bundle loaded. Starting initialization...');
+// console.log('MARKETPLACE_REACT: Bundle loaded. Starting initialization...');
 
 function mountSpaApp(root: HTMLElement) {
   if (root.hasAttribute('data-react-mounted')) return;
 
   root.setAttribute('data-react-mounted', 'app');
-  console.log('MARKETPLACE_REACT: Mounting full SPA...');
+  // console.log('MARKETPLACE_REACT: Mounting full SPA...');
   createRoot(root).render(
     <React.StrictMode>
       <App />
@@ -26,7 +26,7 @@ function mountLegacyIslands() {
   const heroRoot = document.getElementById('react-hero-root');
   if (heroRoot && heroRoot.getAttribute('data-react-mount') === 'hero' && !heroRoot.hasAttribute('data-react-mounted')) {
     heroRoot.setAttribute('data-react-mounted', 'true');
-    console.log('MARKETPLACE_REACT: Mounting Hero...');
+    // console.log('MARKETPLACE_REACT: Mounting Hero...');
     createRoot(heroRoot).render(
       <React.StrictMode>
         <Suspense fallback={null}>
@@ -39,7 +39,7 @@ function mountLegacyIslands() {
   const themeRoot = document.getElementById('react-theme-toggle');
   if (themeRoot && !themeRoot.hasAttribute('data-react-mounted')) {
     themeRoot.setAttribute('data-react-mounted', 'true');
-    console.log('MARKETPLACE_REACT: Mounting Theme Toggle...');
+    // console.log('MARKETPLACE_REACT: Mounting Theme Toggle...');
     createRoot(themeRoot).render(
       <React.StrictMode>
         <Suspense fallback={null}>
@@ -51,7 +51,7 @@ function mountLegacyIslands() {
 
   const buttons = document.querySelectorAll('.react-liquid-btn');
   if (buttons.length > 0) {
-    console.log('MARKETPLACE_REACT: Found', buttons.length, 'liquid buttons to hydrate');
+    // console.log('MARKETPLACE_REACT: Found', buttons.length, 'liquid buttons to hydrate');
     buttons.forEach((btn) => {
       if (btn.hasAttribute('data-react-mounted')) return;
 
@@ -88,7 +88,7 @@ function init() {
     }
 
     mountLegacyIslands();
-    console.log('MARKETPLACE_REACT: Initialization complete.');
+    // console.log('MARKETPLACE_REACT: Initialization complete.');
   } catch (err) {
     console.error('MARKETPLACE_REACT_FATAL:', err);
   }

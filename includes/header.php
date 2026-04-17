@@ -128,7 +128,7 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
                         Categories
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                     </a>
-                    <div id="catMenu" class="cat-dropdown-menu" style="display:none; position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); width:240px; background:var(--card-bg); backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px); border:1px solid var(--border); border-radius:16px; box-shadow:0 12px 48px rgba(0,0,0,0.12); overflow:hidden; z-index:999;">
+                    <div id="catMenu" class="cat-dropdown-menu" style="display:none; position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); z-index:999; width:240px; background:var(--card-bg); backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px); border:1px solid var(--border); border-radius:16px; box-shadow:0 12px 48px rgba(0,0,0,0.12); overflow:hidden;">
                         <a href="<?= $baseUrl ?>index.php?category=Computer+%26+Accessories" class="cat-item">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                             Computer &amp; Accessories

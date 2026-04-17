@@ -82,9 +82,29 @@ export default function Header() {
               Categories
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="6 9 12 15 18 9"/></svg>
             </a>
-            <div className={`cat-dropdown-menu ${catOpen ? 'cat-open' : ''}`} style={{position:'absolute', top:'calc(100% + 8px)', left:'50%', transform:'translateX(-50%)', width:'240px', background:'var(--card-bg)', backdropFilter:'saturate(180%) blur(24px)', border:'1px solid var(--border)', borderRadius:'16px', boxShadow:'0 12px 48px rgba(0,0,0,0.12)', overflow:'hidden', zIndex:999}}>
+            <div 
+              className={`cat-dropdown-menu ${catOpen ? 'cat-open' : ''}`} 
+              style={{
+                position: mobileOpen ? 'static' : 'absolute', 
+                top: mobileOpen ? '0' : 'calc(100% + 8px)', 
+                left: mobileOpen ? '0' : '50%', 
+                transform: mobileOpen ? 'none' : 'translateX(-50%)', 
+                width: mobileOpen ? '100%' : '240px', 
+                background: mobileOpen ? 'rgba(0,0,0,0.03)' : 'var(--card-bg)', 
+                backdropFilter: 'saturate(180%) blur(24px)', 
+                border: mobileOpen ? 'none' : '1px solid var(--border)', 
+                borderRadius: mobileOpen ? '12px' : '16px', 
+                boxShadow: mobileOpen ? 'none' : '0 12px 48px rgba(0,0,0,0.12)', 
+                overflow: 'hidden', 
+                zIndex: 999,
+                marginTop: mobileOpen && catOpen ? '10px' : '0',
+                maxHeight: catOpen ? '500px' : '0',
+                transition: 'all 0.3s ease-in-out',
+                display: mobileOpen || catOpen ? 'block' : 'none'
+              }}
+            >
               {categories.map((cat) => (
-                <Link key={cat.name} to={`/?category=${encodeURIComponent(cat.name)}`} className="cat-item" onClick={() => { setCatOpen(false); closeMobile(); }}>
+                <Link key={cat.name} to={`/?category=${encodeURIComponent(cat.name)}`} className="cat-item" onClick={() => { setCatOpen(false); closeMobile(); }} style={{ padding: mobileOpen ? '12px 16px' : '10px 16px' }}>
                   {cat.icon}
                   {cat.name}
                 </Link>
