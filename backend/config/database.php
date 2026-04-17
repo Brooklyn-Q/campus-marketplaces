@@ -65,7 +65,10 @@ function getDbConnection(): PDO {
     } catch (PDOException $e) {
         error_log('Database connection failed: ' . $e->getMessage());
         http_response_code(503);
-        echo json_encode(['error' => 'Service unavailable']);
+        echo json_encode([
+            'error' => 'Database connection failed',
+            'details' => (env('APP_ENV') === 'production') ? 'Check Render Env Vars and Supabase Status' : $e->getMessage()
+        ]);
         exit;
     }
 
