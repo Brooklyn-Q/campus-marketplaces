@@ -193,7 +193,7 @@ export default function SellerDashboard() {
                               <div key={p.id} className="glass product-card" style={{display:'flex', flexDirection:'column', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'22px', overflow:'hidden', minHeight:'400px', position:'relative'}}>
                                   <div className="product-img-wrap" style={{aspectRatio:'1/1', position:'relative', overflow:'hidden'}}>
                                       {p.images?.[0] ? (
-                                          <img src={'p.images[0].url.startsWith('http') ? p.images[0].url : '/marketplace/uploads/' + p.images[0].url} className="product-img" style={{width:'100%', height:'100%', objectFit:'cover'}} alt={p.title} />
+                                          <img src={p.images[0].url.startsWith('http') ? p.images[0].url : '/marketplace/uploads/' + p.images[0].url} className="product-img" style={{width:'100%', height:'100%', objectFit:'cover'}} alt={p.title} />
                                       ) : (
                                           <div style={{width:'100%', height:'100%', display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(0,0,0,0.05)', color:'var(--text-muted)', fontSize:'0.75rem'}}>No Image</div>
                                       )}
