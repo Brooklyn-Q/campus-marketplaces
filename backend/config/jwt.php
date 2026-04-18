@@ -8,7 +8,8 @@ function jwtEncode(array $payload): string {
     $secret = env('JWT_SECRET');
     // SECURITY: Fail fast if JWT_SECRET not configured or still uses default
     if (empty($secret) || $secret === 'campus_marketplace_secret_key_change_me') {
-        throw new Exception('FATAL: JWT_SECRET not configured. Set a strong secret in .env file');
+        if (function_exists('jsonError')) jsonError('FATAL: JWT_SECRET not configured. Please set a strong secret in your environment settings.', 500);
+        die(json_encode(['error' => 'JWT_SECRET not configured']));
     }
     $expiry = (int) env('JWT_EXPIRY', 604800); // 7 days
 
