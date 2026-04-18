@@ -91,7 +91,7 @@ Options -Indexes
     RewriteRule .* - [L]
 
     # Default: serve index.php for SPA routing
-    RewriteRule ^(?!api/|admin/|assets/|uploads/|backend/|frontend/).+\.php$ - [L]
+    RewriteCond %{REQUEST_URI} !\.(css|js|map|ico|png|jpg|jpeg|webp|gif|svg)$ [NC]
     RewriteRule ^(?!api/|admin/|assets/|uploads/|backend/|frontend/)(.*?)/?$ index.php [L,QSA]
 </IfModule>
 
