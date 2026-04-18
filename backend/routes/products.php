@@ -178,7 +178,7 @@ elseif ($method === 'GET' && $productId && !$subAction) {
     if (!$product) jsonError('Product not found', 404);
 
     // Get images
-    $imgStmt = $pdo->prepare("SELECT id, image_path, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order");
+    $imgStmt = $pdo->prepare("SELECT id, image_path AS image_url, sort_order FROM product_images WHERE product_id = ? ORDER BY sort_order");
     $imgStmt->execute([$productId]);
     $product['images'] = $imgStmt->fetchAll();
 
