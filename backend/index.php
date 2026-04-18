@@ -165,8 +165,8 @@ try {
     }
 } catch (PDOException $e) {
     error_log('Database error: ' . $e->getMessage());
-    jsonError('Database error', 500);
+    jsonError('Database error: ' . $e->getMessage(), 500);
 } catch (Exception $e) {
     error_log('Server error: ' . $e->getMessage());
-    jsonError('Server error', 500);
+    jsonError('Server error: ' . $e->getMessage(), 500);
 }
