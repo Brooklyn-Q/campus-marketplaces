@@ -40,11 +40,18 @@ if (isset($_GET['action'])) {
             break;
         case 'toggle_vacation':
             if ($user['vacation_mode']) {
-                $boolF = sqlBool(false, $pdo);
-                $pdo->prepare("UPDATE users SET vacation_mode=$boolF WHERE id=?")->execute([$user['id']]);
+                $pdo->prepare("UPDATE users SET vacation_mode=0 WHERE id=?")->execute([$user['id']]);
                 $user['vacation_mode'] = 0;
                 $msg = "Welcome back! Your listings are visible again.";
             } else {
+                try {
+                    $pdo->exec("CREATE TABLE IF NOT EXISTS vacation_requests (
+                        id SERIAL PRIMARY KEY,
+                        seller_id INT NOT NULL,
+                        status VARCHAR(20) DEFAULT 'pending',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )");
+                } catch(PDOException $e) {}
                 $pdo->prepare("INSERT INTO vacation_requests (seller_id, status) VALUES (?, 'pending')")->execute([$user['id']]);
                 $msg = "🏝️ Vacation request submitted for Admin approval. Your listings will be hidden once approved.";
             }
