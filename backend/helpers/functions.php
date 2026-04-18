@@ -227,3 +227,63 @@ function getAvgRating(PDO $pdo, int $productId): float {
     $stmt->execute([$productId]);
     return round((float) $stmt->fetchColumn(), 1);
 }
+
+// ── SECURITY / RATE LIMITING ──
+
+function checkRateLimit(string $ip, int $maxAttempts = 5, int $windowSeconds = 900): array {
+    $key = "login_attempts_$ip";
+    $cache_file = sys_get_temp_dir() . '/marketplace_' . md5($key);
+
+    $data = ['attempts' => 0, 'first_attempt' => time()];
+
+    if (file_exists($cache_file)) {
+        $cached = @json_decode(file_get_contents($cache_file), true);
+        if ($cached && (time() - $cached['first_attempt']) < $windowSeconds) {
+            $data = $cached;
+        } else {
+            @unlink($cache_file);
+        }
+    }
+
+    $allowed = $data['attempts'] < $maxAttempts;
+    $cooldown = max(0, $windowSeconds - (time() - $data['first_attempt']));
+
+    return [
+        'allowed' => $allowed,
+        'attempts' => $data['attempts'],
+        'cooldown' => $cooldown
+    ];
+}
+
+function recordFailedLogin(string $ip): void {
+    $key = "login_attempts_$ip";
+    $cache_file = sys_get_temp_dir() . '/marketplace_' . md5($key);
+
+    $data = ['attempts' => 0, 'first_attempt' => time()];
+
+    if (file_exists($cache_file)) {
+        $cached = @json_decode(file_get_contents($cache_file), true);
+        if ($cached && (time() - $cached['first_attempt']) < 900) {
+            $data = $cached;
+        }
+    }
+
+    $data['attempts']++;
+    @file_put_contents($cache_file, json_encode($data));
+}
+
+function clearRateLimit(string $ip): void {
+    $key = "login_attempts_$ip";
+    $cache_file = sys_get_temp_dir() . '/marketplace_' . md5($key);
+    @unlink($cache_file);
+}
+
+function logSecurityEvent(PDO $pdo, string $eventType, string $description, ?int $userId = null, ?string $ipAddress = null): void {
+    try {
+        $ip = $ipAddress ?? ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
+        $pdo->prepare("INSERT INTO security_logs (event_type, description, user_id, ip_address, created_at) VALUES (?, ?, ?, ?, NOW())")
+            ->execute([$eventType, $description, $userId, $ip]);
+    } catch (Exception $e) {
+        error_log("[SECURITY] $eventType: $description (User: $userId, IP: " . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . ")");
+    }
+}
