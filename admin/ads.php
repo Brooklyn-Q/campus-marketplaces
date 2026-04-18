@@ -54,8 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         if ($title && !$msg) {
-            $safe_url = substr($image_url, 0, 255);
-            $pdo->prepare("INSERT INTO ad_placements (title, image_url, link_url, placement) VALUES (?,?,?,?)")
+            $safe_url = substr($image_url, 0, 499); // Truncate cleanly for Postgres VARCHAR(500)
+            $pdo->prepare("INSERT INTO ad_placements (title, image_path, link_url, placement) VALUES (?,?,?,?)")
                 ->execute([$title, $safe_url, $link, $placement]);
             $msg = "✅ Ad created successfully!";
         }

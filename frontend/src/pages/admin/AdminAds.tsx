@@ -4,7 +4,7 @@ import api from '../../services/api';
 interface Ad {
   id: number;
   title: string;
-  image_url: string;
+  image_path: string;
   link_url: string;
   placement: string;
   is_active: number;
@@ -165,8 +165,8 @@ export default function AdminAds() {
                         <tr key={ad.id} style={{borderBottom:'1px solid rgba(0,0,0,0.05)'}}>
                             <td style={{padding:'1rem', fontWeight:600}}>
                                 <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
-                                    {ad.image_url && (
-                                        <img src={ad.image_url.startsWith('http') ? ad.image_url : `${import.meta.env.VITE_API_URL?.replace('/api', '')}/${ad.image_url}`} 
+                                    {ad.image_path && (
+                                        <img src={ad.image_path.startsWith('http') ? ad.image_path : `${import.meta.env.VITE_API_URL?.replace('/api', '')}/${ad.image_path}`} 
                                              alt={ad.title} 
                                              style={{width:'40px', height:'30px', borderRadius:'4px', objectFit:'cover', border:'1px solid rgba(0,0,0,0.1)'}} 
                                         />
