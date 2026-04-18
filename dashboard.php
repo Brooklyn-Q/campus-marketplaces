@@ -308,13 +308,13 @@ if ($user['role'] === 'seller' || $user['role'] === 'admin') {
         try {
             $sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
                 ? "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND type='sale' AND created_at::DATE=?"
-                : "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND type='sale' AND DATE(created_at)=?";
+                : "SELECT COALESCE(SUM(amount),0) FROM transactions WHERE user_id=? AND type='sale' AND CAST(created_at AS DATE)=?";
             $s = $pdo->prepare($sql); $s->execute([$user['id'], $date]); $amt = (float)$s->fetchColumn();
         } catch(PDOException $e) { $amt = 0; }
         try {
             $sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
                 ? "SELECT COALESCE(SUM(views),0) FROM products WHERE user_id=? AND updated_at::DATE=?"
-                : "SELECT COALESCE(SUM(views),0) FROM products WHERE user_id=? AND DATE(updated_at)=?";
+                : "SELECT COALESCE(SUM(views),0) FROM products WHERE user_id=? AND CAST(updated_at AS DATE)=?";
             $s2 = $pdo->prepare($sql); $s2->execute([$user['id'], $date]); $vw = (int)$s2->fetchColumn();
         } catch(PDOException $e) { $vw = 0; }
         $sellerWeeklySales[] = ['label' => $dayLabel, 'sales' => $amt, 'views' => $vw];

@@ -10,14 +10,14 @@ $totalProducts = $pdo->query("SELECT COUNT(*) FROM products")->fetchColumn();
 $activeSellers = $pdo->query("SELECT COUNT(DISTINCT user_id) FROM products WHERE status='approved'")->fetchColumn();
 $totalOrders = $pdo->query("SELECT COUNT(*) FROM transactions WHERE type IN ('sale','purchase')")->fetchColumn();
 $totalViews = $pdo->query("SELECT COALESCE(SUM(views),0) FROM products")->fetchColumn();
-$newUsersToday = $pdo->query("SELECT COUNT(*) FROM users WHERE DATE(created_at) = CURDATE()")->fetchColumn();
+$newUsersToday = $pdo->query("SELECT COUNT(*) FROM users WHERE CAST(created_at AS DATE) = CURRENT_DATE")->fetchColumn();
 
 // ── Daily Revenue (last 14 days) ──
 $dailyRevenue = [];
 for ($i = 13; $i >= 0; $i--) {
     $date = date('Y-m-d', strtotime("-$i days"));
     $label = date('M d', strtotime($date));
-    $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type IN ('sale','boost','premium') AND status='completed' AND DATE(created_at) = ?");
+    $stmt = $pdo->prepare("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type IN ('sale','boost','premium') AND status='completed' AND CAST(created_at AS DATE) = ?");
     $stmt->execute([$date]);
     $dailyRevenue[] = ['label' => $label, 'value' => (float)$stmt->fetchColumn()];
 }
@@ -27,7 +27,7 @@ $dailyUsers = [];
 for ($i = 13; $i >= 0; $i--) {
     $date = date('Y-m-d', strtotime("-$i days"));
     $label = date('M d', strtotime($date));
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE DATE(created_at) = ?");
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE CAST(created_at AS DATE) = ?");
     $stmt->execute([$date]);
     $dailyUsers[] = ['label' => $label, 'value' => (int)$stmt->fetchColumn()];
 }
