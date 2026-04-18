@@ -68,7 +68,7 @@ CREATE INDEX idx_products_category ON products(category);
 CREATE TABLE product_images (
     id SERIAL PRIMARY KEY,
     product_id INT NOT NULL,
-    image_url VARCHAR(255) NOT NULL,
+    image_path VARCHAR(255) NOT NULL,
     sort_order INT DEFAULT 0,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
 );

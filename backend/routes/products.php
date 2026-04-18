@@ -114,7 +114,7 @@ if ($method === 'GET' && !$productId) {
 
     $stmt = $pdo->prepare("
         SELECT p.*, u.username as seller_name, u.seller_tier, u.verified as seller_verified, u.profile_pic as seller_pic,
-            (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image,
+            (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image,
             (SELECT COALESCE(AVG(r.rating), 0) FROM reviews r WHERE r.product_id = p.id) as avg_rating,
             (SELECT COUNT(*) FROM reviews r WHERE r.product_id = p.id) as review_count
         FROM products p

@@ -18,7 +18,7 @@ if ($method === 'GET' && !$productId) {
     $status = getQueryParam('status', 'pending');
     $stmt = $pdo->prepare("
         SELECT p.*, u.username as seller_name, u.seller_tier,
-            (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
+            (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
         FROM products p JOIN users u ON p.user_id = u.id
         WHERE p.status = ?
         ORDER BY p.created_at ASC

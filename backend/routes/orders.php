@@ -81,7 +81,7 @@ if ($method === 'GET' && !$orderId) {
 
     $stmt = $pdo->prepare("
         SELECT o.*, p.title as product_title, p.price as product_price,
-            (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as product_image,
+            (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as product_image,
             buyer.username as buyer_name, buyer.profile_pic as buyer_pic, buyer.phone as buyer_phone,
             seller.username as seller_name, seller.profile_pic as seller_pic, seller.phone as seller_phone
         FROM orders o
