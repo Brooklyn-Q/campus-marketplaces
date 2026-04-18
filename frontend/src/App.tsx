@@ -16,6 +16,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import AdminLayout from './components/layout/AdminLayout';
 import AdminAnalytics from './pages/admin/AdminAnalytics';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminAds from './pages/admin/AdminAds';
 
 function PageLoader() {
   return (
@@ -87,8 +88,8 @@ function AppRoutes() {
         <Route element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
            <Route path="/admin" element={<AdminDashboard />} />
            <Route path="/admin/analytics" element={<AdminAnalytics />} />
+           <Route path="/admin/ads" element={<AdminAds />} />
            <Route path="/admin/users" element={<AdminUsers />} />
-           {/* Future nested routes like /admin/products will go here */}
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />

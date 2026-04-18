@@ -293,6 +293,13 @@ export const admin = {
   moderation: {
     pending: () => apiFetch('admin/moderation'),
   },
+
+  ads: {
+    list: () => apiFetch('admin/ads'),
+    create: (formData: FormData) => apiFetch('admin/ads', { method: 'POST', body: formData }),
+    toggle: (id: number) => apiFetch(`admin/ads/${id}/toggle`, { method: 'PUT' }),
+    delete: (id: number) => apiFetch(`admin/ads/${id}`, { method: 'DELETE' }),
+  },
 };
 
 // Default export as namespace
