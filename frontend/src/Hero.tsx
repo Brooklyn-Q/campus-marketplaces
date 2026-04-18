@@ -121,7 +121,6 @@ export default function Hero() {
           loop 
           muted 
           playsInline
-          poster={`${LEGACY_BASE}assets/dist/IMG_5825.webp`}
           className="absolute inset-0 w-full h-full object-cover object-center md:object-[center_30%]"
         >
           <source 
