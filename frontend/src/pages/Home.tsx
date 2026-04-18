@@ -114,6 +114,7 @@ export default function Home() {
 
   const assetUrl = (path: string) => {
     // If it's already an absolute URL, use as-is
+    if (path.startsWith('uploads/http')) return path.substring(8);
     if (path.startsWith('http')) return path;
     // For uploads from the backend (product images etc), prefix with API base
     if (path.startsWith('uploads/')) {

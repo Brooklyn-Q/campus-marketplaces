@@ -60,8 +60,10 @@ $stmt = $pdo->prepare($query); $stmt->execute($params); $products = $stmt->fetch
             <?php foreach($products as $p): ?>
             <tr>
                 <td>
-                    <?php if($p['thumb']): ?>
-                        <img src="../uploads/<?= htmlspecialchars($p['thumb']) ?>" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">
+                        <?php
+                            $thumbSrc = str_starts_with($p['thumb'], 'http') ? $p['thumb'] : "../uploads/" . htmlspecialchars($p['thumb']);
+                        ?>
+                        <img src="<?= $thumbSrc ?>" style="width:40px;height:40px;object-fit:cover;border-radius:6px;">
                     <?php else: ?>
                         <div style="width:40px;height:40px;background:rgba(0,0,0,0.3);border-radius:6px;"></div>
                     <?php endif; ?>

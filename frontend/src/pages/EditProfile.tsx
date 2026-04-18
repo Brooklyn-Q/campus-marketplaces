@@ -55,6 +55,7 @@ export default function EditProfile() {
 
   const assetUrl = (path: string | undefined | null) => {
     if (!path) return '';
+    if (path.startsWith('uploads/http')) return path.substring(8);
     if (path.startsWith('http')) return path;
     if (path.startsWith('uploads/')) {
       const apiBase = import.meta.env.VITE_API_URL || 'http://localhost/marketplace/backend/api';

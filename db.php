@@ -129,6 +129,11 @@ function getAssetUrl(string $path): string {
         $asset_domains = $domains_str ? array_filter(array_map('trim', explode(',', $domains_str))) : [];
     }
     
+    // Handle cases where templates force 'uploads/' prefix on Cloudinary absolute URLs
+    if (strpos($path, 'uploads/http') === 0) {
+        return substr($path, 8);
+    }
+    
     // If no asset domains are configured, return the local base URL joined with the path
     if (empty($asset_domains)) {
         if (strpos($path, 'http') === 0 || strpos($path, '//') === 0) return $path;

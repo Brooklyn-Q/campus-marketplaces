@@ -8,6 +8,8 @@ export default function AddProduct() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
   
   const maxImages = user?.tier_info?.max_images || 3;
 
@@ -15,6 +17,32 @@ export default function AddProduct() {
     'Computer & Accessories', 'Phone & Accessories', 'Electrical Appliances', 
     'Fashion', 'Food & Groceries', 'Education & Books', 'Hostels for Rent'
   ];
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files) return;
+    const files = Array.from(e.target.files);
+    if (selectedFiles.length + files.length > maxImages) {
+        alert(`You can only upload up to ${maxImages} images based on your current seller tier.`);
+        return;
+    }
+    const newFiles = [...selectedFiles, ...files];
+    setSelectedFiles(newFiles);
+    
+    // Generate previews
+    const newPreviews = files.map(file => URL.createObjectURL(file));
+    setImagePreviews([...imagePreviews, ...newPreviews]);
+  };
+
+  const removeImage = (idx: number) => {
+    const updatedFiles = [...selectedFiles];
+    updatedFiles.splice(idx, 1);
+    setSelectedFiles(updatedFiles);
+
+    const updatedPreviews = [...imagePreviews];
+    URL.revokeObjectURL(updatedPreviews[idx]); // Memory management
+    updatedPreviews.splice(idx, 1);
+    setImagePreviews(updatedPreviews);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,6 +53,12 @@ export default function AddProduct() {
     
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
+    
+    // Append managed files overriding the default input array
+    formData.delete('images[]');
+    selectedFiles.forEach(file => {
+        formData.append('images[]', file);
+    });
     
     try {
       await products.create(formData);
@@ -129,7 +163,20 @@ export default function AddProduct() {
             </div>
             <div className="form-group">
                 <label>Product Images (max {maxImages})</label>
-                <input type="file" name="images[]" className="form-control" accept="image/*" multiple />
+                <div style={{display:'flex', gap:'10px', flexWrap:'wrap', marginBottom:'10px'}}>
+                    {imagePreviews.map((src, idx) => (
+                        <div key={idx} style={{position:'relative', width:'80px', height:'80px'}}>
+                            <img src={src} style={{width:'100%', height:'100%', objectFit:'cover', borderRadius:'8px', border:'1px solid var(--border)'}} />
+                            <button type="button" onClick={() => removeImage(idx)} style={{position:'absolute', top:'-5px', right:'-5px', background:'var(--danger)', color:'#fff', border:'none', borderRadius:'50%', width:'20px', height:'20px', fontSize:'12px', cursor:'pointer'}}>&times;</button>
+                        </div>
+                    ))}
+                    {imagePreviews.length < maxImages && (
+                        <label style={{width:'80px', height:'80px', border:'2px dashed var(--border)', borderRadius:'8px', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color:'var(--text-muted)'}}>
+                            <span style={{fontSize:'24px'}}>+</span>
+                            <input type="file" accept="image/*" multiple onChange={handleImageChange} style={{display:'none'}} />
+                        </label>
+                    )}
+                </div>
             </div>
             
             <button type="submit" disabled={loading} className="btn btn-primary" style={{width:'100%', justifyContent:'center', fontSize:'1rem', padding:'0.85rem'}}>
