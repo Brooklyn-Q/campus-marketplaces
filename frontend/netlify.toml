@@ -6,6 +6,7 @@
 [build.environment]
   NODE_VERSION = "18"
   NPM_VERSION = "9"
+  VITE_API_URL = "https://campus-marketplace-api-x55w.onrender.com/api"
 
 # Handle SPA routing - all requests go to index.html
 [[redirects]]

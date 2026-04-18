@@ -3,6 +3,10 @@
   command = "npm install && npm run build"
   publish = "dist"
 
+[build.environment]
+  NODE_VERSION = "18"
+  VITE_API_URL = "https://campus-marketplace-api-x55w.onrender.com/api"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

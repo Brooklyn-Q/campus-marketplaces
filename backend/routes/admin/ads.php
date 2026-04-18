@@ -60,7 +60,7 @@ elseif ($method === 'POST' && !$adId) {
         }
     }
 
-    $stmt = $pdo->prepare("INSERT INTO ad_placements (title, image_path, link_url, placement, is_active, impressions, clicks) VALUES (?, ?, ?, ?, 1, 0, 0)");
+    $stmt = $pdo->prepare("INSERT INTO ad_placements (title, image_url, link_url, placement) VALUES (?, ?, ?, ?)");
     $stmt->execute([$title, $image_url, $link, $placement]);
 
     jsonResponse(['success' => true, 'message' => 'Ad created successfully']);
