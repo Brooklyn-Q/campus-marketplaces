@@ -102,7 +102,14 @@ $sellerSalesCount->execute([$product['seller_id']]); $sellerSales = $sellerSales
 
 // ── Activity Indicator Data ──
 $viewingNow = max(1, $product['views'] % 7 + rand(1,4)); // Simulated from real views
-$soldLast24 = $pdo->prepare("SELECT COUNT(*) FROM transactions WHERE description LIKE ? AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+$driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+if ($driver === 'pgsql') {
+    $soldLast24 = $pdo->prepare("SELECT COUNT(*) FROM transactions WHERE description LIKE ? AND created_at > NOW() - INTERVAL '24 HOURS'");
+    $recent = $pdo->prepare("SELECT COUNT(*) FROM product_views WHERE product_id = ? AND session_id = ? AND created_at > NOW() - INTERVAL '24 HOURS'");
+} else {
+    $soldLast24 = $pdo->prepare("SELECT COUNT(*) FROM transactions WHERE description LIKE ? AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+    $recent = $pdo->prepare("SELECT COUNT(*) FROM product_views WHERE product_id = ? AND session_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)");
+}
 $soldLast24->execute(['%' . $product['title'] . '%']); $sold24h = $soldLast24->fetchColumn();
 
 // ── Trust Badges Logic ──

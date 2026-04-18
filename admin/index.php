@@ -2,7 +2,9 @@
 $page_title = 'Dashboard';
 require_once 'header.php';
 
-// FIXED: Handle discount actions BEFORE any HTML output (header redirect fails after output)
+// Add missing message column to announcements if it doesn't exist (Supabase transition)
+try { $pdo->exec("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS message TEXT"); } catch(PDOException $e) {}
+
 $disc_msg = '';
 if (isset($_GET['disc_action']) && isset($_GET['disc_id'])) {
     $disc_id = (int)$_GET['disc_id'];

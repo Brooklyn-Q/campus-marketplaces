@@ -4,7 +4,7 @@ require_once 'header.php';
 
 // Add the admin_deleted column if it doesn't exist
 try {
-    $pdo->exec("ALTER TABLE messages ADD COLUMN admin_deleted TINYINT(1) DEFAULT 0");
+    $pdo->exec("ALTER TABLE messages ADD COLUMN admin_deleted BOOLEAN DEFAULT FALSE");
 } catch(PDOException $e) { /* already exists */ }
 
 if (isset($_GET['delete_chat'])) {
