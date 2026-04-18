@@ -21,12 +21,17 @@ require_once __DIR__ . '/middleware/auth.php';
 $method = $_SERVER['REQUEST_METHOD'];
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 
-// Strip base path (works in subdirectory or root)
-$uri = $_SERVER['REQUEST_URI'];
-// Automatically detect the script's directory to strip it
-$scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
-if ($scriptDir !== '/' && strpos($uri, $scriptDir) === 0) {
-    $uri = substr($uri, strlen($scriptDir));
+// Check if Apache rewritten the route
+if (isset($_GET['route'])) {
+    $uri = '/' . $_GET['route'];
+} else {
+    // Strip base path (works in subdirectory or root)
+    $uri = $_SERVER['REQUEST_URI'];
+    // Automatically detect the script's directory to strip it
+    $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME']));
+    if ($scriptDir !== '/' && strpos($uri, $scriptDir) === 0) {
+        $uri = substr($uri, strlen($scriptDir));
+    }
 }
 // Strip query string
 if (($pos = strpos($uri, '?')) !== false) {
@@ -64,7 +69,7 @@ try {
             break;
 
         // ── TEMPORARY ADMIN SETUP ──
-        case 'admin-setup':
+        case 'setup':
             require __DIR__ . '/create_admin.php';
             break;
 
