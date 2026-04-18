@@ -29,7 +29,7 @@ export default function AdminAds() {
 
   const fetchAds = async () => {
     try {
-      const res = await api.ads.list();
+      const res = await api.admin.ads.list();
       if (res.success) {
         setAds(res.ads);
       }
@@ -58,7 +58,7 @@ export default function AdminAds() {
     if (file) formData.append('ad_file', file);
 
     try {
-      const res = await api.ads.create(formData);
+      const res = await api.admin.ads.create(formData);
       if (res.success) {
         setSuccess('Ad created successfully!');
         setTitle('');
@@ -78,7 +78,7 @@ export default function AdminAds() {
 
   const handleToggle = async (id: number) => {
     try {
-        const res = await api.ads.toggle(id);
+        const res = await api.admin.ads.toggle(id);
         if (res.success) fetchAds();
     } catch (e: any) {
         setError(e.message);
@@ -88,7 +88,7 @@ export default function AdminAds() {
   const handleDelete = async (id: number) => {
     if (!window.confirm('Are you sure you want to delete this ad?')) return;
     try {
-        const res = await api.ads.delete(id);
+        const res = await api.admin.ads.delete(id);
         if (res.success) fetchAds();
     } catch (e: any) {
         setError(e.message);
