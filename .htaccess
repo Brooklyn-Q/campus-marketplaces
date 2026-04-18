@@ -85,10 +85,15 @@ Options -Indexes
     RewriteCond %{REQUEST_URI} ^/assets/ [OR]
     RewriteCond %{REQUEST_URI} ^/uploads/ [OR]
     RewriteCond %{REQUEST_URI} ^/frontend/ [OR]
-    RewriteCond %{REQUEST_URI} ^/uploads/ [OR]
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule .* - [L]
+
+    # Fix Vite dynamic chunk loading expecting files at root
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_URI} ^/([a-zA-Z0-9_\.-]+\.js)$
+    RewriteCond %{DOCUMENT_ROOT}/assets/dist/%1 -f
+    RewriteRule ^(.*\.js)$ /assets/dist/$1 [L]
 
     # Default: serve index.php for SPA routing
     RewriteCond %{REQUEST_URI} !\.(css|js|map|ico|png|jpg|jpeg|webp|gif|svg)$ [NC]
