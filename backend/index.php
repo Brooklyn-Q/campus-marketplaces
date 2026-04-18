@@ -63,6 +63,11 @@ try {
             require __DIR__ . '/routes/auth.php';
             break;
 
+        // ── TEMPORARY ADMIN SETUP ──
+        case 'admin-setup':
+            require __DIR__ . '/create_admin.php';
+            break;
+
         // ── PRODUCTS ──
         case 'products':
             require __DIR__ . '/routes/products.php';
