@@ -6,10 +6,10 @@ $dbname = env('DB_NAME', 'campus_marketplace');
 $db_user = env('DB_USER', 'root');
 $db_pass = env('DB_PASS', '');
 $db_port = env('DB_PORT', '3306');
-$db_type = env('DB_TYPE', 'mysql'); // 'mysql' or 'pgsql'
+$db_type = env('DB_DRIVER', '') ?: env('DB_TYPE', 'mysql'); // 'mysql' or 'pgsql'
 
 try {
-    if ($db_type === 'pgsql' || $db_port == '5432') {
+    if ($db_type === 'pgsql' || $db_port == '5432' || $db_port == '6543') {
         $dsn = "pgsql:host=$host;port=$db_port;dbname=$dbname";
         $pdo = new PDO($dsn, $user = $db_user, $pass = $db_pass);
     } else {
