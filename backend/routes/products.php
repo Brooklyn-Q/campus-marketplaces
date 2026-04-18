@@ -246,7 +246,13 @@ elseif ($method === 'POST' && !$productId) {
         $stmt->execute([$auth['user_id'], $title, $description, $price, $category, $quantity,
             $promoTag, $deliveryMethod, $paymentAgreement]);
 
-        $nextId = (int)$pdo->lastInsertId();
+        // Fix for PostgreSQL sequences
+        $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+        $nextId = (int)($driver === 'pgsql' ? $pdo->lastInsertId('products_id_seq') : $pdo->lastInsertId());
+
+        if (!$nextId) {
+             throw new Exception("Critical Error: Failed to retrieve ID for the newly created product. Database may be misconfigured.");
+        }
 
         // Handle image uploads
         $maxImages = getMaxImages($pdo, $auth['user_id']);
@@ -287,8 +293,8 @@ elseif ($method === 'POST' && !$productId) {
         ], 201);
 
     } catch (Exception $e) {
-        $pdo->rollBack();
-        jsonError('Failed to create product: ' . $e->getMessage(), 500);
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        jsonError('Database Error: ' . $e->getMessage() . (isset($e->errorInfo) ? ' [' . implode(',', $e->errorInfo) . ']' : ''), 500);
     }
 }
 
