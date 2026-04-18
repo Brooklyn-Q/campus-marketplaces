@@ -1,6 +1,8 @@
 {
   "name": "marketplace",
-  "version": "1.0.0",
+  "private": true,
+  "homepage": "https://Brooklyn-Q.github.io/campus-marketplaces",
+  "version": "0.0.0",
   "description": "A modern, scalable, full-stack marketplace platform built for university students to buy, sell, and trade safely.",
   "main": "index.js",
   "engines": {
