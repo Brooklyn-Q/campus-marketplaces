@@ -63,11 +63,6 @@ try {
             require __DIR__ . '/routes/auth.php';
             break;
 
-        // ── TEMPORARY PATCH ──
-        case 'patch':
-            require __DIR__ . '/patch_db.php';
-            break;
-
         // ── PRODUCTS ──
         case 'products':
             require __DIR__ . '/routes/products.php';
