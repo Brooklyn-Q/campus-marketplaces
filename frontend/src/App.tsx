@@ -55,10 +55,12 @@ function RequireAdmin({ children }: { children: React.ReactNode }) {
 }
 
 function GuestOnly({ children }: { children: React.ReactNode }) {
-  const { loading, isLoggedIn } = useAuth();
+  const { loading, isLoggedIn, isAdmin } = useAuth();
 
   if (loading) return <PageLoader />;
-  if (isLoggedIn) return <Navigate to="/dashboard" replace />;
+  if (isLoggedIn) {
+    return <Navigate to={isAdmin ? "/admin" : "/dashboard"} replace />;
+  }
 
   return <>{children}</>;
 }

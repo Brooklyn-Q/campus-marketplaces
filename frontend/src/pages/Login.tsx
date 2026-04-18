@@ -17,7 +17,11 @@ export default function Login() {
 
     const res = await login(identifier, password);
     if (res.success) {
-      navigate('/dashboard');
+      if ((res as any).isAdmin) {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     } else {
       setError(res.error || 'Login failed');
     }
