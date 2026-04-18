@@ -13,6 +13,9 @@ import AdminDashboard from './pages/AdminDashboard';
 import Leaderboard from './pages/Leaderboard';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
+import AdminLayout from './components/layout/AdminLayout';
+import AdminAnalytics from './pages/admin/AdminAnalytics';
+import AdminUsers from './pages/admin/AdminUsers';
 
 function PageLoader() {
   return (
@@ -65,68 +68,28 @@ function AppRoutes() {
     <BrowserRouter>
       <ScrollToTop />
       <Routes>
+        {/* Main Storefront Layout */}
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
           <Route path="/product/:id" element={<Product />} />
-          <Route
-            path="/login"
-            element={
-              <GuestOnly>
-                <Login />
-              </GuestOnly>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <GuestOnly>
-                <Register />
-              </GuestOnly>
-            }
-          />
-          <Route
-            path="/dashboard"
-            element={
-              <RequireAuth>
-                <Dashboard />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/chat"
-            element={
-              <RequireAuth>
-                <Chat />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/add-product"
-            element={
-              <RequireAuth>
-                <AddProduct />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/edit-profile"
-            element={
-              <RequireAuth>
-                <EditProfile />
-              </RequireAuth>
-            }
-          />
-          <Route
-            path="/admin"
-            element={
-              <RequireAdmin>
-                <AdminDashboard />
-              </RequireAdmin>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
+          <Route path="/register" element={<GuestOnly><Register /></GuestOnly>} />
+          <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+          <Route path="/chat" element={<RequireAuth><Chat /></RequireAuth>} />
+          <Route path="/add-product" element={<RequireAuth><AddProduct /></RequireAuth>} />
+          <Route path="/edit-profile" element={<RequireAuth><EditProfile /></RequireAuth>} />
         </Route>
+
+        {/* Dedicated Admin Layout */}
+        <Route element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
+           <Route path="/admin" element={<AdminDashboard />} />
+           <Route path="/admin/analytics" element={<AdminAnalytics />} />
+           <Route path="/admin/users" element={<AdminUsers />} />
+           {/* Future nested routes like /admin/products will go here */}
+        </Route>
+
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   );
