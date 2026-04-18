@@ -17,7 +17,8 @@ if ($method === 'GET') {
 }
 
 elseif ($method === 'PUT' && $action === 'read') {
-    $pdo->prepare("UPDATE notifications SET is_read = 1 WHERE user_id = ?")->execute([$auth['user_id']]);
+    $boolTrue = sqlBool(true, $pdo);
+    $pdo->prepare("UPDATE notifications SET is_read = $boolTrue WHERE user_id = ?")->execute([$auth['user_id']]);
     jsonSuccess('All notifications marked as read');
 }
 

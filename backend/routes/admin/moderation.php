@@ -76,13 +76,17 @@ case 'profiles':
         if (in_array($pr['field_name'], $ALLOWED_PROFILE_FIELDS)) {
             // Use CASE statement instead of dynamic field interpolation
             $allowedFields = implode("','", $ALLOWED_PROFILE_FIELDS);
-            if ($pr['field_name'] === 'bio' || $pr['field_name'] === 'phone' || $pr['field_name'] === 'location' || $pr['field_name'] === 'department' || $pr['field_name'] === 'level') {
+            if (in_array($pr['field_name'], $ALLOWED_PROFILE_FIELDS)) {
                 $sql = match($pr['field_name']) {
                     'bio' => "UPDATE users SET bio = ? WHERE id = ?",
                     'phone' => "UPDATE users SET phone = ? WHERE id = ?",
-                    'location' => "UPDATE users SET location = ? WHERE id = ?",
                     'department' => "UPDATE users SET department = ? WHERE id = ?",
                     'level' => "UPDATE users SET level = ? WHERE id = ?",
+                    'hall' => "UPDATE users SET hall = ? WHERE id = ?",
+                    'faculty' => "UPDATE users SET faculty = ? WHERE id = ?",
+                    'whatsapp' => "UPDATE users SET whatsapp = ? WHERE id = ?",
+                    'instagram' => "UPDATE users SET instagram = ? WHERE id = ?",
+                    'linkedin' => "UPDATE users SET linkedin = ? WHERE id = ?",
                     default => null
                 };
                 if ($sql) $pdo->prepare($sql)->execute([$pr['new_value'], $pr['user_id']]);
@@ -102,13 +106,17 @@ case 'profiles':
         foreach ($reqs->fetchAll() as $pr) {
             if (in_array($pr['field_name'], $ALLOWED_PROFILE_FIELDS)) {
                 // Use CASE statement instead of dynamic field interpolation
-                if ($pr['field_name'] === 'bio' || $pr['field_name'] === 'phone' || $pr['field_name'] === 'location' || $pr['field_name'] === 'department' || $pr['field_name'] === 'level') {
+                if (in_array($pr['field_name'], $ALLOWED_PROFILE_FIELDS)) {
                     $sql = match($pr['field_name']) {
                         'bio' => "UPDATE users SET bio = ? WHERE id = ?",
                         'phone' => "UPDATE users SET phone = ? WHERE id = ?",
-                        'location' => "UPDATE users SET location = ? WHERE id = ?",
                         'department' => "UPDATE users SET department = ? WHERE id = ?",
                         'level' => "UPDATE users SET level = ? WHERE id = ?",
+                        'hall' => "UPDATE users SET hall = ? WHERE id = ?",
+                        'faculty' => "UPDATE users SET faculty = ? WHERE id = ?",
+                        'whatsapp' => "UPDATE users SET whatsapp = ? WHERE id = ?",
+                        'instagram' => "UPDATE users SET instagram = ? WHERE id = ?",
+                        'linkedin' => "UPDATE users SET linkedin = ? WHERE id = ?",
                         default => null
                     };
                     if ($sql) $pdo->prepare($sql)->execute([$pr['new_value'], $pr['user_id']]);
@@ -137,7 +145,8 @@ case 'vacations':
         $req->execute([$modId]);
         $vr = $req->fetch();
         if ($vr) {
-            $pdo->prepare("UPDATE users SET vacation_mode = 1 WHERE id = ?")->execute([$vr['seller_id']]);
+            $boolTrue = sqlBool(true, $pdo);
+            $pdo->prepare("UPDATE users SET vacation_mode = $boolTrue WHERE id = ?")->execute([$vr['seller_id']]);
             $pdo->prepare("UPDATE vacation_requests SET status = 'approved' WHERE id = ?")->execute([$modId]);
             auditLog($pdo, $auth['user_id'], "Approved vacation for seller #" . $vr['seller_id'], 'vacation', $modId);
         }
@@ -166,7 +175,8 @@ case 'announcements':
         jsonSuccess('Announcement published');
     }
     elseif ($method === 'PUT' && $modId && $modAction === 'deactivate') {
-        $pdo->prepare("UPDATE announcements SET is_active = 0 WHERE id = ?")->execute([$modId]);
+        $boolFalse = sqlBool(false, $pdo);
+        $pdo->prepare("UPDATE announcements SET is_active = $boolFalse WHERE id = ?")->execute([$modId]);
         jsonSuccess('Deactivated');
     }
     elseif ($method === 'DELETE' && $modId) {

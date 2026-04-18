@@ -20,12 +20,13 @@ if ($method === 'GET' && $action === 'conversations') {
         ? "CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END" 
         : "IF(sender_id = ?, receiver_id, sender_id)";
 
+    $boolFalse = sqlBool(false, $pdo);
     $stmt = $pdo->prepare("
         SELECT u.id, u.username, u.profile_pic, u.last_seen,
             (SELECT message FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id) ORDER BY created_at DESC LIMIT 1) as last_msg,
             (SELECT message_type FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id) ORDER BY created_at DESC LIMIT 1) as last_msg_type,
             (SELECT attachment_url FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id) ORDER BY created_at DESC LIMIT 1) as last_attachment,
-            (SELECT COUNT(*) FROM messages WHERE sender_id = u.id AND receiver_id = ? AND is_read = 0) as unread,
+            (SELECT COUNT(*) FROM messages WHERE sender_id = u.id AND receiver_id = ? AND is_read = $boolFalse) as unread,
             (SELECT MAX(created_at) FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id)) as last_msg_time
         FROM users u
         WHERE u.id IN (SELECT DISTINCT $caseSql FROM messages WHERE sender_id = ? OR receiver_id = ?)
@@ -52,7 +53,8 @@ if ($method === 'GET' && $action === 'conversations') {
 // ── GET MESSAGES WITH USER ──
 elseif ($method === 'GET' && $targetUserId) {
     // Mark messages as read
-    $pdo->prepare("UPDATE messages SET is_read = 1, delivery_status = 'seen' WHERE sender_id = ? AND receiver_id = ?")
+    $boolTrue = sqlBool(true, $pdo);
+    $pdo->prepare("UPDATE messages SET is_read = $boolTrue, delivery_status = 'seen' WHERE sender_id = ? AND receiver_id = ?")
         ->execute([$targetUserId, $me]);
 
     $stmt = $pdo->prepare("
