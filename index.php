@@ -8,9 +8,19 @@ if (strpos($ua, 'Render/1.0') !== false || strpos($ua, 'Go-http-client') !== fal
     exit;
 }
 
-// ── API Bridge: route /api/* to backend ──
+// ── API Bridge: route REST API calls to backend ──
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
-if (strpos($uri, '/api/') === 0 || strpos($uri, '/api') === 0) {
+$api_routes = ['/api', '/auth', '/products', '/orders', '/messages', '/reviews', '/users', '/payments', '/search', '/recommendations', '/leaderboard', '/ads', '/announcements', '/notifications', '/ai', '/upload'];
+
+$is_api = false;
+foreach ($api_routes as $route) {
+    if (strpos($uri, $route) === 0) {
+        $is_api = true;
+        break;
+    }
+}
+
+if ($is_api) {
     require_once __DIR__ . '/backend/index.php';
     exit;
 }
