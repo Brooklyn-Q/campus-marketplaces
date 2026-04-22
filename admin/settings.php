@@ -1,129 +1,270 @@
 <?php
-$page_title = 'System Settings';
 require_once 'header.php';
 
-$msg = '';
-$err = '';
+// ---------------------------------------------------------------------------
+// Schema bootstrap — run once, safe to call on every request
+// ---------------------------------------------------------------------------
+try {
+    $pdo->exec("CREATE TABLE IF NOT EXISTS login_attempts (
+        id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        ip_address     VARCHAR(45)  NOT NULL,
+        username_tried VARCHAR(255) NOT NULL DEFAULT '',
+        attempt_time   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_ip_time (ip_address, attempt_time)
+    )");
+} catch (PDOException $e) {
+    error_log("login_attempts schema check failed: " . $e->getMessage());
+}
 
-// Fake maintenance mode flag (usually stored in DB or config file)
-$maintenance_file = '../.maintenance';
-$is_maintenance = file_exists($maintenance_file);
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+const ATTEMPT_LIMIT = 5;
+const ATTEMPT_WINDOW = 15;   // minutes
+const DUMMY_HASH = '$2y$12$invalidsaltvaluethatisnevertrue000000000000000000000000'; // for timing parity
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the real client IP address.
+ *
+ * Only trusts X-Forwarded-For when TRUST_PROXY is explicitly defined as true
+ * in your environment config (e.g. when behind a known Cloudflare/nginx proxy).
+ * Never blindly reads the header — an attacker can set it to anything.
+ */
+function get_client_ip(): string
+{
+    if (
+        defined('TRUST_PROXY') && TRUST_PROXY === true
+        && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])
+    ) {
+        // The header may be a comma-separated list; take the leftmost (originating) IP
+        $forwarded = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+        $ip = trim($forwarded[0]);
+        // Validate it looks like a real IP before trusting it
+        if (filter_var($ip, FILTER_VALIDATE_IP)) {
+            return $ip;
+        }
+    }
+    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+}
+
+/**
+ * Returns true if this IP has hit ATTEMPT_LIMIT failures within ATTEMPT_WINDOW.
+ */
+function is_ip_throttled(PDO $pdo, string $ip): bool
+{
+    $stmt = $pdo->prepare(
+        "SELECT COUNT(*) FROM login_attempts
+         WHERE ip_address = ?
+           AND attempt_time > NOW() - INTERVAL " . ATTEMPT_WINDOW . " MINUTE"
+    );
+    $stmt->execute([$ip]);
+    return (int) $stmt->fetchColumn() >= ATTEMPT_LIMIT;
+}
+
+/**
+ * Record a single failed attempt.
+ */
+function record_failed_attempt(PDO $pdo, string $ip, string $username_tried): void
+{
+    $pdo->prepare(
+        "INSERT INTO login_attempts (ip_address, username_tried, attempt_time)
+         VALUES (?, ?, NOW())"
+    )->execute([$ip, $username_tried]);
+}
+
+/**
+ * Clear all attempts for this IP on successful login.
+ */
+function clear_attempts(PDO $pdo, string $ip): void
+{
+    $pdo->prepare(
+        "DELETE FROM login_attempts WHERE ip_address = ?"
+    )->execute([$ip]);
+}
+
+/**
+ * Purge attempts older than the window (lightweight housekeeping on every login).
+ * Prevents the table growing unboundedly without needing a cron job.
+ */
+function purge_old_attempts(PDO $pdo): void
+{
+    $pdo->exec(
+        "DELETE FROM login_attempts
+         WHERE attempt_time < NOW() - INTERVAL " . ATTEMPT_WINDOW . " MINUTE"
+    );
+}
+
+/**
+ * Extended audit log that captures IP + User-Agent for high-stakes events.
+ * Falls back gracefully if the columns don't exist yet in older schemas.
+ */
+function auditLogWithContext(
+    PDO $pdo,
+    int $user_id,
+    string $action,
+    string $type = 'system',
+    int $target = 0
+): void {
+    $ip = get_client_ip();
+    $user_agent = $_SERVER['HTTP_USER_AGENT'] ?? 'unknown';
+
+    // Attempt the richer insert; fall back to the base auditLog() if the
+    // extra columns aren't present yet (e.g. during a rolling deployment)
+    try {
+        $pdo->prepare(
+            "INSERT INTO audit_logs (user_id, action, type, target_id, ip_address, user_agent, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, NOW())"
+        )->execute([$user_id, $action, $type, $target, $ip, $user_agent]);
+    } catch (PDOException $e) {
+        // Columns not present — fall back to the standard helper
+        auditLog($pdo, $user_id, $action, $type, $target);
+        error_log("auditLogWithContext fell back to auditLog(): " . $e->getMessage());
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Main login logic
+// ---------------------------------------------------------------------------
+$err = '';
+$ip = get_client_ip();
+
+// Lightweight housekeeping — trim stale rows without a dedicated cron
+purge_old_attempts($pdo);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
-    if (isset($_POST['toggle_maintenance'])) {
-        if ($is_maintenance) {
-            unlink($maintenance_file);
-            $msg = "Maintenance mode disabled. Site is live.";
-            $is_maintenance = false;
+
+    $username = trim($_POST['username'] ?? '');
+    $password = $_POST['password'] ?? '';
+
+    // Step 1 — Check throttle BEFORE hitting the users table
+    if (is_ip_throttled($pdo, $ip)) {
+        auditLogWithContext(
+            $pdo,
+            0,
+            "Blocked login from throttled IP: $ip (tried username: " . htmlspecialchars($username) . ")",
+            'security',
+            0
+        );
+        $err = "Too many failed login attempts. Please wait " . ATTEMPT_WINDOW . " minutes and try again.";
+
+    } else {
+        // Step 2 — Fetch the user record (admin only, or adapt to your schema)
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
+        $stmt->execute([$username]);
+        $user = $stmt->fetch();
+
+        // Step 3 — Always run a password_verify() to prevent timing attacks.
+        // If the username doesn't exist we verify against DUMMY_HASH so the
+        // response time is indistinguishable from a real (wrong) password check.
+        $hash_to_check = $user ? $user['password'] : DUMMY_HASH;
+        $password_ok = password_verify($password, $hash_to_check);
+
+        if ($user && $password_ok) {
+            // --- Successful login ---
+            clear_attempts($pdo, $ip);
+
+            // Rotate the session ID to prevent session fixation attacks
+            session_regenerate_id(true);
+
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['is_admin'] = (bool) ($user['is_admin'] ?? false);
+
+            auditLogWithContext(
+                $pdo,
+                $user['id'],
+                "Successful login for '{$user['username']}'",
+                'auth',
+                $user['id']
+            );
+
+            $redirect = $_SESSION['is_admin'] ? 'dashboard.php' : '../index.php';
+            header("Location: $redirect");
+            exit;
+
         } else {
-            file_put_contents($maintenance_file, '1');
-            $msg = "Maintenance mode enabled. Site is offline to non-admins.";
-            $is_maintenance = true;
+            // --- Failed login ---
+            record_failed_attempt($pdo, $ip, $username);
+
+            // Count remaining attempts so the admin knows how many are left
+            $stmt2 = $pdo->prepare(
+                "SELECT COUNT(*) FROM login_attempts
+                 WHERE ip_address = ?
+                   AND attempt_time > NOW() - INTERVAL " . ATTEMPT_WINDOW . " MINUTE"
+            );
+            $stmt2->execute([$ip]);
+            $attempts_so_far = (int) $stmt2->fetchColumn();
+            $remaining = max(0, ATTEMPT_LIMIT - $attempts_so_far);
+
+            auditLogWithContext(
+                $pdo,
+                0,
+                "Failed login attempt from IP $ip (tried username: " . htmlspecialchars($username) . ")",
+                'security',
+                0
+            );
+
+            // Generic message — never reveal whether username or password was wrong
+            $err = $remaining > 0
+                ? "Invalid credentials. $remaining attempt(s) remaining before your IP is throttled."
+                : "Too many failed login attempts. Please wait " . ATTEMPT_WINDOW . " minutes and try again.";
         }
-        auditLog($pdo, $_SESSION['user_id'], $is_maintenance ? "Enabled Maintenance Mode" : "Disabled Maintenance Mode", 'system', 0);
-    }
-    
-    if (isset($_POST['backup_db'])) {
-        // Trigger a fake backup process
-        $backup_name = 'backup_' . date('Ymd_His') . '.sql';
-        
-        // Mocking the backup by writing a simple message to a file
-        if (!is_dir('../backups')) mkdir('../backups', 0777, true);
-        file_put_contents('../backups/' . $backup_name, "-- Database Backup Generated on " . date('r') . "\n-- (Mock Backup)\n");
-        
-        $msg = "Database backup created successfully: $backup_name";
-        auditLog($pdo, $_SESSION['user_id'], "Triggered Database Backup: $backup_name", 'system', 0);
     }
 }
 ?>
 
-<h2 class="mb-3">⚙️ System Settings</h2>
+<!DOCTYPE html>
+<html lang="en">
 
-<?php if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) ?></div><?php endif; ?>
-<?php if($err): ?><div class="alert alert-error fade-in"><?= htmlspecialchars($err) ?></div><?php endif; ?>
+<head>
+    <meta charset="UTF-8">
+    <title>Admin Login</title>
+</head>
 
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:2rem;">
-    <!-- Maintenance Mode -->
-    <div class="glass fade-in" style="padding:2rem;">
-        <h3 class="mb-2">🚧 Maintenance Mode</h3>
-        <p class="text-muted mb-3" style="font-size:0.9rem;">
-            When enabled, the marketplace will be completely hidden from regular users. Only administrators will be able to access the site and this dashboard.
-        </p>
-        
-        <div style="background:rgba(0,0,0,0.2); padding:1rem; border-radius:8px; margin-bottom:1.5rem; display:flex; align-items:center; gap:1rem;">
-            <div style="width:16px; height:16px; border-radius:50%; background:<?= $is_maintenance ? 'var(--warning)' : 'var(--success)' ?>;"></div>
-            <strong>Status: <?= $is_maintenance ? 'Currently Active' : 'Off (Site Live)' ?></strong>
-        </div>
+<body>
 
-        <form method="POST">
-            <?= csrf_field() ?>
-            <button type="submit" name="toggle_maintenance" class="btn <?= $is_maintenance ? 'btn-success' : 'btn-warning' ?>" style="width:100%; justify-content:center; font-size:1.1rem; padding:1rem;">
-                <?= $is_maintenance ? '✅ Disable Maintenance Mode' : '⚠️ Enable Maintenance Mode' ?>
-            </button>
-            <p class="text-center mt-2 text-muted" style="font-size:0.8rem;">Action will be recorded in the <a href="audit.php">Audit Log</a>.</p>
-        </form>
-    </div>
+    <div style="max-width:400px; margin:4rem auto;">
+        <h2 class="mb-3">🔐 Admin Login</h2>
 
-    <!-- Database Backup -->
-    <div class="glass fade-in" style="padding:2rem;">
-        <h3 class="mb-2">💾 Database Backup</h3>
-        <p class="text-muted mb-3" style="font-size:0.9rem;">
-            Create a manual snapshot of the database (users, products, transactions, and messages).
-        </p>
-
-        <form method="POST">
-            <?= csrf_field() ?>
-            <button type="submit" name="backup_db" class="btn btn-primary" style="width:100%; justify-content:center; padding:1rem;">
-                ⬇️ Create New Backup
-            </button>
-        </form>
-
-        <h4 class="mt-3 mb-2">Recent Backups</h4>
-        <?php
-        $backups = [];
-        if (is_dir('../backups')) {
-            $files = scandir('../backups');
-            foreach ($files as $f) {
-                if ($f !== '.' && $f !== '..') $backups[] = $f;
-            }
-        }
-        rsort($backups);
-        ?>
-        <?php if(count($backups) > 0): ?>
-            <ul style="list-style:none; padding:0; font-size:0.85rem;" class="text-muted">
-                <?php foreach(array_slice($backups, 0, 5) as $b): ?>
-                    <li style="padding:0.5rem 0; border-bottom:1px solid var(--border);">📄 <?= htmlspecialchars($b) ?></li>
-                <?php endforeach; ?>
-            </ul>
-        <?php else: ?>
-            <p class="text-muted" style="font-size:0.85rem;">No backups found.</p>
+        <?php if ($err): ?>
+            <div class="alert alert-error fade-in"><?= htmlspecialchars($err) ?></div>
         <?php endif; ?>
-    </div>
-</div>
 
-<!-- Advanced Security Info -->
-<div class="glass fade-in mt-3" style="padding:2rem;">
-    <h3 class="mb-2">🔐 Advanced Security</h3>
-    
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
-        <div style="border:1px solid var(--border); padding:1rem; border-radius:8px; display:flex; align-items:flex-start; gap:1rem;">
-            <div style="font-size:1.5rem;">🛡️</div>
-            <div>
-                <h4 style="margin-bottom:0.3rem;">Brute Force Protection</h4>
-                <p class="text-muted" style="font-size:0.85rem;">Active on all login endpoints. IPs attempting >5 failed logins are temporarily throttled.</p>
-            </div>
-        </div>
-        
-        <div style="border:1px solid var(--border); padding:1rem; border-radius:8px; display:flex; align-items:flex-start; gap:1rem;">
-            <div style="font-size:1.5rem;">📱</div>
-            <div>
-                <h4 style="margin-bottom:0.3rem;">Admin 2FA</h4>
-                <p class="text-muted" style="font-size:0.85rem;">Required for high-level operations (simulated).</p>
-                <button class="btn btn-outline btn-sm mt-1" disabled>Configure (Coming Soon)</button>
-            </div>
-        </div>
-    </div>
-</div>
+        <!--
+        Button is disabled immediately on submit to prevent double-submit.
+        Re-enabled after 8 s as a fallback in case the server is slow —
+        prevents the admin being permanently stuck without a page reload.
+    -->
+        <form method="POST" onsubmit="
+              const btn = this.querySelector('button[type=submit]');
+              btn.disabled = true;
+              setTimeout(() => btn.disabled = false, 8000);
+              return true;">
+            <?= csrf_field() ?>
 
+            <div class="mb-2">
+                <label for="username">Username</label>
+                <input type="text" id="username" name="username" autocomplete="username" required style="width:100%;">
+            </div>
+
+            <div class="mb-3">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" autocomplete="current-password" required
+                    style="width:100%;">
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width:100%; padding:0.9rem;">
+                Login
+            </button>
+        </form>
+    </div>
+
+</body>
+
+</html>
 <?php require_once 'footer.php'; ?>

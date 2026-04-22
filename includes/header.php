@@ -1,5 +1,12 @@
-<?php 
-require_once __DIR__ . '/db.php'; 
+<?php
+require_once __DIR__ . '/db.php';
+
+// Security Headers
+header('X-Content-Type-Options: nosniff');
+header('X-Frame-Options: SAMEORIGIN');
+header('X-XSS-Protection: 1; mode=block');
+header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net cdnjs.cloudflare.com js.stripe.com connect.facebook.net; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com; connect-src 'self' api.example.com; frame-src 'self' js.stripe.com");
 
 if (isLoggedIn()) {
     $current_file = basename($_SERVER['PHP_SELF']);
@@ -29,7 +36,8 @@ if (isLoggedIn()) {
 
 if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
     if (strpos($_SERVER['REQUEST_URI'], '/login.php') === false && strpos($_SERVER['REQUEST_URI'], '/api/') === false) {
-        die("<!DOCTYPE html><html><head><title>Under Maintenance</title><style>body{background:#0a0f1e;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;}</style></head><body><div><h1>🚧 We're currently down for maintenance.</h1><p>Our engineers are upgrading the campus marketplace. We'll be back shortly!</p><br><a href='/marketplace/login.php' style='color:#6366f1;text-decoration:none;'>Admin Login &rarr;</a></div></body></html>");
+        $maintenanceLoginUrl = htmlspecialchars($baseUrl . 'login.php', ENT_QUOTES, 'UTF-8');
+        die("<!DOCTYPE html><html><head><title>Under Maintenance</title><style>body{background:#0a0f1e;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;}</style></head><body><div><h1>🚧 We're currently down for maintenance.</h1><p>Our engineers are upgrading the campus marketplace. We'll be back shortly!</p><br><a href='{$maintenanceLoginUrl}' style='color:#6366f1;text-decoration:none;'>Admin Login &rarr;</a></div></body></html>");
     }
 }
 ?>
@@ -56,59 +64,7 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
 
-    <!-- MOBILE OPTIMIZATION & CRITICAL FIXES -->
-    <style>
-        /* Ensure body takes full width, but DO NOT constrain height (allows scrolling) */
-        html, body {
-            width: 100%;
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
-            /* REMOVED height:100% — it was preventing page scroll */
-        }
-        body {
-            min-height: 100vh; /* Use min-height so content can grow */
-        }
 
-        /* Ensure nav doesn't overflow on mobile */
-        nav { max-width: 100vw; overflow-x: hidden; }
-
-        /* Fix container — use overflow visible so content isn't clipped */
-        .container {
-            width: 100%;
-            max-width: 1400px;
-            margin: 0 auto;
-            box-sizing: border-box;
-            /* REMOVED overflow:hidden — it was clipping content */
-        }
-
-        /* Ensure all elements respect viewport width */
-        * { box-sizing: border-box; }
-
-        /* Mobile-first responsive text sizing */
-        @media (max-width: 480px) {
-            body { font-size: 14px; }
-            .form-row { grid-template-columns: 1fr !important; }
-            .product-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 8px !important; }
-            .footer-grid { grid-template-columns: repeat(2, 1fr) !important; gap: 1rem !important; }
-            .nav-links { width: 100vw !important; }
-        }
-
-        /* Extra mobile fixes for iPhone/small devices */
-        @supports (padding: max(0px)) {
-            body { padding-left: max(0px, env(safe-area-inset-left)); padding-right: max(0px, env(safe-area-inset-right)); }
-            nav { padding-left: max(1rem, env(safe-area-inset-left)) !important; padding-right: max(1rem, env(safe-area-inset-right)) !important; }
-        }
-
-        /* Auth page responsive fixes */
-        @media (max-width: 600px) {
-            .form-container {
-                width: 95% !important;
-                padding: 2rem 1.5rem !important;
-                margin: 1rem auto !important;
-            }
-        }
-    </style>
 </head>
 <body class="<?= isLoggedIn() ? 'is-logged-in' : '' ?>">
     <nav style="position:sticky; top:0; z-index:999999; backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px); background:var(--card-bg, rgba(255,255,255,0.75)); border-bottom:1px solid var(--border, rgba(0,0,0,0.07)); transition: background 0.3s, border-color 0.3s; padding: 0 5%;">

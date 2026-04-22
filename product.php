@@ -34,9 +34,16 @@ $images = getProductImages($pdo, $pid);
 $rating = getAvgRating($pdo, $pid);
 $reviewCount = $pdo->prepare("SELECT COUNT(*) FROM reviews WHERE product_id = ?"); $reviewCount->execute([$pid]); $reviewCount = $reviewCount->fetchColumn();
 
+$canReview = false;
+if (isLoggedIn() && !$isOwner) {
+    $reviewAccessStmt = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE product_id = ? AND buyer_id = ? AND status = 'completed'");
+    $reviewAccessStmt->execute([$pid, $_SESSION['user_id']]);
+    $canReview = ((int)$reviewAccessStmt->fetchColumn() > 0);
+}
+
 // Handle review submission
 $reviewMsg = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review']) && isLoggedIn() && !$isOwner) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review']) && $canReview) {
     check_csrf();
     $r_rating = max(1, min(5, (int)($_POST['rating'] ?? 5)));
     $r_comment = trim($_POST['comment'] ?? '');
@@ -429,7 +436,7 @@ require_once 'includes/header.php';
 
         <?php if($reviewMsg): ?><div class="alert alert-success"><?= htmlspecialchars($reviewMsg) ?></div><?php endif; ?>
 
-        <?php if(isLoggedIn() && !$isOwner): ?>
+        <?php if($canReview): ?>
         <form method="POST" style="margin-bottom:1.5rem; display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
             <?= csrf_field() ?>
             <div class="form-group" style="margin:0;">

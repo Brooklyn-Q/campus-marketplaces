@@ -7,34 +7,43 @@ if (!$user) { session_destroy(); redirect('login.php'); }
 
 // Handle actions
 $msg = '';
-if (isset($_GET['action'])) {
-    $pid = (int)($_GET['pid'] ?? 0);
-    switch ($_GET['action']) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    check_csrf();
+    $pid = (int)($_POST['pid'] ?? 0);
+    $action = $_POST['action'];
+    switch ($action) {
         case 'request_delete':
-            $pdo->prepare("UPDATE products SET status='deletion_requested' WHERE id=? AND user_id=? AND status NOT IN ('deletion_requested')")->execute([$pid, $user['id']]);
-            $msg = "Deletion request submitted.";
+            if ($pid > 0) {
+                $pdo->prepare("UPDATE products SET status='deletion_requested' WHERE id=? AND user_id=? AND status NOT IN ('deletion_requested')")->execute([$pid, $user['id']]);
+                $msg = "Deletion request submitted.";
+            }
             break;
         case 'pause':
-            $pdo->prepare("UPDATE products SET status='paused' WHERE id=? AND user_id=? AND status='approved'")->execute([$pid, $user['id']]);
-            $msg = "Product paused.";
+            if ($pid > 0) {
+                $pdo->prepare("UPDATE products SET status='paused' WHERE id=? AND user_id=? AND status='approved'")->execute([$pid, $user['id']]);
+                $msg = "Product paused.";
+            }
             break;
         case 'unpause':
-            $pdo->prepare("UPDATE products SET status='approved' WHERE id=? AND user_id=? AND status='paused'")->execute([$pid, $user['id']]);
-            $msg = "Product resumed.";
+            if ($pid > 0) {
+                $pdo->prepare("UPDATE products SET status='approved' WHERE id=? AND user_id=? AND status='paused'")->execute([$pid, $user['id']]);
+                $msg = "Product resumed.";
+            }
             break;
         case 'mark_sold':
-            $pdo->prepare("UPDATE products SET quantity=0, status='sold' WHERE id=? AND user_id=?")->execute([$pid, $user['id']]);
-            $msg = "Product marked as sold out.";
+            if ($pid > 0) {
+                $pdo->prepare("UPDATE products SET quantity=0, status='sold' WHERE id=? AND user_id=?")->execute([$pid, $user['id']]);
+                $msg = "Product marked as sold out.";
+            }
             break;
         case 'restock_qty':
             $qty = (int)($_POST['restock_amount'] ?? 0);
             $restock_pid = (int)($_POST['pid'] ?? 0);
             if ($qty > 0 && $restock_pid > 0) {
-                // Also un-pause or re-approve if it was sold out
-                $status_sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
-                    ? "CASE WHEN status='sold' THEN 'approved' ELSE status END" 
-                    : "IF(status='sold', 'approved', status)";
-                $pdo->prepare("UPDATE products SET quantity = quantity + ?, status=$status_sql WHERE id=? AND user_id=?")->execute([$qty, $restock_pid, $user['id']]);
+                // Update quantity
+                $pdo->prepare("UPDATE products SET quantity = quantity + ? WHERE id=? AND user_id=?")->execute([$qty, $restock_pid, $user['id']]);
+                // If product was sold out, re-approve it
+                $pdo->prepare("UPDATE products SET status='approved' WHERE id=? AND user_id=? AND status='sold'")->execute([$restock_pid, $user['id']]);
                 $msg = "Product successfully restocked with +$qty items!";
             }
             break;
@@ -58,33 +67,35 @@ if (isset($_GET['action'])) {
             break;
 
         case 'boost':
-            try {
-                $pdo->beginTransaction();
-                $isPremium = ($user['seller_tier'] === 'premium');
-                $boostPrice = $isPremium ? 0.00 : (float)getSetting($pdo, 'ad_boost_price', '10');
-                
-                $stmt = $pdo->prepare("SELECT balance FROM users WHERE id = ? FOR UPDATE");
-                $stmt->execute([$user['id']]);
-                $u = $stmt->fetch();
-                
-                if (!$u || $u['balance'] < $boostPrice) throw new Exception("Insufficient funds (₵$boostPrice required) to boost.");
-                
-                if ($boostPrice > 0) {
-                    $pdo->prepare("UPDATE users SET balance = balance - ? WHERE id = ?")->execute([$boostPrice, $user['id']]);
+            if ($pid > 0) {
+                try {
+                    $pdo->beginTransaction();
+                    $isPremium = ($user['seller_tier'] === 'premium');
+                    $boostPrice = $isPremium ? 0.00 : (float)getSetting($pdo, 'ad_boost_price', '10');
+
+                    $stmt = $pdo->prepare("SELECT balance FROM users WHERE id = ? FOR UPDATE");
+                    $stmt->execute([$user['id']]);
+                    $u = $stmt->fetch();
+
+                    if (!$u || $u['balance'] < $boostPrice) throw new Exception("Insufficient funds (₵$boostPrice required) to boost.");
+
+                    if ($boostPrice > 0) {
+                        $pdo->prepare("UPDATE users SET balance = balance - ? WHERE id = ?")->execute([$boostPrice, $user['id']]);
+                    }
+
+                    if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+                        $pdo->prepare("UPDATE products SET boosted_until = CURRENT_TIMESTAMP + INTERVAL '24 hours' WHERE id=? AND user_id=? AND status='approved'")->execute([$pid, $user['id']]);
+                    } else {
+                        $pdo->prepare("UPDATE products SET boosted_until = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id=? AND user_id=? AND status='approved'")->execute([$pid, $user['id']]);
+                    }
+                    $pdo->prepare("INSERT INTO transactions (user_id,type,amount,status,reference,description) VALUES (?,'boost',?,?,?,?)")->execute([$user['id'], $boostPrice, 'completed', generateRef('BST'), "Boosted Product #$pid" . ($isPremium ? " (Free Premium Benefit)" : "")]);
+
+                    $pdo->commit();
+                    $msg = $isPremium ? "⚡ Product Successfully Boosted (Free Premium Benefit)!" : "⚡ Product Successfully Boosted for 24 hours!";
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    $msg = "Error: " . $e->getMessage();
                 }
-                
-                if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
-                    $pdo->prepare("UPDATE products SET boosted_until = CURRENT_TIMESTAMP + INTERVAL '24 hours' WHERE id=? AND user_id=? AND status='approved'")->execute([$pid, $user['id']]);
-                } else {
-                    $pdo->prepare("UPDATE products SET boosted_until = DATE_ADD(NOW(), INTERVAL 24 HOUR) WHERE id=? AND user_id=? AND status='approved'")->execute([$pid, $user['id']]);
-                }
-                $pdo->prepare("INSERT INTO transactions (user_id,type,amount,status,reference,description) VALUES (?,'boost',?,?,?,?)")->execute([$user['id'], $boostPrice, 'completed', generateRef('BST'), "Boosted Product #$pid" . ($isPremium ? " (Free Premium Benefit)" : "")]);
-                
-                $pdo->commit();
-                $msg = $isPremium ? "⚡ Product Successfully Boosted (Free Premium Benefit)!" : "⚡ Product Successfully Boosted for 24 hours!";
-            } catch (Exception $e) {
-                $pdo->rollBack();
-                $msg = "Error: " . $e->getMessage();
             }
             break;
 
@@ -550,7 +561,13 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
 <?php endif; ?>
 
 <?php if($user['vacation_mode']): ?>
-<div class="alert alert-warning">🏝️ <strong>Vacation Mode ON</strong> — Your listings are hidden from buyers. <a href="?action=toggle_vacation">Disable</a></div>
+<div class="alert alert-warning">🏝️ <strong>Vacation Mode ON</strong> — Your listings are hidden from buyers.
+    <form method="POST" style="display:inline;">
+        <input type="hidden" name="action" value="toggle_vacation">
+        <?= csrf_field() ?>
+        <button type="submit" style="background:none; border:none; color:inherit; text-decoration:underline; cursor:pointer;">Disable</button>
+    </form>
+</div>
 <?php endif; ?>
 
 <div class="dashboard-grid" style="display:grid; grid-template-columns:300px 1fr; gap:2rem;">
@@ -592,7 +609,11 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
             <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-direction:column;">
                 <a href="edit_profile.php" class="react-liquid-btn" data-label="Edit Profile"></a>
                 <?php if(isSeller()): ?>
-                    <a href="?action=toggle_vacation" class="btn btn-outline btn-sm" style="justify-content:center;"><?= $user['vacation_mode'] ? '☀️ End Vacation' : '🏝️ Vacation Mode' ?></a>
+                    <form method="POST" style="display:flex; flex-direction:column; gap:0.5rem;">
+                        <input type="hidden" name="action" value="toggle_vacation">
+                        <?= csrf_field() ?>
+                        <button type="submit" class="btn btn-outline btn-sm" style="justify-content:center;"><?= $user['vacation_mode'] ? '☀️ End Vacation' : '🏝️ Vacation Mode' ?></button>
+                    </form>
                     <?php if($user['seller_tier'] !== 'premium'): ?>
                         <button type="button" class="btn btn-gold btn-sm" style="justify-content:center;" onclick="toggleUpgradeModal(true);">🚀 Upgrade Account</button>
                     <?php endif; ?>
@@ -732,13 +753,21 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                                 <?php if($tier['price'] > 0): ?>
                                     <button type="button" onclick="payWithPaystack('<?= $tier['tier_name'] ?>', <?= $tier['price'] ?>)" class="btn <?= $is_popular ? 'btn-primary' : 'btn-outline' ?>" style="width:100%; border-radius:14px; padding:1.2rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;box-shadow:0 10px 20px rgba(0,113,227,0.1);">Upgrade to <?= ucfirst($tier['tier_name']) ?></button>
                                 <?php else: ?>
-                                    <a href="?action=request_<?= htmlspecialchars($tier['tier_name']) ?>" class="btn <?= $is_popular ? 'btn-primary' : 'btn-outline' ?>" style="width:100%; text-align:center; border-radius:14px; padding:1.2rem; font-weight:800;">Get Started Free</a>
+                                    <form method="POST" style="width:100%;">
+                                        <input type="hidden" name="action" value="request_<?= htmlspecialchars($tier['tier_name']) ?>">
+                                        <?= csrf_field() ?>
+                                        <button type="submit" class="btn <?= $is_popular ? 'btn-primary' : 'btn-outline' ?>" style="width:100%; text-align:center; border-radius:14px; padding:1.2rem; font-weight:800;">Get Started Free</button>
+                                    </form>
                                 <?php endif; ?>
                             <?php else: ?>
                                 <div style="display:flex; flex-direction:column; gap:0.5rem;">
                                     <div style="width:100%; text-align:center; background:rgba(0,113,227,0.08); padding:1rem; border-radius:14px; font-weight:800; color:var(--primary); border:2px solid var(--primary);">Active Plan</div>
                                     <?php if($tier['tier_name'] !== 'basic'): ?>
-                                        <a href="?action=cancel_tier" class="btn btn-outline btn-sm" style="font-size:0.8rem; justify-content:center; color:var(--danger); border-color:rgba(255,59,48,0.2); font-weight:700;" onclick="return confirm('Request to downgrade to Basic? Your limits will be reduced.')">Downgrade to Basic</a>
+                                        <form method="POST" style="width:100%;">
+                                            <input type="hidden" name="action" value="cancel_tier">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="btn btn-outline btn-sm" style="font-size:0.8rem; justify-content:center; color:var(--danger); border-color:rgba(255,59,48,0.2); font-weight:700; width:100%;" onclick="return confirm('Request to downgrade to Basic? Your limits will be reduced.')">Downgrade to Basic</button>
+                                        </form>
                                     <?php endif; ?>
                                 </div>
                             <?php endif; ?>
@@ -1037,16 +1066,41 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
 
                                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:0.6rem; margin-top:auto;">
                                         <?php if($p['status'] === 'approved'): ?>
-                                            <a href="?action=mark_sold&pid=<?= $p['id'] ?>" class="btn btn-outline btn-sm" style="font-size:0.75rem; padding:0.6rem; justify-content:center; color:#ff3b30; border-color:rgba(255,59,48,0.1);" onclick="return confirm('Mark as Sold Out?')">Sold Out</a>
-                                            <a href="?action=pause&pid=<?= $p['id'] ?>" class="btn btn-outline btn-sm" style="font-size:0.75rem; padding:0.6rem; justify-content:center;">Pause</a>
+                                            <form method="POST" style="display:contents;">
+                                                <input type="hidden" name="action" value="mark_sold">
+                                                <input type="hidden" name="pid" value="<?= $p['id'] ?>">
+                                                <?= csrf_field() ?>
+                                                <button type="submit" class="btn btn-outline btn-sm" style="font-size:0.75rem; padding:0.6rem; justify-content:center; color:#ff3b30; border-color:rgba(255,59,48,0.1);" onclick="return confirm('Mark as Sold Out?')">Sold Out</button>
+                                            </form>
+                                            <form method="POST" style="display:contents;">
+                                                <input type="hidden" name="action" value="pause">
+                                                <input type="hidden" name="pid" value="<?= $p['id'] ?>">
+                                                <?= csrf_field() ?>
+                                                <button type="submit" class="btn btn-outline btn-sm" style="font-size:0.75rem; padding:0.6rem; justify-content:center;">Pause</button>
+                                            </form>
                                             <a href="generate_flyer.php?id=<?= $p['id'] ?>" target="_blank" class="btn btn-primary btn-sm" style="grid-column: span 2; font-size:0.8rem; padding:0.6rem; justify-content:center; border-radius:12px;">📸 Flyer / Promo</a>
                                             <?php if(!$p['boosted_until'] || strtotime($p['boosted_until']) < time()): ?>
-                                                <a href="?action=boost&pid=<?= $p['id'] ?>" class="btn btn-gold btn-sm" style="grid-column: span 2; font-size:0.8rem; padding:0.6rem; justify-content:center; border-radius:12px;" onclick="return confirm('Boost for 24h?')">⚡ Boost Item</a>
+                                                <form method="POST" style="display:contents;">
+                                                    <input type="hidden" name="action" value="boost">
+                                                    <input type="hidden" name="pid" value="<?= $p['id'] ?>">
+                                                    <?= csrf_field() ?>
+                                                    <button type="submit" class="btn btn-gold btn-sm" style="grid-column: span 2; font-size:0.8rem; padding:0.6rem; justify-content:center; border-radius:12px;" onclick="return confirm('Boost for 24h?')">⚡ Boost Item</button>
+                                                </form>
                                             <?php endif; ?>
                                         <?php elseif($p['status'] === 'paused'): ?>
-                                            <a href="?action=unpause&pid=<?= $p['id'] ?>" class="btn btn-success btn-sm" style="grid-column: span 2; font-size:0.8rem; justify-content:center; border-radius:12px;">Resume Listing</a>
+                                            <form method="POST" style="display:contents;">
+                                                <input type="hidden" name="action" value="unpause">
+                                                <input type="hidden" name="pid" value="<?= $p['id'] ?>">
+                                                <?= csrf_field() ?>
+                                                <button type="submit" class="btn btn-success btn-sm" style="grid-column: span 2; font-size:0.8rem; justify-content:center; border-radius:12px;">Resume Listing</button>
+                                            </form>
                                         <?php endif; ?>
-                                        <a href="?action=request_delete&pid=<?= $p['id'] ?>" class="btn btn-outline btn-sm" style="grid-column: span 2; font-size:0.7rem; padding:0.4rem; color:var(--text-muted); justify-content:center; border-style:dashed; margin-top:0.5rem; opacity:0.6;" onclick="return confirm('Request Deletion?')">Remove listing</a>
+                                        <form method="POST" style="display:contents;">
+                                            <input type="hidden" name="action" value="request_delete">
+                                            <input type="hidden" name="pid" value="<?= $p['id'] ?>">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="btn btn-outline btn-sm" style="grid-column: span 2; font-size:0.7rem; padding:0.4rem; color:var(--text-muted); justify-content:center; border-style:dashed; margin-top:0.5rem; opacity:0.6;" onclick="return confirm('Request Deletion?')">Remove listing</button>
+                                        </form>
                                     </div>
                                 </div>
                             </div>

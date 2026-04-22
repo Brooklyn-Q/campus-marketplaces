@@ -1,46 +1,53 @@
 <?php
 require_once 'includes/db.php';
-if (isLoggedIn()) redirect('index.php');
+if (isLoggedIn())
+    redirect('index.php');
 
 $error = '';
 $mode = $_GET['mode'] ?? 'buyer'; // buyer or seller
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
-    $mode       = $_POST['mode'] ?? 'buyer';
-    $username   = trim($_POST['username'] ?? '');
-    $email      = trim($_POST['email'] ?? '');
-    $password   = $_POST['password'] ?? '';
-    $ref_code   = trim($_POST['referral_code'] ?? '');
-    $honeypot   = $_POST['website'] ?? ''; // anti-bot
-    $terms      = $_POST['terms'] ?? '';
+    $mode = $_POST['mode'] ?? 'buyer';
+    $username = trim($_POST['username'] ?? '');
+    $email = trim($_POST['email'] ?? '');
+    $password = $_POST['password'] ?? '';
+    $ref_code = trim($_POST['referral_code'] ?? '');
+    $honeypot = $_POST['website'] ?? ''; // anti-bot
+    $terms = $_POST['terms'] ?? '';
 
     // Faculty (required for all users)
-    $faculty    = trim($_POST['faculty'] ?? '');
+    $faculty = trim($_POST['faculty'] ?? '');
 
     // Seller-specific
     $department = trim($_POST['department'] ?? '');
-    $level      = $_POST['level'] ?? '';
+    $level = $_POST['level'] ?? '';
     // Use hall_residence from POST for both hall and hall_residence to maintain backwards compatibility
-    $hall       = trim($_POST['hall_residence'] ?? '');
+    $hall = trim($_POST['hall_residence'] ?? '');
     $hall_residence = trim($_POST['hall_residence'] ?? '');
-    $phone      = trim($_POST['phone'] ?? '');
+    $phone = trim($_POST['phone'] ?? '');
 
-    if (!empty($honeypot)) { $error = "Bot detected."; }
-    elseif (empty($terms)) { $error = "You must accept the Terms & Conditions."; }
-    elseif (empty($username) || empty($email) || empty($password)) { $error = "Please fill in all required fields."; }
-    elseif (strlen($password) < 8 || !preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password)) { 
-        $error = "Password must be at least 8 characters and include at least one uppercase letter and one number."; 
-    }
-    elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) { $error = "Enter a valid email address."; }
-    elseif (empty($faculty)) { $error = "Please select your faculty."; }
-    elseif ($mode === 'seller' && (empty($department) || empty($level) || empty($phone))) { $error = "Sellers must fill department, level, and phone."; }
-    else {
+    if (!empty($honeypot)) {
+        $error = "Bot detected.";
+    } elseif (empty($terms)) {
+        $error = "You must accept the Terms & Conditions.";
+    } elseif (empty($username) || empty($email) || empty($password)) {
+        $error = "Please fill in all required fields.";
+    } elseif (strlen($password) < 12 || !preg_match('/[A-Z]/', $password) || !preg_match('/[a-z]/', $password) || !preg_match('/[0-9]/', $password) || !preg_match('/[!@#$%^&*()_+\-=\[\]{};:"\\|,.<>\/?]/', $password)) {
+        $error = "Password must be at least 12 characters and include at least one uppercase letter, one lowercase letter, one number, and one special character.";
+    } elseif (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $error = "Enter a valid email address.";
+    } elseif (empty($faculty)) {
+        $error = "Please select your faculty.";
+    } elseif ($mode === 'seller' && (empty($department) || empty($level) || empty($phone))) {
+        $error = "Sellers must fill department, level, and phone.";
+    } else {
         $email = strtolower($email); // Always store email in lowercase
         $stmt = $pdo->prepare("SELECT id FROM users WHERE LOWER(email) = ? OR username = ?");
         $stmt->execute([$email, $username]);
-        if ($stmt->fetch()) { $error = "Email or Username already taken."; }
-        else {
+        if ($stmt->fetch()) {
+            $error = "Email or Username already taken.";
+        } else {
             try {
                 $pdo->beginTransaction();
 
@@ -49,14 +56,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $ref_stmt = $pdo->prepare("SELECT id FROM users WHERE referral_code = ?");
                     $ref_stmt->execute([$ref_code]);
                     $r = $ref_stmt->fetch();
-                    if ($r) $referred_by = $r['id'];
+                    if ($r)
+                        $referred_by = $r['id'];
                 }
 
                 // Handle profile pic upload for sellers
                 $pic = null;
                 if ($mode === 'seller' && isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] == 0) {
                     $ext = strtolower(pathinfo($_FILES['profile_pic']['name'], PATHINFO_EXTENSION));
-                    if (in_array($ext, ['jpg','jpeg','png','webp'])) {
+                    if (in_array($ext, ['jpg', 'jpeg', 'png', 'webp'])) {
                         // SECURITY: Validate MIME type
                         $finfo = finfo_open(FILEINFO_MIME_TYPE);
                         $mimeType = finfo_file($finfo, $_FILES['profile_pic']['tmp_name']);
@@ -66,7 +74,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // SECURITY: Check file size (10MB max for avatars)
                         $maxFileSize = 10 * 1024 * 1024;
                         if (in_array($mimeType, $allowedMimes) && $_FILES['profile_pic']['size'] <= $maxFileSize) {
-                            if (!is_dir('uploads/avatars')) mkdir('uploads/avatars', 0777, true);
+                            if (!is_dir('uploads/avatars'))
+                                mkdir('uploads/avatars', 0755, true);
 
                             // SECURITY: Strip EXIF and re-encode
                             $image = null;
@@ -79,13 +88,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             }
 
                             if ($image) {
-                                $pic = 'avatars/' . uniqid('av_') . '.' . $ext;
-                                if ($ext === 'jpg' || $ext === 'jpeg') {
-                                    imagejpeg($image, 'uploads/' . $pic, 85);
-                                } elseif ($ext === 'png') {
-                                    imagepng($image, 'uploads/' . $pic, 8);
-                                } elseif ($ext === 'webp') {
-                                    imagewebp($image, 'uploads/' . $pic, 85);
+                                $pic = 'avatars/' . uniqid('av_', true) . '.' . $ext;
+                                $uploadPath = 'uploads/' . $pic;
+                                // Ensure path doesn't escape uploads directory
+                                $realPath = realpath(dirname($uploadPath));
+                                if ($realPath && strpos($realPath, realpath('uploads')) === 0) {
+                                    if ($ext === 'jpg' || $ext === 'jpeg') {
+                                        imagejpeg($image, $uploadPath, 85);
+                                    } elseif ($ext === 'png') {
+                                        imagepng($image, $uploadPath, 8);
+                                    } elseif ($ext === 'webp') {
+                                        imagewebp($image, $uploadPath, 85);
+                                    }
                                 }
                                 imagedestroy($image);
                             }
@@ -101,10 +115,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hashed = password_hash($password, PASSWORD_DEFAULT);
                 $new_ref = generateReferralCode();
                 $role = ($mode === 'seller') ? 'seller' : 'buyer';
-                
+
                 $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, accepted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,NOW())");
                 $stmt->execute([$username, $email, $hashed, $role, $faculty, $department ?: null, $level ?: null, $hall ?: null, $hall_residence ?: null, $phone ?: null, $pic, $new_ref, $referred_by]);
-                $user_id = (int)$pdo->lastInsertId();
+                $user_id = (int) $pdo->lastInsertId();
 
                 // Referral bonuses
                 if ($referred_by) {
@@ -131,30 +145,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once 'includes/header.php';
 ?>
 
-<div class="auth-wrapper" style="min-height: calc(100vh - 100px); display:flex; align-items:center; justify-content:center; padding: 20px;">
-    <div class="glass form-container fade-in" style="width:100%; max-width:680px; box-shadow:0 32px 80px rgba(0,0,0,0.12); border-radius:32px;">
-        
+<div class="auth-wrapper"
+    style="min-height: calc(100vh - 100px); display:flex; align-items:center; justify-content:center; padding: 20px;">
+    <div class="glass form-container fade-in"
+        style="width:100%; max-width:680px; box-shadow:0 32px 80px rgba(0,0,0,0.12); border-radius:32px;">
+
         <div class="text-center" style="margin-bottom:2rem;">
-            <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:22px; background:linear-gradient(135deg, rgba(0,113,227,0.12), rgba(0,113,227,0.06)); margin-bottom:1.25rem; border:1px solid rgba(0,113,227,0.1);">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0071e3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+            <div
+                style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:22px; background:linear-gradient(135deg, rgba(0,113,227,0.12), rgba(0,113,227,0.06)); margin-bottom:1.25rem; border:1px solid rgba(0,113,227,0.1);">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0071e3" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <line x1="19" y1="8" x2="19" y2="14" />
+                    <line x1="22" y1="11" x2="16" y2="11" />
+                </svg>
             </div>
             <h1 style="font-size:2rem; font-weight:800; letter-spacing:-0.03em; margin:0;">Create Account</h1>
-            <p style="color:var(--text-muted); font-size:1.05rem; margin-top:0.4rem; font-weight:500;">Join your university marketplace today</p>
+            <p style="color:var(--text-muted); font-size:1.05rem; margin-top:0.4rem; font-weight:500;">Join your
+                university marketplace today</p>
         </div>
 
         <!-- Mode Tabs -->
-        <div style="display:flex; gap:0.5rem; margin-bottom:2.5rem; background:rgba(0,0,0,0.04); padding:6px; border-radius:18px; border:1px solid rgba(0,0,0,0.04);">
-            <a href="?mode=buyer" style="flex:1; border-radius:14px; padding:0.75rem; text-align:center; font-weight:700; font-size:0.9rem; transition:all 0.25s cubic-bezier(0.2, 0, 0, 1); text-decoration:none; <?= $mode==='buyer' ? 'background:#fff; color:#0071e3; box-shadow:0 4px 12px rgba(0,0,0,0.1);' : 'color:var(--text-muted);' ?>">
+        <div
+            style="display:flex; gap:0.5rem; margin-bottom:2.5rem; background:rgba(0,0,0,0.04); padding:6px; border-radius:18px; border:1px solid rgba(0,0,0,0.04);">
+            <a href="?mode=buyer"
+                style="flex:1; border-radius:14px; padding:0.75rem; text-align:center; font-weight:700; font-size:0.9rem; transition:all 0.25s cubic-bezier(0.2, 0, 0, 1); text-decoration:none; <?= $mode === 'buyer' ? 'background:#fff; color:#0071e3; box-shadow:0 4px 12px rgba(0,0,0,0.1);' : 'color:var(--text-muted);' ?>">
                 🛒 Buyer
             </a>
-            <a href="?mode=seller" style="flex:1; border-radius:14px; padding:0.75rem; text-align:center; font-weight:700; font-size:0.9rem; transition:all 0.25s cubic-bezier(0.2, 0, 0, 1); text-decoration:none; <?= $mode==='seller' ? 'background:#fff; color:#0071e3; box-shadow:0 4px 12px rgba(0,0,0,0.1);' : 'color:var(--text-muted);' ?>">
+            <a href="?mode=seller"
+                style="flex:1; border-radius:14px; padding:0.75rem; text-align:center; font-weight:700; font-size:0.9rem; transition:all 0.25s cubic-bezier(0.2, 0, 0, 1); text-decoration:none; <?= $mode === 'seller' ? 'background:#fff; color:#0071e3; box-shadow:0 4px 12px rgba(0,0,0,0.1);' : 'color:var(--text-muted);' ?>">
                 🏪 Seller
             </a>
         </div>
 
-        <?php if($error): ?>
+        <?php if ($error): ?>
             <div class="alert alert-error fade-in" style="text-align:center; margin-bottom:2rem;">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    style="vertical-align:middle;margin-right:4px;">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="8" x2="12" y2="12" />
+                    <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
                 <?= htmlspecialchars($error) ?>
             </div>
         <?php endif; ?>
@@ -178,7 +210,9 @@ require_once 'includes/header.php';
             <div class="form-row">
                 <div class="form-group">
                     <label>Password *</label>
-                    <input type="password" name="password" class="form-control" id="regPassword" required minlength="8" pattern="(?=.*\d)(?=.*[A-Z]).{8,}" title="Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters">
+                    <input type="password" name="password" class="form-control" id="regPassword" required minlength="8"
+                        pattern="(?=.*\d)(?=.*[A-Z]).{8,}"
+                        title="Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters">
                 </div>
                 <div class="form-group">
                     <label>Referral Code (Optional)</label>
@@ -187,8 +221,11 @@ require_once 'includes/header.php';
             </div>
 
             <div class="form-group" style="position:relative;">
-                <label>Select Your Faculty * <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to search</span></label>
-                <input type="text" name="faculty" id="facultyInput" class="form-control" list="facultyList" required autocomplete="off" placeholder="Start typing faculty name...">
+                <label>Select Your Faculty * <span
+                        style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to
+                        search</span></label>
+                <input type="text" name="faculty" id="facultyInput" class="form-control" list="facultyList" required
+                    autocomplete="off" placeholder="Start typing faculty name...">
                 <datalist id="facultyList">
                     <option value="Faculty of Applied Arts and Technology">
                     <option value="Faculty of Applied Sciences">
@@ -201,11 +238,13 @@ require_once 'includes/header.php';
                 </datalist>
             </div>
 
-            <?php if($mode === 'seller'): ?>
+            <?php if ($mode === 'seller'): ?>
                 <div class="form-row">
                     <div class="form-group" style="position:relative;">
-                        <label>Department * <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to search</span></label>
-                        <input type="text" name="department" id="departmentInput" class="form-control" list="departmentList" required autocomplete="off" placeholder="Select faculty first...">
+                        <label>Department * <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type
+                                to search</span></label>
+                        <input type="text" name="department" id="departmentInput" class="form-control" list="departmentList"
+                            required autocomplete="off" placeholder="Select faculty first...">
                         <datalist id="departmentList"></datalist>
                     </div>
                     <div class="form-group">
@@ -216,14 +255,16 @@ require_once 'includes/header.php';
                             <option value="200">Level 200</option>
                             <option value="300">Level 300</option>
                             <option value="400">Level 400</option>
-                            <option value="BTech">BTech</option>
                         </select>
                     </div>
                 </div>
                 <div class="form-row">
                     <div class="form-group" style="position:relative;">
-                        <label>Hall / Residence <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to search</span></label>
-                        <input type="text" name="hall_residence" id="hallInput" class="form-control" list="hallList" autocomplete="off" placeholder="Start typing residence...">
+                        <label>Hall / Residence <span
+                                style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to
+                                search</span></label>
+                        <input type="text" name="hall_residence" id="hallInput" class="form-control" list="hallList"
+                            autocomplete="off" placeholder="Start typing residence...">
                         <datalist id="hallList">
                             <option value="Ahanta Hall">
                             <option value="Nzema-Mensah Hall">
@@ -236,23 +277,32 @@ require_once 'includes/header.php';
                     </div>
                     <div class="form-group">
                         <label>Phone Number *</label>
-                        <input type="tel" name="phone" class="form-control" required placeholder="024XXXXXXX" pattern="(0[0-9]{9}|\+233[0-9]{9})">
+                        <input type="tel" name="phone" class="form-control" required placeholder="024XXXXXXX"
+                            pattern="(0[0-9]{9}|\+233[0-9]{9})">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Profile Photo <span style="font-weight:400; font-size:0.8rem; color:var(--text-muted);">(Optional)</span></label>
+                    <label>Profile Photo <span
+                            style="font-weight:400; font-size:0.8rem; color:var(--text-muted);">(Optional)</span></label>
                     <input type="file" name="profile_pic" class="form-control" accept="image/*" style="padding:0.6rem;">
                 </div>
             <?php endif; ?>
 
-            <div class="form-group" style="display:flex; gap:0.75rem; align-items:flex-start; margin:2rem 0; background:rgba(0,113,227,0.03); padding:1.25rem; border-radius:20px; border:1px solid rgba(0,113,227,0.08);">
-                <input type="checkbox" name="terms" value="1" id="termsCheckbox" required disabled style="width:20px; height:20px; margin-top:3px; cursor:not-allowed;">
-                <label for="termsCheckbox" style="font-size:0.9rem; color:var(--text-main); line-height:1.5; font-weight:500; margin:0;">
-                    I have read and agree to the <a href="javascript:void(0)" onclick="openTermsModal()" style="color:var(--primary); font-weight:800; text-decoration:underline;">Terms & Conditions</a>. (Please read first)
+            <div class="form-group"
+                style="display:flex; gap:0.75rem; align-items:flex-start; margin:2rem 0; background:rgba(0,113,227,0.03); padding:1.25rem; border-radius:20px; border:1px solid rgba(0,113,227,0.08);">
+                <input type="checkbox" name="terms" value="1" id="termsCheckbox" required disabled
+                    style="width:20px; height:20px; margin-top:3px; cursor:not-allowed;">
+                <label for="termsCheckbox"
+                    style="font-size:0.9rem; color:var(--text-main); line-height:1.5; font-weight:500; margin:0;">
+                    I have read and agree to the <a href="javascript:void(0)" onclick="openTermsModal()"
+                        style="color:var(--primary); font-weight:800; text-decoration:underline;">Terms &
+                        Conditions</a>. (Please read first)
                 </label>
             </div>
 
-            <button type="submit" id="regSubmitBtn" class="btn btn-primary" disabled style="width:100%; justify-content:center; padding:1.1rem; font-size:1.1rem; font-weight:700; opacity:0.5; cursor:not-allowed;">Create Account</button>
+            <button type="submit" id="regSubmitBtn" class="btn btn-primary" disabled
+                style="width:100%; justify-content:center; padding:1.1rem; font-size:1.1rem; font-weight:700; opacity:0.5; cursor:not-allowed;">Create
+                Account</button>
         </form>
 
         <script>
@@ -264,7 +314,7 @@ require_once 'includes/header.php';
                 submitBtn.style.cursor = termsCheck.checked ? 'pointer' : 'not-allowed';
             });
         </script>
-        
+
         <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid rgba(0,0,0,0.06); text-align:center;">
             <p style="font-size:0.95rem; color:var(--text-muted); margin:0;">
                 Already have an account? <a href="login.php" style="color:var(--primary); font-weight:700;">Sign in</a>
@@ -276,80 +326,80 @@ require_once 'includes/header.php';
 <?php require_once 'includes/footer.php'; ?>
 
 <script>
-const facultyDepartmentsMap = {
-    "Faculty of Applied Arts and Technology": [
-        "Ceramics Technology",
-        "Fashion Design and Technology",
-        "Graphic Design Technology",
-        "Industrial Painting and Design",
-        "Sculpture Technology",
-        "Textiles Design and Technology"
-    ],
-    "Faculty of Applied Sciences": [
-        "Computer Science",
-        "Hospitality Management",
-        "Mathematics, Statistics, and Actuarial Science",
-        "Tourism Management",
-        "Industrial and Health Science"
-    ],
-    "Faculty of Engineering": [
-        "Civil Engineering",
-        "Electrical/Electronic Engineering",
-        "Mechanical Engineering (Automotive, Plant, Production, Refrigeration)",
-        "Oil and Natural Gas Engineering",
-        "Renewable Energy Engineering"
-    ],
-    "Faculty of Business Studies": [
-        "Accounting and Finance",
-        "Marketing and Strategy",
-        "Procurement and Supply Chain Management",
-        "Secretaryship and Management Studies",
-        "Professional Studies"
-    ],
-    "Faculty of Built and Natural Environment": [
-        "Building Technology",
-        "Estate Management",
-        "Interior Design and Upholstery Technology"
-    ],
-    "Faculty of Health and Allied Sciences": [
-        "Medical Laboratory Sciences",
-        "Pharmaceutical Sciences"
-    ],
-    "Faculty of Maritime and Nautical Studies": [
-        "Marine Engineering",
-        "Maritime Transport"
-    ],
-    "Faculty of Media Technology and Liberal Studies": [
-        "Media and Communication Technology"
-    ]
-};
+    const facultyDepartmentsMap = {
+        "Faculty of Applied Arts and Technology": [
+            "Ceramics Technology",
+            "Fashion Design and Technology",
+            "Graphic Design Technology",
+            "Industrial Painting and Design",
+            "Sculpture Technology",
+            "Textiles Design and Technology"
+        ],
+        "Faculty of Applied Sciences": [
+            "Computer Science",
+            "Hospitality Management",
+            "Mathematics, Statistics, and Actuarial Science",
+            "Tourism Management",
+            "Industrial and Health Science"
+        ],
+        "Faculty of Engineering": [
+            "Civil Engineering",
+            "Electrical/Electronic Engineering",
+            "Mechanical Engineering (Automotive, Plant, Production, Refrigeration)",
+            "Oil and Natural Gas Engineering",
+            "Renewable Energy Engineering"
+        ],
+        "Faculty of Business Studies": [
+            "Accounting and Finance",
+            "Marketing and Strategy",
+            "Procurement and Supply Chain Management",
+            "Secretaryship and Management Studies",
+            "Professional Studies"
+        ],
+        "Faculty of Built and Natural Environment": [
+            "Building Technology",
+            "Estate Management",
+            "Interior Design and Upholstery Technology"
+        ],
+        "Faculty of Health and Allied Sciences": [
+            "Medical Laboratory Sciences",
+            "Pharmaceutical Sciences"
+        ],
+        "Faculty of Maritime and Nautical Studies": [
+            "Marine Engineering",
+            "Maritime Transport"
+        ],
+        "Faculty of Media Technology and Liberal Studies": [
+            "Media and Communication Technology"
+        ]
+    };
 
-document.addEventListener('DOMContentLoaded', function() {
-    const facultyInput = document.getElementById('facultyInput');
-    const departmentInput = document.getElementById('departmentInput');
-    const departmentList = document.getElementById('departmentList');
+    document.addEventListener('DOMContentLoaded', function () {
+        const facultyInput = document.getElementById('facultyInput');
+        const departmentInput = document.getElementById('departmentInput');
+        const departmentList = document.getElementById('departmentList');
 
-    if(facultyInput) {
-        const updateDepartments = function() {
-            if(!departmentInput || !departmentList) return;
-            const selectedFaculty = facultyInput.value;
-            departmentList.innerHTML = '';
-            departmentInput.value = '';
-            departmentInput.placeholder = 'Select faculty first...';
-            if(facultyDepartmentsMap[selectedFaculty]) {
-                departmentInput.placeholder = 'Start typing department...';
-                facultyDepartmentsMap[selectedFaculty].forEach(function(dept) {
-                    const opt = document.createElement('option');
-                    opt.value = dept;
-                    departmentList.appendChild(opt);
-                });
-            }
-        };
-        facultyInput.addEventListener('change', updateDepartments);
-        facultyInput.addEventListener('input', updateDepartments);
-        
-        // Trigger once on load in case a value was preserved by browser autofill
-        updateDepartments();
-    }
-});
+        if (facultyInput) {
+            const updateDepartments = function () {
+                if (!departmentInput || !departmentList) return;
+                const selectedFaculty = facultyInput.value;
+                departmentList.innerHTML = '';
+                departmentInput.value = '';
+                departmentInput.placeholder = 'Select faculty first...';
+                if (facultyDepartmentsMap[selectedFaculty]) {
+                    departmentInput.placeholder = 'Start typing department...';
+                    facultyDepartmentsMap[selectedFaculty].forEach(function (dept) {
+                        const opt = document.createElement('option');
+                        opt.value = dept;
+                        departmentList.appendChild(opt);
+                    });
+                }
+            };
+            facultyInput.addEventListener('change', updateDepartments);
+            facultyInput.addEventListener('input', updateDepartments);
+
+            // Trigger once on load in case a value was preserved by browser autofill
+            updateDepartments();
+        }
+    });
 </script>

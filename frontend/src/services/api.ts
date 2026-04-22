@@ -4,7 +4,24 @@
  * Replaces direct PHP database access with REST API calls.
  */
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost/marketplace/backend/api';
+function getDefaultApiBase(): string {
+  if (typeof window === 'undefined') {
+    return '/backend/api';
+  }
+
+  const { origin, hostname, pathname } = window.location;
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    const localBase = pathname.startsWith('/marketplace/') ? '/marketplace' : '';
+    return `${origin}${localBase}/backend/api`;
+  }
+
+  return `${origin}/backend/api`;
+}
+
+const API_BASE =
+  (((import.meta as any).env.VITE_API_URL as string | undefined)?.replace(/\/$/, '')) ||
+  getDefaultApiBase();
 
 // ── Token Management ──
 
@@ -28,7 +45,7 @@ export async function apiFetch<T = any>(
 ): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
-    ...(options.headers as Record<string, string> || {}),
+    ...((options.headers as Record<string, string>) || {}),
   };
 
   if (token) {
@@ -40,7 +57,8 @@ export async function apiFetch<T = any>(
     headers['Content-Type'] = 'application/json';
   }
 
-  const res = await fetch(`${API_BASE}/${endpoint}`, {
+  const normalizedEndpoint = endpoint.replace(/^\/+/, '');
+  const res = await fetch(`${API_BASE}/${normalizedEndpoint}`, {
     ...options,
     headers,
   });
@@ -52,13 +70,22 @@ export async function apiFetch<T = any>(
     throw new Error('Authentication required');
   }
 
-  const data = await res.json();
+  const contentType = res.headers.get('content-type') || '';
+  const isJson = contentType.includes('application/json');
+  const rawBody = res.status === 204 ? '' : await res.text();
+  const data = rawBody ? (isJson ? JSON.parse(rawBody) : rawBody) : null;
 
   if (!res.ok) {
-    throw new Error(data.error || data.message || `API Error ${res.status}`);
+    if (isJson && data && typeof data === 'object') {
+      throw new Error((data as any).error || (data as any).message || `API Error ${res.status}`);
+    }
+
+    throw new Error(
+      (typeof data === 'string' && data.trim()) || `API Error ${res.status}`
+    );
   }
 
-  return data;
+  return data as T;
 }
 
 // ── AUTH API ──

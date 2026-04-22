@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $productId = (int)$pdo->lastInsertId();
 
             // Handle multiple image uploads
-            if (!is_dir(__DIR__ . '/uploads/products')) mkdir(__DIR__ . '/uploads/products', 0777, true);
+            if (!is_dir(__DIR__ . '/uploads/products')) mkdir(__DIR__ . '/uploads/products', 0755, true);
             $allowed = ['jpg','jpeg','png','webp'];
             $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
             $maxFileSize = 50 * 1024 * 1024; // 50MB
@@ -79,7 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     if (!$image) continue; // Invalid image
 
-                    $fname = uniqid('p_') . '.' . $ext;
+                    $fname = uniqid('p_', true) . '.' . $ext;
                     $tempReEncoded = sys_get_temp_dir() . '/' . $fname;
 
                     // Save re-encoded image (strips EXIF)
@@ -90,7 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     } elseif ($ext === 'webp') {
                         imagewebp($image, $tempReEncoded, 85);
                     }
-                    imagedestroy($image);
 
                     $storedPath = storage_upload($tempReEncoded, 'products', $fname, $mimeType);
 
@@ -99,6 +98,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $imgCount++;
                     }
                     if (file_exists($tempReEncoded)) @unlink($tempReEncoded);
+                    imagedestroy($image);
                 }
             }
 

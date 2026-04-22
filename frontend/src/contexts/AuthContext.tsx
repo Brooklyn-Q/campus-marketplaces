@@ -119,7 +119,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = () => {
     removeToken();
     setUser(null);
-    window.location.href = '/';
+
+    if (typeof window !== 'undefined') {
+      if (window.location.hash) {
+        window.location.hash = '#/';
+      } else {
+        window.location.assign('./');
+      }
+    }
   };
 
   const value: AuthContextType = {

@@ -197,7 +197,7 @@ $cat_desc = ($category && isset($cat_descriptions[$category])) ? $cat_descriptio
 
 <!-- FILTERS -->
 <div class="glass filter-bar">
-    <form action="index.php" method="GET" style="display:flex; gap:0.75rem; width:100%; flex-wrap:wrap; align-items:center;" id="searchForm">
+    <form action="index.php" method="GET" class="search-filter-row" style="display:flex; gap:0.75rem; width:100%; flex-wrap:wrap; align-items:center;" id="searchForm">
         <div style="flex:1; min-width:180px; position:relative;">
             <input type="text" name="search" id="searchInput" class="form-control" autocomplete="off" placeholder="Search products..." value="<?= htmlspecialchars($search) ?>" style="width:100%;">
             <div id="searchSuggestions" style="display:none; position:absolute; top:calc(100% + 4px); left:0; right:0; background:var(--card-bg); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15); z-index:9999; max-height:200px; overflow-y:auto; backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);"></div>

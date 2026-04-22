@@ -42,7 +42,7 @@ export default function Register() {
 
     const res = await register(formData);
     if (res.success) {
-      if (res.isAdmin) {
+      if ((res as any).isAdmin) {
         navigate('/admin');
       } else {
         navigate('/dashboard');

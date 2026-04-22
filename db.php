@@ -184,9 +184,8 @@ function getUser(PDO $pdo, int $id): ?array {
 }
 
 function getUnreadCount(PDO $pdo, int $userId): int {
-    $bool = sqlBool(false, $pdo);
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = $bool");
-    $stmt->execute([$userId]);
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM messages WHERE receiver_id = ? AND is_read = ?");
+    $stmt->execute([$userId, 0]);
     return (int)$stmt->fetchColumn();
 }
 
@@ -319,12 +318,23 @@ function getAccountTiers(PDO $pdo): array {
             // Auto-seed if somehow empty during a query
             $boolF = sqlBool(false, $pdo);
             $boolT = sqlBool(true, $pdo);
-            $pdo->exec("INSERT INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
-                ('basic', 0.00, '0', 2, 1, 'blue', $boolF),
-                ('pro', 10.00, '1', 5, 2, 'silver', $boolF),
-                ('premium', 20.00, '1', 15, 3, 'gold', $boolT)
-                ON CONFLICT (tier_name) DO NOTHING
-            ");
+            $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+            if ($driver === 'pgsql') {
+                $pdo->exec("INSERT INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
+                    ('basic', 0.00, '0', 2, 1, 'blue', $boolF),
+                    ('pro', 10.00, '1', 5, 2, 'silver', $boolF),
+                    ('premium', 20.00, '1', 15, 3, 'gold', $boolT)
+                    ON CONFLICT (tier_name) DO NOTHING
+                ");
+            } else {
+                $pdo->exec("INSERT IGNORE INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
+                    ('basic', 0.00, '0', 2, 1, 'blue', $boolF),
+                    ('pro', 10.00, '1', 5, 2, 'silver', $boolF),
+                    ('premium', 20.00, '1', 15, 3, 'gold', $boolT)
+                ");
+            }
+
             // Retry fetch
             $stmt = $pdo->query("SELECT * FROM account_tiers");
             while($row = $stmt->fetch()) { $tiers[$row['tier_name']] = $row; }
