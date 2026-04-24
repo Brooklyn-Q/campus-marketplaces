@@ -56,6 +56,19 @@ function uploadToCloudinary(array $file, string $folder = 'marketplace'): ?strin
 }
 
 function uploadLocally(array $file, string $folder): ?string {
+    // Try Supabase Storage first (persistent across Render redeployments)
+    $projectRef = env('SUPABASE_PROJECT_REF', '');
+    $anonKey    = env('SUPABASE_ANON_KEY', '');
+    if ($projectRef && $anonKey) {
+        require_once __DIR__ . '/../../includes/storage_helper.php';
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        $filename = uniqid('f_') . '.' . $ext;
+        $mime = $file['type'] ?: 'image/jpeg';
+        $url = storage_upload($file['tmp_name'], $folder, $filename, $mime);
+        if ($url) return $url;
+    }
+
+    // Final fallback: save to local filesystem (dev only — lost on Render redeploy)
     $uploadDir = __DIR__ . '/../uploads/' . $folder;
     if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
 
@@ -67,10 +80,8 @@ function uploadLocally(array $file, string $folder): ?string {
     $path = "$uploadDir/$filename";
 
     if (move_uploaded_file($file['tmp_name'], $path)) {
-        // Build the public URL for this upload
         $appUrl = env('APP_URL', '');
         if (!$appUrl) {
-            // Auto-detect from the current request
             $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
             $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
             $appUrl = "$scheme://$host";
