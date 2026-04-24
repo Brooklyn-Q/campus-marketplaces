@@ -33,7 +33,7 @@ if ($method === 'GET' && $action === 'conversations') {
         AND u.id != ?
         ORDER BY last_msg_time DESC
     ");
-    $stmt->execute([$me, $me, $me, $me, $me, $me, $me, $me, $me, $me, $me, $me, $me, $me]);
+    $stmt->execute(array_fill(0, 13, $me));
     $conversations = $stmt->fetchAll();
 
     foreach ($conversations as &$c) {
