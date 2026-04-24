@@ -2,8 +2,7 @@
 $page_title = 'Omni Chat';
 require_once 'header.php';
 
-// Ensure admin access
-if (empty($_SESSION['is_admin'])) {
+if (!isAdmin()) {
     http_response_code(403);
     exit('Forbidden');
 }

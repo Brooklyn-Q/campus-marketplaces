@@ -173,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
-            $_SESSION['is_admin'] = (bool) ($user['is_admin'] ?? false);
+            $_SESSION['role'] = $user['role'];
 
             auditLogWithContext(
                 $pdo,
@@ -183,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $user['id']
             );
 
-            $redirect = $_SESSION['is_admin'] ? 'index.php' : '../index.php';
+            $redirect = isAdmin() ? 'index.php' : '../index.php';
             header("Location: $redirect");
             exit;
 
