@@ -7,6 +7,7 @@ export default function Product() {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [ordering, setOrdering] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(0);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -65,14 +66,36 @@ export default function Product() {
   return (
     <div className="container" style={{padding:'2rem 0'}}>
       <div style={{display:'flex', flexWrap:'wrap', gap:'2rem'}}>
-        {/* Product Image */}
-        <div style={{flex:'1 1 400px', borderRadius:'24px', overflow:'hidden', boxShadow:'0 20px 40px rgba(0,0,0,0.1)'}}>
-          <img 
-            src={product.images && product.images[0] ? assetUrl(product.images[0].image_url) : ''} 
-            alt={product.title} 
-            style={{width:'100%', height:'100%', objectFit:'cover', minHeight:'300px'}} 
-            className="glass"
-          />
+        {/* Product Images */}
+        <div style={{flex:'1 1 400px'}}>
+          <div style={{borderRadius:'24px', overflow:'hidden', boxShadow:'0 20px 40px rgba(0,0,0,0.1)'}}>
+            <img 
+              src={product.images && product.images[selectedImage] ? assetUrl(product.images[selectedImage].image_url) : ''} 
+              alt={product.title} 
+              style={{width:'100%', height:'100%', objectFit:'cover', minHeight:'300px', display:'block'}} 
+              className="glass"
+            />
+          </div>
+          {/* Thumbnails — only show if there are multiple images */}
+          {product.images && product.images.length > 1 && (
+            <div style={{display:'flex', gap:'10px', marginTop:'12px', flexWrap:'wrap'}}>
+              {product.images.map((img: any, idx: number) => (
+                <button
+                  key={img.id || idx}
+                  type="button"
+                  onClick={() => setSelectedImage(idx)}
+                  style={{
+                    width:'72px', height:'72px', padding:0, border: idx === selectedImage ? '3px solid var(--primary)' : '2px solid var(--border)',
+                    borderRadius:'12px', overflow:'hidden', cursor:'pointer', background:'none', opacity: idx === selectedImage ? 1 : 0.7,
+                    transition:'all 0.2s ease'
+                  }}
+                >
+                  <img src={assetUrl(img.image_url)} alt={`${product.title} ${idx + 1}`}
+                    style={{width:'100%', height:'100%', objectFit:'cover', display:'block'}} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Product Details */}
