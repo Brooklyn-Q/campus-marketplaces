@@ -115,19 +115,23 @@ export default function Home() {
 
   const assetUrl = (path: string) => {
     if (!path) return '';
-    // Already a full URL (Cloudinary, etc) — use as-is
+    // Already a full URL
     if (path.startsWith('http://') || path.startsWith('https://')) {
-      // Rewrite broken localhost URLs to the actual production backend
-      if (path.includes('localhost')) {
-        const apiBase = import.meta.env.VITE_API_URL || '';
-        if (apiBase) {
-          const backendRoot = apiBase.replace(/\/api\/?$/, '');
-          // Extract the relative path after the host (e.g., /uploads/marketplace/products/file.jpg)
-          const match = path.match(/\/uploads\/.+$/);
-          if (match) return `${backendRoot}${match[0]}`;
-        }
+      let url = path;
+      const apiBase = import.meta.env.VITE_API_URL || '';
+      const backendRoot = apiBase ? apiBase.replace(/\/api\/?$/, '') : '';
+
+      // Rewrite broken localhost URLs → production backend
+      if (url.includes('localhost') && backendRoot) {
+        const match = url.match(/\/uploads\/.+$/);
+        if (match) url = `${backendRoot}${match[0]}`;
       }
-      return path;
+
+      // Upgrade http → https (GitHub Pages blocks mixed content)
+      if (url.startsWith('http://')) {
+        url = url.replace('http://', 'https://');
+      }
+      return url;
     }
     // Relative upload path from the backend
     if (path.startsWith('uploads/') || path.includes('/uploads/')) {
