@@ -116,7 +116,19 @@ export default function Home() {
   const assetUrl = (path: string) => {
     if (!path) return '';
     // Already a full URL (Cloudinary, etc) — use as-is
-    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      // Rewrite broken localhost URLs to the actual production backend
+      if (path.includes('localhost')) {
+        const apiBase = import.meta.env.VITE_API_URL || '';
+        if (apiBase) {
+          const backendRoot = apiBase.replace(/\/api\/?$/, '');
+          // Extract the relative path after the host (e.g., /uploads/marketplace/products/file.jpg)
+          const match = path.match(/\/uploads\/.+$/);
+          if (match) return `${backendRoot}${match[0]}`;
+        }
+      }
+      return path;
+    }
     // Relative upload path from the backend
     if (path.startsWith('uploads/') || path.includes('/uploads/')) {
       const apiBase = import.meta.env.VITE_API_URL || 'http://localhost/marketplace/backend/api';

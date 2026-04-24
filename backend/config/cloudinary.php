@@ -67,8 +67,16 @@ function uploadLocally(array $file, string $folder): ?string {
     $path = "$uploadDir/$filename";
 
     if (move_uploaded_file($file['tmp_name'], $path)) {
-        $baseUrl = env('APP_URL', 'http://localhost/marketplace/backend');
-        return "$baseUrl/uploads/$folder/$filename";
+        // Build the public URL for this upload
+        $appUrl = env('APP_URL', '');
+        if (!$appUrl) {
+            // Auto-detect from the current request
+            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $appUrl = "$scheme://$host";
+        }
+        $appUrl = rtrim($appUrl, '/');
+        return "$appUrl/uploads/$folder/$filename";
     }
 
     return null;
