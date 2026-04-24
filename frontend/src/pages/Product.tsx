@@ -37,12 +37,13 @@ export default function Product() {
 
   const assetUrl = (path: string) => {
     if (!path) return '';
-    if (path.startsWith('uploads/http')) return path.substring(8);
-    if (path.startsWith('http')) return path;
-    if (path.startsWith('uploads/')) {
+    // Already a full URL (Cloudinary, etc) — use as-is
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    // Relative upload path from the backend
+    if (path.startsWith('uploads/') || path.includes('/uploads/')) {
       const apiBase = (import.meta as any).env.VITE_API_URL || 'http://localhost/marketplace/backend/api';
       const backendRoot = apiBase.replace(/\/api\/?$/, '');
-      return `${backendRoot}/../${path}`;
+      return `${backendRoot}/${path}`;
     }
     return path.startsWith('/') ? path : `/${path}`;
   };
@@ -87,7 +88,7 @@ export default function Product() {
             <div style={{display:'flex', alignItems:'center', gap:'1rem'}}>
               <div style={{width:'48px', height:'48px', borderRadius:'50%', background:'var(--border)', display:'flex', alignItems:'center', justifyContent:'center'}}>
                 {product.seller_pic ? (
-                  <img src={assetUrl('uploads/' + product.seller_pic)} alt="Seller" style={{width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover'}} />
+                  <img src={assetUrl(product.seller_pic)} alt="Seller" style={{width:'100%', height:'100%', borderRadius:'50%', objectFit:'cover'}} />
                 ) : (
                   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                 )}

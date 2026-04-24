@@ -114,18 +114,17 @@ export default function Home() {
   const stableAiRecs = useMemo(() => dedupeById(aiRecs), [aiRecs]);
 
   const assetUrl = (path: string) => {
-    // If it's already an absolute URL, use as-is
-    if (path.startsWith('uploads/http')) return path.substring(8);
-    if (path.startsWith('http')) return path;
-    // For uploads from the backend (product images etc), prefix with API base
-    if (path.startsWith('uploads/')) {
+    if (!path) return '';
+    // Already a full URL (Cloudinary, etc) — use as-is
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    // Relative upload path from the backend
+    if (path.startsWith('uploads/') || path.includes('/uploads/')) {
       const apiBase = import.meta.env.VITE_API_URL || 'http://localhost/marketplace/backend/api';
-      // Strip '/api' from the end to get the backend root for uploads
       const backendRoot = apiBase.replace(/\/api\/?$/, '');
-      return `${backendRoot}/../${path}`;
+      return `${backendRoot}/${path}`;
     }
-    // For local public assets, use root path
-    return path.startsWith('/') ? path : `/${path}`;
+    // Local public assets
+    return path.startsWith('/') ? path : `${base}${path}`;
   };
 
   return (
@@ -219,7 +218,7 @@ export default function Home() {
                  <Link key={mp.id ?? `rec-${index}`} to={`/product/${mp.id}`} className="scroll-card glass fade-in" style={{scrollSnapAlign: 'start', minWidth: '160px', textDecoration:'none'}}>
                      <div className="product-img-wrap" style={{aspectRatio: '4/3', maxHeight: '140px', borderRadius: '12px', overflow:'hidden'}}>
                          {mp.main_image ? (
-                             <img src={assetUrl('uploads/' + mp.main_image)} alt={mp.title} className="product-img" loading="lazy" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                             <img src={assetUrl(mp.main_image)} alt={mp.title} className="product-img" loading="lazy" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                          ) : (
                              <div className="product-img" style={{display:'flex',alignItems:'center',justifyContent:'center',color:'#555',background:'rgba(0,0,0,0.1)'}}>No Image</div>
                          )}
@@ -245,7 +244,7 @@ export default function Home() {
                 <Link key={p.id ?? `product-${index}`} to={`/product/${p.id}`} className="glass product-card fade-in" style={{flexDirection:'column', textDecoration:'none', color:'inherit'}}>
                 <div className="product-img-wrap" style={{aspectRatio: '1 / 1', borderRadius: '14px', overflow:'hidden'}}>
                     {p.main_image ? (
-                        <img src={assetUrl('uploads/' + p.main_image)} alt={p.title} className="product-img" loading="lazy" style={{width:'100%', height:'100%', objectFit:'cover'}} />
+                        <img src={assetUrl(p.main_image)} alt={p.title} className="product-img" loading="lazy" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                     ) : (
                         <div className="product-img" style={{display:'flex',alignItems:'center',justifyContent:'center',color:'#555',background:'rgba(0,0,0,0.3)'}}>No Image</div>
                     )}
@@ -293,7 +292,7 @@ export default function Home() {
                             className="quick-add-btn"
                             onClick={(e) => {
                                 e.preventDefault(); e.stopPropagation();
-                                const img = p.main_image ? assetUrl('uploads/' + p.main_image) : '';
+                                const img = p.main_image ? assetUrl(p.main_image) : '';
                                 (window as any).cmCart?.add(p.id, p.title, p.price, img);
                                 const currentTarget = e.currentTarget;
                                 currentTarget.textContent = '✓ Added';
