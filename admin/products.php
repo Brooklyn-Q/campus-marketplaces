@@ -1,6 +1,10 @@
 <?php
 $page_title = 'Moderation Desk';
-require_once 'header.php';
+
+// Must handle POST redirects BEFORE header.php outputs HTML
+// header.php already checks isAdmin() and redirects non-admins
+require_once '../includes/db.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 if (!isAdmin()) {
     http_response_code(403);
@@ -8,10 +12,6 @@ if (!isAdmin()) {
 }
 
 // --- Safe deletion helper ---
-// Strategy: move files to temp_trash/ BEFORE committing the DB delete.
-// If the server crashes after the DB commit, a cleanup worker can still
-// find and remove files in temp_trash/. If the DB commit fails, files
-// are moved back from temp_trash/ — no ghost files either way.
 function deleteProductWithFiles(PDO $pdo, int $id): void
 {
     $trashDir = '../uploads/temp_trash/';
@@ -21,18 +21,16 @@ function deleteProductWithFiles(PDO $pdo, int $id): void
         mkdir($trashDir, 0755, true);
     }
 
-    // 1. Fetch image paths before touching anything
     $imgStmt = $pdo->prepare("SELECT image_path FROM product_images WHERE product_id = ?");
     $imgStmt->execute([$id]);
     $images = $imgStmt->fetchAll();
 
-    // 2. Move local files to temp_trash/ (reversible pre-commit step)
     $movedFiles = [];
     foreach ($images as $img) {
         if (str_starts_with($img['image_path'], 'http')) {
-            continue; // skip external/CDN URLs
+            continue;
         }
-        $safeName = basename($img['image_path']); // prevent path traversal
+        $safeName = basename($img['image_path']);
         $src = $uploadsDir . $safeName;
         $dst = $trashDir . $safeName;
 
@@ -41,27 +39,21 @@ function deleteProductWithFiles(PDO $pdo, int $id): void
         }
     }
 
-    // 3. Commit DB deletion inside a transaction
     $pdo->beginTransaction();
     try {
-        // Audit log recorded INSIDE the transaction, BEFORE the delete,
-        // so target_id still exists when the FK is checked (if any).
-        // Callers should NOT call auditLog() again after this function.
         $pdo->prepare("DELETE FROM product_images WHERE product_id = ?")->execute([$id]);
         $pdo->prepare("DELETE FROM products        WHERE id = ?")->execute([$id]);
         $pdo->commit();
     } catch (Throwable $e) {
         $pdo->rollBack();
-        // DB failed — move files back so nothing is lost
         foreach ($movedFiles as $f) {
             if (file_exists($f['dst'])) {
                 rename($f['dst'], $f['src']);
             }
         }
-        throw $e; // re-throw so the caller surfaces a flash error
+        throw $e;
     }
 
-    // 4. DB committed — safe to permanently delete trashed files
     foreach ($movedFiles as $f) {
         if (file_exists($f['dst'])) {
             unlink($f['dst']);
@@ -69,7 +61,7 @@ function deleteProductWithFiles(PDO $pdo, int $id): void
     }
 }
 
-// Handle POST state-changing actions
+// Handle POST state-changing actions (BEFORE any HTML output)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'])) {
     check_csrf();
 
@@ -93,8 +85,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'
                     break;
 
                 case 'delete_approve':
-                    // auditLog is called inside deleteProductWithFiles (before the delete)
-                    // so the FK target still exists at log time.
                     $pdo->beginTransaction();
                     try {
                         auditLog($pdo, $_SESSION['user_id'], "Product $act #$id", 'product', $id);
@@ -108,7 +98,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'
                     break;
 
                 case 'delete_cancel':
-                    // Revert to 'pending' — never assume the prior status was 'approved'
                     $pdo->prepare("UPDATE products SET status='pending' WHERE id=?")->execute([$id]);
                     $_SESSION['flash_msg'] = "Deletion cancelled for Product #$id — returned to pending review.";
                     auditLog($pdo, $_SESSION['user_id'], "Product $act #$id", 'product', $id);
@@ -135,9 +124,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'
     }
 
     $redirect_filter = $_POST['filter'] ?? 'all';
-    header("Location: moderation.php?filter=" . urlencode($redirect_filter));
+    header("Location: products.php?filter=" . urlencode($redirect_filter));
     exit;
 }
+
+// Now safe to output HTML
+require_once 'header.php';
 
 // Whitelist the filter parameter
 $allowed_filters = ['all', 'pending', 'deletion_requested', 'approved', 'rejected'];
