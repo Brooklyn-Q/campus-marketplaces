@@ -60,12 +60,32 @@ function uploadLocally(array $file, string $folder): ?string {
     $projectRef = env('SUPABASE_PROJECT_REF', '');
     $anonKey    = env('SUPABASE_ANON_KEY', '');
     if ($projectRef && $anonKey) {
-        require_once __DIR__ . '/../../includes/storage_helper.php';
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $filename = uniqid('f_') . '.' . $ext;
         $mime = $file['type'] ?: 'image/jpeg';
-        $url = storage_upload($file['tmp_name'], $folder, $filename, $mime);
-        if ($url) return $url;
+        $bucket = env('SUPABASE_BUCKET', 'uploads');
+        $destPath = $folder . '/' . $filename;
+
+        $url = "https://{$projectRef}.supabase.co/storage/v1/object/{$bucket}/" . ltrim($destPath, '/');
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, file_get_contents($file['tmp_name']));
+        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+            "apikey: $anonKey",
+            "Authorization: Bearer $anonKey",
+            "Content-Type: $mime",
+            "cache-control: max-age=3600"
+        ]);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+
+        $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+        if ($httpCode >= 200 && $httpCode < 300) {
+            return "https://{$projectRef}.supabase.co/storage/v1/object/public/{$bucket}/" . ltrim($destPath, '/');
+        }
+        error_log("Supabase upload fallback failed ($httpCode): $response");
     }
 
     // Final fallback: save to local filesystem (dev only — lost on Render redeploy)
