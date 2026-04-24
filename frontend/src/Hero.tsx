@@ -10,7 +10,11 @@ const usesSpaRouting = typeof document !== 'undefined' && !!document.getElementB
 
 function buildHomeUrl(params: Record<string, string>) {
   const query = new URLSearchParams(params).toString();
-  const basePath = usesSpaRouting ? APP_BASE : `${LEGACY_BASE}index.php`;
+  if (usesSpaRouting) {
+    // HashRouter: navigate within the SPA using hash routes
+    return `${APP_BASE}#/${query ? `?${query}` : ''}`;
+  }
+  const basePath = `${LEGACY_BASE}index.php`;
   return `${basePath}${query ? `?${query}` : ''}`;
 }
 
@@ -102,7 +106,11 @@ export default function Hero() {
 
   const handleSearch = () => {
     if (searchQuery.trim()) {
-      window.location.href = buildHomeUrl({ search: searchQuery.trim() });
+      if (usesSpaRouting) {
+        window.location.hash = `#/?search=${encodeURIComponent(searchQuery.trim())}`;
+      } else {
+        window.location.href = buildHomeUrl({ search: searchQuery.trim() });
+      }
     }
   };
 
