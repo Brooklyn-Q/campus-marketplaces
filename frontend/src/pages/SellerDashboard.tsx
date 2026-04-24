@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { orders, products as productsApi } from '../services/api';
 
@@ -84,7 +85,7 @@ export default function SellerDashboard() {
             {user?.phone && <p className="text-muted" style={{fontSize:'0.8rem'}}>📱 {user.phone}</p>}
             
             <div style={{marginTop:'1rem', display:'flex', gap:'0.5rem', flexDirection:'column'}}>
-               <a href="/edit-profile" className="btn btn-primary" style={{justifyContent:'center', borderRadius:'12px'}}>Edit Profile</a>
+               <Link to="/edit-profile" className="btn btn-primary" style={{justifyContent:'center', borderRadius:'12px'}}>Edit Profile</Link>
                <button className="btn btn-outline" style={{justifyContent:'center'}}>☀️ Vacation Mode</button>
                {user?.seller_tier !== 'premium' && (
                  <button type="button" className="btn btn-gold" style={{justifyContent:'center'}}>🚀 Upgrade Account</button>
@@ -163,7 +164,7 @@ export default function SellerDashboard() {
                       <p className="text-muted" style={{fontSize:'0.9rem'}}>You have <strong>{totalProducts}</strong> products listed on the marketplace.</p>
                       <div style={{marginTop:'1.25rem', display:'flex', gap:'0.5rem', flexWrap:'wrap'}}>
                           <button className="btn btn-primary" onClick={() => setDetailedView(!detailedView)} style={{padding:'0.75rem 1.5rem', borderRadius:'12px', fontWeight:700}}>Manage Products</button>
-                          <a href="/add-product" className="btn btn-outline" style={{padding:'0.75rem 1.5rem', borderRadius:'12px', fontWeight:700}}>+ New Product</a>
+                          <Link to="/add-product" className="btn btn-outline" style={{padding:'0.75rem 1.5rem', borderRadius:'12px', fontWeight:700}}>+ New Product</Link>
                           <button className="btn btn-outline" style={{padding:'0.75rem 1.5rem', borderRadius:'12px', fontWeight:700, color:'var(--primary)', borderColor:'var(--primary)'}}>🔗 Share My Shop</button>
                       </div>
                   </div>
