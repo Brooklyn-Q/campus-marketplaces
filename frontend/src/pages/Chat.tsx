@@ -20,13 +20,6 @@ export default function Chat() {
       try {
         const res = await messages.conversations();
         setConversations(res.conversations || []);
-        
-        // Auto select if user param is passed
-        const userId = searchParams.get('user');
-        if (userId) {
-          const selectedId = parseInt(userId, 10);
-          handleSelectUser(selectedId, res.conversations);
-        }
       } catch (err) {
         console.error(err);
       } finally {
@@ -34,9 +27,31 @@ export default function Chat() {
       }
     };
     fetchConvos();
-    const interval = setInterval(fetchConvos, 5000); // basic polling
+    const interval = setInterval(fetchConvos, 5000); // Poll conversations list
     return () => clearInterval(interval);
-  }, [searchParams]);
+  }, []);
+
+  // Poll active thread for new messages
+  useEffect(() => {
+    let interval: any;
+    if (activeUser) {
+      interval = setInterval(() => {
+        fetchThread(activeUser.id, true);
+      }, 3000);
+    }
+    return () => clearInterval(interval);
+  }, [activeUser]);
+
+  // Auto select from URL on initial load
+  useEffect(() => {
+    if (!loading && !activeUser) {
+      const userId = searchParams.get('user');
+      if (userId) {
+        const selectedId = parseInt(userId, 10);
+        handleSelectUser(selectedId, conversations);
+      }
+    }
+  }, [loading, searchParams, conversations, activeUser]);
 
   const handleSelectUser = async (userId: number, currentList: any[] = conversations) => {
     let u = currentList.find((c: any) => c.id === userId);
@@ -45,14 +60,21 @@ export default function Chat() {
       u = { id: userId, username: 'User ' + userId, profile_pic: null, last_seen: null };
     }
     setActiveUser(u);
-    fetchThread(userId);
+    fetchThread(userId, false);
   };
 
-  const fetchThread = async (userId: number) => {
+  const fetchThread = async (userId: number, isPolling = false) => {
     try {
       const res = await messages.getThread(userId);
-      setActiveThread(res.messages || []);
-      setTimeout(() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      const newMessages = res.messages || [];
+      
+      setActiveThread(prev => {
+        // Only scroll to bottom on initial click, or if a new message arrived during polling
+        if (!isPolling || newMessages.length > prev.length) {
+          setTimeout(() => threadEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        }
+        return newMessages;
+      });
     } catch (err) {
       console.error(err);
     }
