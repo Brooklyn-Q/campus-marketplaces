@@ -10,6 +10,7 @@ $allowedOrigins = [
     'http://localhost:3000',
     'http://localhost:5173',
     'https://campusmarketplaces.netlify.app',
+    'https://brooklyn-q.github.io',
 ];
 
 $envFrontend = getenv('FRONTEND_URL') ?: ($_ENV['FRONTEND_URL'] ?? '');
