@@ -62,7 +62,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // SECURITY: Validate MIME type with finfo
                     $finfo = finfo_open(FILEINFO_MIME_TYPE);
                     $mimeType = finfo_file($finfo, $tmp);
-                    finfo_close($finfo);
                     if (!in_array($mimeType, $allowedMimes)) continue;
 
                     // SECURITY: Strip EXIF data and re-encode image
@@ -98,7 +97,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $imgCount++;
                     }
                     if (file_exists($tempReEncoded)) @unlink($tempReEncoded);
-                    imagedestroy($image);
                 }
             }
 

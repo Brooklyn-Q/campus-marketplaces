@@ -44,7 +44,7 @@ export default function AdminUsers() {
           if(!window.confirm(`Are you sure you want to ${action} user #${id}?`)) return;
       }
       try {
-          const res = await apiFetch('admin/users/action', { method: 'POST', body: { id, action } });
+          const res = await apiFetch('admin/users/action', { method: 'POST', body: JSON.stringify({ id, action }) });
           if(res.success) {
               alert(res.message);
               fetchUsers();

@@ -28,7 +28,7 @@ if ($method === 'GET' && !$userId) {
 
     if ($filter === 'sellers') { $where .= " AND role = 'seller'"; }
     elseif ($filter === 'buyers') { $where .= " AND role = 'buyer'"; }
-    elseif ($filter === 'suspended') { $where .= " AND suspended = 1"; }
+    elseif ($filter === 'suspended') { $boolTrue = sqlBool(true, $pdo); $where .= " AND suspended = $boolTrue"; }
 
     if ($search) {
         $where .= " AND (username LIKE ? OR email LIKE ?)";

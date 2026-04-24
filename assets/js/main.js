@@ -291,6 +291,9 @@ document.addEventListener('DOMContentLoaded', () => {
                         formData.append('receiver', otherUserId);
                         formData.append('attachment', file);
                         
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+                        if (csrfToken) formData.append('csrf_token', csrfToken);
+                        
                         await fetch(_base + 'api/chat.php?action=send', {
                             method: 'POST',
                             body: formData

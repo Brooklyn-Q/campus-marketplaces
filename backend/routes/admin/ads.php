@@ -43,7 +43,6 @@ elseif ($method === 'POST' && !$adId) {
 
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
         $mimeType = finfo_file($finfo, $_FILES['ad_file']['tmp_name']);
-        finfo_close($finfo);
 
         $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 

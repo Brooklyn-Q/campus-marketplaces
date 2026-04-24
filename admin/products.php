@@ -72,10 +72,7 @@ function deleteProductWithFiles(PDO $pdo, int $id): void
 
 // Handle POST state-changing actions
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'])) {
-    if (empty($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
-        http_response_code(403);
-        exit('Invalid CSRF token');
-    }
+    check_csrf();
 
     $id = (int) $_POST['id'];
     $act = $_POST['action'];
@@ -168,7 +165,7 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $products = $stmt->fetchAll();
 
-$csrf_token = generate_csrf_token();
+$csrf_token = $_SESSION['csrf_token'];
 $filter_encoded = htmlspecialchars($filter);
 ?>
 

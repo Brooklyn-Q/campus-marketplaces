@@ -44,7 +44,6 @@ Keep responses brief and friendly. If asked about something you don't know, sugg
 
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    curl_close($ch);
 
     if ($httpCode >= 200 && $httpCode < 300) {
         $data = json_decode($response, true);
@@ -79,7 +78,6 @@ elseif ($method === 'GET' && $action === 'describe') {
         curl_setopt($ch, CURLOPT_TIMEOUT, 8);
 
         $response = curl_exec($ch);
-        curl_close($ch);
 
         $data = json_decode($response, true);
         $text = $data['candidates'][0]['content']['parts'][0]['text'] ?? '';

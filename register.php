@@ -68,7 +68,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         // SECURITY: Validate MIME type
                         $finfo = finfo_open(FILEINFO_MIME_TYPE);
                         $mimeType = finfo_file($finfo, $_FILES['profile_pic']['tmp_name']);
-                        finfo_close($finfo);
                         $allowedMimes = ['image/jpeg', 'image/png', 'image/webp'];
 
                         // SECURITY: Check file size (10MB max for avatars)
@@ -101,7 +100,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                         imagewebp($image, $uploadPath, 85);
                                     }
                                 }
-                                imagedestroy($image);
                             }
                         }
                     }

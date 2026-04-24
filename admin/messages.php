@@ -20,10 +20,7 @@ if (!$migrated) {
 
 // Handle POST-based hide action
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_chat'])) {
-    if (empty($_POST['csrf_token']) || !verify_csrf_token($_POST['csrf_token'])) {
-        http_response_code(403);
-        exit('Invalid CSRF token');
-    }
+    check_csrf();
 
     $u1 = (int) $_POST['u1'];
     $u2 = (int) $_POST['u2'];
@@ -80,7 +77,7 @@ if ($view === 'chat') {
     ")->fetchAll();
 }
 
-$csrf_token = generate_csrf_token();
+$csrf_token = $_SESSION['csrf_token'];
 ?>
 
 <div class="flex-between mb-3">

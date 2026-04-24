@@ -13,7 +13,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_logs'])) {
     auditLog($pdo, $_SESSION['user_id'], "Cleared all audit logs");
     
     $_SESSION['flash_msg'] = "✅ Audit logs cleared successfully.";
-    header("Location: audit_log.php");
+    header("Location: audit.php");
     exit;
 }
 

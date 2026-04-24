@@ -2614,11 +2614,6 @@ audio.msg-attachment {
         font-size: 16px !important;
     }
 
-    #catMenu {
-        width: 100vw !important;
-        left: calc(-50vw + 50%) !important;
-        max-width: none !important;
-    }
 
     table {
         font-size: 0.9rem;

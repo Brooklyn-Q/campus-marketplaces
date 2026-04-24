@@ -58,7 +58,6 @@ if ($method === 'POST' && $action === 'initialize') {
             'Authorization: Bearer ' . $paystackKey,
         ]);
         $response = json_decode(curl_exec($ch), true);
-        curl_close($ch);
 
         if ($response && ($response['status'] ?? false)) {
             jsonResponse([
@@ -99,7 +98,6 @@ elseif ($method === 'GET' && $action === 'verify') {
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $paystackKey]);
         $response = json_decode(curl_exec($ch), true);
-        curl_close($ch);
 
         $verified = ($response['data']['status'] ?? '') === 'success';
     }

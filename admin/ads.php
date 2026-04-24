@@ -41,7 +41,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Validate MIME type natively to ensure it's truly an image
             $finfo = finfo_open(FILEINFO_MIME_TYPE);
             $mimeType = finfo_file($finfo, $_FILES['ad_file']['tmp_name']);
-            finfo_close($finfo);
 
             $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
 

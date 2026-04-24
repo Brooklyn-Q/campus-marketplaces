@@ -114,7 +114,8 @@ try {
 } catch(Exception $e) {}
 
 // Active announcements
-$announcements = $pdo->query("SELECT * FROM announcements WHERE is_active = 1 ORDER BY created_at DESC LIMIT 5")->fetchAll();
+$boolActive = sqlBool(true, $pdo);
+$announcements = $pdo->query("SELECT * FROM announcements WHERE is_active = $boolActive ORDER BY created_at DESC LIMIT 5")->fetchAll();
 
 // Account tiers
 $tiers = getAccountTiers($pdo);

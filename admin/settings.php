@@ -183,7 +183,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $user['id']
             );
 
-            $redirect = $_SESSION['is_admin'] ? 'dashboard.php' : '../index.php';
+            $redirect = $_SESSION['is_admin'] ? 'index.php' : '../index.php';
             header("Location: $redirect");
             exit;
 

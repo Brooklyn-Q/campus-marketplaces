@@ -2,6 +2,11 @@
 $page_title = 'Omni Chat Dashboard';
 require_once 'header.php';
 
+// Auto-migrate schema for support messages
+try {
+    $pdo->exec("ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_support_message BOOLEAN DEFAULT FALSE");
+} catch (Exception $e) {}
+
 // PostgreSQL-compatible query. Uses STRING_AGG (replaces MySQL's GROUP_CONCAT)
 // and SPLIT_PART (replaces MySQL's SUBSTRING_INDEX) to extract the latest message.
 // No SET SESSION needed — STRING_AGG has no length cap.
