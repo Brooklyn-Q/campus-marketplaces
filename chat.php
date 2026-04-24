@@ -7,14 +7,15 @@ $chat_user_id = isset($_GET['user']) ? (int)$_GET['user'] : null;
 $chat_user = null;
 
 // Get conversation partners
+$boolFalse = sqlBool(false, $pdo);
 $stmt = $pdo->prepare("
     SELECT u.id, u.username, u.profile_pic, u.last_seen,
         (SELECT message FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id) ORDER BY created_at DESC LIMIT 1) as last_msg,
         (SELECT message_type FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id) ORDER BY created_at DESC LIMIT 1) as last_msg_type,
         (SELECT attachment_url FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id) ORDER BY created_at DESC LIMIT 1) as last_attachment,
-        (SELECT COUNT(*) FROM messages WHERE sender_id = u.id AND receiver_id = ? AND is_read = 0) as unread
+        (SELECT COUNT(*) FROM messages WHERE sender_id = u.id AND receiver_id = ? AND is_read = $boolFalse) as unread
     FROM users u
-    WHERE u.id IN (SELECT DISTINCT IF(sender_id = ?, receiver_id, sender_id) FROM messages WHERE sender_id = ? OR receiver_id = ?)
+    WHERE u.id IN (SELECT DISTINCT CASE WHEN sender_id = ? THEN receiver_id ELSE sender_id END FROM messages WHERE sender_id = ? OR receiver_id = ?)
     AND u.id != ?
     ORDER BY (SELECT MAX(created_at) FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id)) DESC
 ");
@@ -36,7 +37,8 @@ if ($chat_user_id) {
 
     // Mark messages as read and seen
     if ($chat_user) {
-        $pdo->prepare("UPDATE messages SET is_read = 1, delivery_status = 'seen' WHERE sender_id = ? AND receiver_id = ?")->execute([$chat_user_id, $me]);
+        $boolTrue = sqlBool(true, $pdo);
+        $pdo->prepare("UPDATE messages SET is_read = $boolTrue, delivery_status = 'seen' WHERE sender_id = ? AND receiver_id = ?")->execute([$chat_user_id, $me]);
     }
 
     // Add to sidebar if new conversation
