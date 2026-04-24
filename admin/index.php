@@ -1,6 +1,9 @@
 <?php
 $page_title = 'Dashboard';
-require_once 'header.php';
+
+// Load DB + session BEFORE header.php to handle POST redirects
+require_once '../includes/db.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 // Add missing message column to announcements if it doesn't exist (Supabase transition)
 try {
@@ -211,6 +214,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_tiers'])) {
 if (isset($_GET['msg']) && empty($disc_msg)) {
     $disc_msg = htmlspecialchars($_GET['msg']);
 }
+
+// Now safe to output HTML
+require_once 'header.php';
 
 // ── DATA FETCHING ─────────────────────────────────────────────────────────────
 

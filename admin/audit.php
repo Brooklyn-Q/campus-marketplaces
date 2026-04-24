@@ -1,21 +1,20 @@
 <?php
 $page_title = 'Audit Log';
-require_once 'header.php';
 
-$msg = '';
+// Handle POST redirect BEFORE header.php outputs HTML
+require_once '../includes/db.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
 
-// 1. FIXED UX: Process the action, set a session message, and redirect (PRG Pattern)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_logs'])) {
     check_csrf();
     $pdo->exec("TRUNCATE TABLE audit_log");
-    
-    // Log the clear action (this will become ID #1 in the fresh table)
     auditLog($pdo, $_SESSION['user_id'], "Cleared all audit logs");
-    
     $_SESSION['flash_msg'] = "✅ Audit logs cleared successfully.";
     header("Location: audit.php");
     exit;
 }
+
+require_once 'header.php';
 
 // Check for flash message from redirect
 if (isset($_SESSION['flash_msg'])) {

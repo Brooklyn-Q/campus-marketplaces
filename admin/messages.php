@@ -1,23 +1,26 @@
 <?php
 $page_title = 'Omni Chat';
-require_once 'header.php';
+
+// Load DB + session BEFORE header.php to handle POST redirects
+require_once '../includes/db.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 if (!isAdmin()) {
     http_response_code(403);
     exit('Forbidden');
 }
 
-// Run migration once — ideally move to a dedicated migration script
+// Run migration once
 static $migrated = false;
 if (!$migrated) {
     try {
         $pdo->exec("ALTER TABLE messages ADD COLUMN IF NOT EXISTS admin_deleted BOOLEAN DEFAULT FALSE");
-    } catch (PDOException $e) { /* driver doesn't support IF NOT EXISTS */
+    } catch (PDOException $e) {
     }
     $migrated = true;
 }
 
-// Handle POST-based hide action
+// Handle POST-based hide action (BEFORE any HTML output)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_chat'])) {
     check_csrf();
 
@@ -35,6 +38,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_chat'])) {
     header("Location: messages.php");
     exit;
 }
+
+require_once 'header.php';
 
 // Whitelist the view parameter
 $allowed_views = ['list', 'chat'];

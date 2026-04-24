@@ -1,4 +1,7 @@
 <?php
+// Load DB + session BEFORE header.php to handle POST redirects
+require_once '../includes/db.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
 require_once 'header.php';
 
 // ---------------------------------------------------------------------------

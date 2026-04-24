@@ -1,15 +1,43 @@
 <?php
 $page_title = 'Omni Chat Dashboard';
-require_once 'header.php';
+
+// Load DB + session BEFORE header.php to handle POST redirects
+require_once '../includes/db.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 // Auto-migrate schema for support messages
 try {
     $pdo->exec("ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_support_message BOOLEAN DEFAULT FALSE");
 } catch (Exception $e) {}
 
-// PostgreSQL-compatible query. Uses STRING_AGG (replaces MySQL's GROUP_CONCAT)
-// and SPLIT_PART (replaces MySQL's SUBSTRING_INDEX) to extract the latest message.
-// No SET SESSION needed — STRING_AGG has no length cap.
+// Read GET params once into explicit variables
+$selected_u1 = isset($_GET['u1']) ? (int) $_GET['u1'] : null;
+$selected_u2 = isset($_GET['u2']) ? (int) $_GET['u2'] : null;
+
+// Handle Admin Reply (BEFORE any HTML output)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
+    check_csrf();
+    $reply = trim($_POST['message'] ?? '');
+
+    $to_id = (int) $_POST['to_id'];
+    $valid_recipients = [$selected_u1, $selected_u2];
+    if (!in_array($to_id, $valid_recipients, true)) {
+        http_response_code(403);
+        die("Invalid recipient.");
+    }
+
+    if ($reply && $to_id) {
+        $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, message, is_support_message) VALUES (?,?,?,TRUE)")
+            ->execute([$_SESSION['user_id'], $to_id, $reply]);
+
+        header("Location: ?u1={$selected_u1}&u2={$selected_u2}");
+        exit;
+    }
+}
+
+require_once 'header.php';
+
+// PostgreSQL-compatible query
 $query = "SELECT 
             LEAST(m.sender_id, m.receiver_id) as u1, 
             GREATEST(m.sender_id, m.receiver_id) as u2, 
@@ -28,17 +56,11 @@ $query = "SELECT
           ORDER BY last_msg DESC";
 $convos = $pdo->query($query)->fetchAll();
 
-// FIX #1b: Read GET params once into explicit variables. Using these in the
-// redirect after POST is now safe and deliberate, not accidental.
-$selected_u1 = isset($_GET['u1']) ? (int) $_GET['u1'] : null;
-$selected_u2 = isset($_GET['u2']) ? (int) $_GET['u2'] : null;
-
 $transcript = [];
 $selected_u1_name = 'Unknown User';
 $selected_u2_name = 'Unknown User';
 
 if ($selected_u1 && $selected_u2) {
-    // FIX #2 (original): Explicitly fetch the names for the header.
     $stmt_users = $pdo->prepare("SELECT id, username FROM users WHERE id IN (?, ?)");
     $stmt_users->execute([$selected_u1, $selected_u2]);
     $user_names = $stmt_users->fetchAll(PDO::FETCH_KEY_PAIR);
@@ -55,36 +77,6 @@ if ($selected_u1 && $selected_u2) {
                          ORDER BY m.created_at ASC");
     $st->execute([$selected_u1, $selected_u2, $selected_u2, $selected_u1]);
     $transcript = $st->fetchAll();
-}
-
-// Handle Admin Reply
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
-    check_csrf();
-    $reply = trim($_POST['message'] ?? '');
-
-    // FIX #2: Validate that to_id is one of the two users currently in scope.
-    // This prevents an attacker from manipulating the POST body to send
-    // admin-tagged messages to arbitrary user IDs.
-    $to_id = (int) $_POST['to_id'];
-    $valid_recipients = [$selected_u1, $selected_u2];
-    if (!in_array($to_id, $valid_recipients, true)) {
-        http_response_code(403);
-        die("Invalid recipient.");
-    }
-
-    if ($reply && $to_id) {
-        // FIX #9: Use a dedicated DB flag (is_support_message = 1) instead of
-        // a plain-text prefix so regular users cannot spoof the purple bubble
-        // by typing "[Admin Support]" themselves. The schema should have:
-        //   ALTER TABLE messages ADD COLUMN is_support_message TINYINT(1) NOT NULL DEFAULT 0;
-        $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, message, is_support_message) VALUES (?,?,?,TRUE)")
-            ->execute([$_SESSION['user_id'], $to_id, $reply]);
-
-        // FIX #3 (original) + FIX #1b: Redirect uses the explicitly-read GET
-        // variables, not silently relying on scope behaviour during POST.
-        header("Location: ?u1={$selected_u1}&u2={$selected_u2}");
-        exit;
-    }
 }
 ?>
 
