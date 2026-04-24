@@ -65,9 +65,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await authApi.me();
       setUser(data.user);
-    } catch {
-      removeToken();
-      setUser(null);
+    } catch (err: any) {
+      // If the error is not a 401, it might be a network error or 502/503 from Render deploying.
+      // Do NOT forcefully clear the token on a network error. 
+      // The 401 interceptor in api.ts will handle genuine token expirations.
+      if (err.message === 'Authentication required') {
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }
