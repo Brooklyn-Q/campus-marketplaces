@@ -82,4 +82,4 @@ $VALID_CATEGORIES = [
 
 $VALID_PROMO_TAGS = ['', '🔥 Hot Deal', '⚡ Flash Sale', '⏳ Limited Offer', '🎓 Student Special', '📦 Bundle Deal', '🏷️ Clearance'];
 
-$ALLOWED_PROFILE_FIELDS = ['bio', 'department', 'level', 'hall', 'phone', 'faculty', 'whatsapp', 'instagram', 'linkedin'];
+$ALLOWED_PROFILE_FIELDS = ['bio', 'department', 'level', 'hall', 'phone', 'faculty', 'whatsapp', 'instagram', 'linkedin', 'profile_pic'];

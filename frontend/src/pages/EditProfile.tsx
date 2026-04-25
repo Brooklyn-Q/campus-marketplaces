@@ -81,12 +81,12 @@ export default function EditProfile() {
         <form onSubmit={handleSubmit}>
           <div className="form-group text-center">
             {user.profile_pic ? (
-                <img src={assetUrl('uploads/' + user.profile_pic)} className="profile-pic profile-pic-lg mb-2" alt="Profile" style={{width:'100px', height:'100px', borderRadius:'50%', objectFit:'cover', margin:'0 auto'}} />
+                <img src={assetUrl('uploads/' + user.profile_pic)} className="profile-pic profile-pic-lg mb-2 viewable-image" alt="Profile" style={{width:'100px', height:'100px', borderRadius:'50%', objectFit:'cover', margin:'0 auto', cursor:'pointer'}} />
             ) : (
                 <div style={{width:'100px', height:'100px', borderRadius:'50%', background:'var(--border)', margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'center'}}>User</div>
             )}
             <br />
-            <label>Profile Photo <small style={{color:'var(--text-muted)'}}>(updates instantly via API)</small></label>
+            <label>Profile Photo</label>
             <input type="file" name="profile_pic" className="form-control" accept="image/*" />
           </div>
 
@@ -134,7 +134,7 @@ export default function EditProfile() {
           
           <div style={{background:'rgba(0,113,227,0.05)', border:'1px solid rgba(0,113,227,0.15)', borderRadius:'12px', padding:'0.8rem 1rem', marginBottom:'1.25rem', fontSize:'0.82rem', color:'var(--text-muted)', display:'flex', alignItems:'center', gap:'0.5rem'}}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0071e3" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            Text field changes require admin approval. Image uploads apply immediately.
+            All profile changes, including profile pictures, require admin approval before becoming visible.
           </div>
 
           <button type="submit" disabled={loading} className="btn btn-primary" style={{width:'100%',justifyContent:'center'}}>

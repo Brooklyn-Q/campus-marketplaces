@@ -1116,6 +1116,22 @@ tbody tr:hover {
     height: 120px;
 }
 
+/* Tier-coloured border rings */
+.profile-pic-basic {
+    border-color: #0071e3;
+    box-shadow: 0 0 16px rgba(0, 113, 227, 0.15);
+}
+
+.profile-pic-pro {
+    border-color: #8b939a;
+    box-shadow: 0 0 16px rgba(139, 147, 154, 0.25);
+}
+
+.profile-pic-premium {
+    border-color: #d4af37;
+    box-shadow: 0 0 16px rgba(212, 175, 55, 0.3);
+}
+
 /* ── UTILITIES ── */
 .text-center {
     text-align: center;

@@ -96,7 +96,7 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
                     <div style="display:flex; align-items:center; gap:1.25rem;">
                         <div style="position:relative;">
                             <?php if($l['profile_pic']): ?>
-                                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($l['profile_pic'])) ?>" alt="" style="width:56px; height:56px; border-radius:18px; object-fit:cover; border:2px solid <?= $isTop3 ? $rankColor : 'rgba(128,128,128,0.1)' ?>; box-shadow:0 8px 16px rgba(0,0,0,0.05);">
+                                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($l['profile_pic'])) ?>" alt="<?= htmlspecialchars($l['username']) ?>" class="profile-pic-previewable" style="width:56px; height:56px; border-radius:18px; object-fit:cover; border:2px solid <?= $isTop3 ? $rankColor : 'rgba(128,128,128,0.1)' ?>; box-shadow:0 8px 16px rgba(0,0,0,0.05); cursor:pointer;">
                             <?php else: ?>
                                 <div style="width:56px; height:56px; border-radius:18px; background:linear-gradient(135deg, rgba(0,113,227,0.1), rgba(0,113,227,0.05)); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.4rem; border:2px solid <?= $isTop3 ? $rankColor : 'rgba(128,128,128,0.1)' ?>;">
                                     <?= strtoupper(substr($l['username'], 0, 1)) ?>

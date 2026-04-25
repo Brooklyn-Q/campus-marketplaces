@@ -74,7 +74,7 @@ export default function Leaderboard() {
                 <div style={{display:'flex', alignItems:'center', gap:'1.25rem'}}>
                   <div style={{position:'relative'}}>
                     {l.profile_pic ? (
-                      <img src={assetUrl('uploads/' + l.profile_pic)} alt="" style={{width:'56px', height:'56px', borderRadius:'18px', objectFit:'cover', border:`2px solid ${isTop3 ? rankColor : 'rgba(128,128,128,0.1)'}`, boxShadow:'0 8px 16px rgba(0,0,0,0.05)'}} />
+                      <img src={assetUrl('uploads/' + l.profile_pic)} className="viewable-image" alt="" style={{width:'56px', height:'56px', borderRadius:'18px', objectFit:'cover', border:`2px solid ${isTop3 ? rankColor : 'rgba(128,128,128,0.1)'}`, boxShadow:'0 8px 16px rgba(0,0,0,0.05)', cursor:'pointer'}} />
                     ) : (
                       <div style={{width:'56px', height:'56px', borderRadius:'18px', background:'linear-gradient(135deg, rgba(0,113,227,0.1), rgba(0,113,227,0.05))', color:'var(--primary)', display:'flex', alignItems:'center', justifyContent:'center', fontWeight:800, fontSize:'1.4rem', border:`2px solid ${isTop3 ? rankColor : 'rgba(128,128,128,0.1)'}`}}>
                         {l.username.substring(0,1).toUpperCase()}

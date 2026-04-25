@@ -575,10 +575,11 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
     <div>
         <!-- Profile Card -->
         <div class="glass fade-in" style="padding:2rem; text-align:center; margin-bottom:1.5rem;">
+            <?php $tierClass = 'profile-pic-' . ($user['role'] === 'seller' ? ($user['seller_tier'] ?: 'basic') : 'basic'); ?>
             <?php if($user['profile_pic']): ?>
-                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['profile_pic'])) ?>" class="profile-pic profile-pic-lg mb-2" alt="Profile">
+                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['profile_pic'])) ?>" class="profile-pic profile-pic-lg profile-pic-previewable <?= $tierClass ?> mb-2" style="cursor:pointer;" alt="<?= htmlspecialchars($user['username']) ?>">
             <?php else: ?>
-                <div class="profile-pic profile-pic-lg mb-2" style="display:flex;align-items:center;justify-content:center;background:rgba(99,102,241,0.2);color:var(--primary);font-size:2.5rem;font-weight:700;margin:0 auto;">
+                <div class="profile-pic profile-pic-lg <?= $tierClass ?> mb-2" style="display:flex;align-items:center;justify-content:center;background:rgba(99,102,241,0.2);color:var(--primary);font-size:2.5rem;font-weight:700;margin:0 auto;">
                     <?= strtoupper(substr($user['username'], 0, 1)) ?>
                 </div>
             <?php endif; ?>

@@ -87,6 +87,7 @@ case 'profiles':
                     'whatsapp' => "UPDATE users SET whatsapp = ? WHERE id = ?",
                     'instagram' => "UPDATE users SET instagram = ? WHERE id = ?",
                     'linkedin' => "UPDATE users SET linkedin = ? WHERE id = ?",
+                    'profile_pic' => "UPDATE users SET profile_pic = ? WHERE id = ?",
                     default => null
                 };
                 if ($sql) $pdo->prepare($sql)->execute([$pr['new_value'], $pr['user_id']]);
@@ -117,6 +118,7 @@ case 'profiles':
                         'whatsapp' => "UPDATE users SET whatsapp = ? WHERE id = ?",
                         'instagram' => "UPDATE users SET instagram = ? WHERE id = ?",
                         'linkedin' => "UPDATE users SET linkedin = ? WHERE id = ?",
+                        'profile_pic' => "UPDATE users SET profile_pic = ? WHERE id = ?",
                         default => null
                     };
                     if ($sql) $pdo->prepare($sql)->execute([$pr['new_value'], $pr['user_id']]);

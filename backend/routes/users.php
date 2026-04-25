@@ -89,9 +89,14 @@ elseif ($method === 'POST' && $action === 'profile-pic') {
     $url = uploadToCloudinary($_FILES['profile_pic'], 'marketplace/avatars');
     if (!$url) jsonError('Upload failed', 500);
 
-    $pdo->prepare("UPDATE users SET profile_pic = ? WHERE id = ?")->execute([$url, $auth['user_id']]);
+    // Get current profile_pic to save as old_value
+    $user = getUser($pdo, $auth['user_id']);
+    $oldVal = $user['profile_pic'] ?? '';
 
-    jsonResponse(['success' => true, 'profile_pic' => $url]);
+    $pdo->prepare("INSERT INTO profile_edit_requests (user_id, field_name, old_value, new_value) VALUES (?, 'profile_pic', ?, ?)")
+        ->execute([$auth['user_id'], $oldVal, $url]);
+
+    jsonResponse(['success' => true, 'message' => 'Profile picture submitted for admin approval']);
 }
 
 // ── REQUEST VACATION ──

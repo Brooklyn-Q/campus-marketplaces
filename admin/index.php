@@ -55,7 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['profile_action'])) {
     // FIX #7: Added 'seller_tier' to safe_fields here so it matches the
     // single-approve branch. Previously missing, causing bulk-approve to skip
     // seller_tier changes silently.
-    $safe_fields = ['bio', 'department', 'level', 'hall', 'phone', 'faculty', 'whatsapp', 'instagram', 'linkedin', 'seller_tier'];
+    $safe_fields = ['bio', 'department', 'level', 'hall', 'phone', 'faculty', 'whatsapp', 'instagram', 'linkedin', 'seller_tier', 'profile_pic', 'shop_banner'];
 
     if ($p_act === 'approve_profile' && $req_id > 0) {
         try {
@@ -1057,11 +1057,23 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                             style="display:grid; grid-template-columns:120px 1fr 20px 1fr; gap:0.5rem; align-items:center; padding:0.5rem 0.75rem; background:rgba(0,0,0,0.02); border-radius:8px; font-size:0.82rem;">
                             <span
                                 style="font-weight:600; text-transform:capitalize; color:var(--primary);"><?= htmlspecialchars(str_replace('_', ' ', $edit['field_name'])) ?></span>
-                            <span
-                                style="color:var(--text-muted); text-decoration:line-through; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($edit['old_value'] ?: '(empty)') ?></span>
-                            <span style="text-align:center;">→</span>
-                            <span
-                                style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($edit['new_value'] ?: '(empty)') ?></span>
+                            <?php if (in_array($edit['field_name'], ['profile_pic', 'shop_banner'])): ?>
+                                <?php if ($edit['old_value']): ?>
+                                    <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($edit['old_value'])) ?>" class="profile-pic-previewable"
+                                        style="width:40px;height:40px;object-fit:cover;border-radius:6px;opacity:0.5;cursor:pointer;" alt="Old">
+                                <?php else: ?>
+                                    <span style="color:var(--text-muted);font-size:0.75rem;">(none)</span>
+                                <?php endif; ?>
+                                <span style="text-align:center;">→</span>
+                                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($edit['new_value'])) ?>" class="profile-pic-previewable"
+                                    style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:2px solid var(--primary);cursor:pointer;" alt="New">
+                            <?php else: ?>
+                                <span
+                                    style="color:var(--text-muted); text-decoration:line-through; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($edit['old_value'] ?: '(empty)') ?></span>
+                                <span style="text-align:center;">→</span>
+                                <span
+                                    style="font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($edit['new_value'] ?: '(empty)') ?></span>
+                            <?php endif; ?>
                         </div>
                     <?php endforeach; ?>
                 </div>

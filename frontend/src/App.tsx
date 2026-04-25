@@ -98,11 +98,64 @@ function AppRoutes() {
   );
 }
 
+function GlobalImageViewer() {
+  const [src, setSrc] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'IMG' && target.classList.contains('viewable-image')) {
+        setSrc((target as HTMLImageElement).src);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, []);
+
+  if (!src) return null;
+
+  return (
+    <div 
+      style={{
+        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
+        background: 'rgba(0,0,0,0.85)', zIndex: 99999, 
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        backdropFilter: 'blur(4px)', cursor: 'zoom-out'
+      }}
+      onClick={() => setSrc(null)}
+    >
+      <img 
+        src={src} 
+        alt="Preview" 
+        style={{
+          maxWidth: '90%', maxHeight: '90%', 
+          borderRadius: '8px', objectFit: 'contain',
+          boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+          animation: 'modalSlideUp 0.25s cubic-bezier(0.22, 1, 0.36, 1)'
+        }} 
+        onClick={(e) => e.stopPropagation()}
+      />
+      <button 
+        style={{
+          position: 'absolute', top: '20px', right: '20px', 
+          background: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', 
+          borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer',
+          fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center'
+        }}
+        onClick={() => setSrc(null)}
+      >
+        ×
+      </button>
+    </div>
+  );
+}
+
 export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <AppRoutes />
+        <GlobalImageViewer />
       </AuthProvider>
     </ThemeProvider>
   );

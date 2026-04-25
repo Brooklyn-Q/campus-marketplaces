@@ -215,9 +215,12 @@ function actionBtn(
                 <tr>
                     <td><?= $uid ?></td>
                     <td class="flex gap-1" style="align-items:center;">
+                        <?php $tierClass = 'profile-pic-' . ($u['role'] === 'seller' ? ($u['seller_tier'] ?: 'basic') : 'basic'); ?>
                         <?php if ($u['profile_pic']): ?>
                             <img src="../uploads/<?= htmlspecialchars($u['profile_pic']) ?>"
-                                style="width:28px;height:28px;border-radius:50%;object-fit:cover;">
+                                class="profile-pic-previewable <?= $tierClass ?>"
+                                style="width:28px;height:28px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid transparent;"
+                                alt="<?= htmlspecialchars($u['username']) ?>">
                         <?php endif; ?>
                         <?= htmlspecialchars($u['username']) ?>
                     </td>

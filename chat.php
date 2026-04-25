@@ -9,7 +9,7 @@ $chat_user = null;
 // Get conversation partners
 $boolFalse = sqlBool(false, $pdo);
 $stmt = $pdo->prepare("
-    SELECT u.id, u.username, u.profile_pic, u.last_seen,
+    SELECT u.id, u.username, u.profile_pic, u.last_seen, u.role, u.seller_tier,
         (SELECT message FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id) ORDER BY created_at DESC LIMIT 1) as last_msg,
         (SELECT message_type FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id) ORDER BY created_at DESC LIMIT 1) as last_msg_type,
         (SELECT attachment_url FROM messages WHERE (sender_id = u.id AND receiver_id = ?) OR (sender_id = ? AND receiver_id = u.id) ORDER BY created_at DESC LIMIT 1) as last_attachment,
@@ -71,10 +71,11 @@ require_once 'includes/header.php';
         <?php foreach($history_users as $u): ?>
             <?php $isOnline = $u['last_seen'] && (time() - strtotime($u['last_seen'])) < 300; ?>
             <a href="chat.php?user=<?= $u['id'] ?>" class="chat-user-item <?= $chat_user_id == $u['id'] ? 'active' : '' ?>">
+                <?php $tierClass = 'profile-pic-' . ($u['role'] === 'seller' ? ($u['seller_tier'] ?: 'basic') : 'basic'); ?>
                 <?php if($u['profile_pic']): ?>
-                    <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($u['profile_pic'])) ?>" style="width:36px;height:36px;border-radius:50%;object-fit:cover;">
+                    <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($u['profile_pic'])) ?>" class="profile-pic-previewable <?= $tierClass ?>" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid transparent;">
                 <?php else: ?>
-                    <div style="width:36px;height:36px;border-radius:50%;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;flex-shrink:0;"><?= strtoupper(substr($u['username'], 0, 1)) ?></div>
+                    <div class="<?= $tierClass ?>" style="width:36px;height:36px;border-radius:50%;background:rgba(99,102,241,0.2);display:flex;align-items:center;justify-content:center;color:var(--primary);font-weight:700;flex-shrink:0;border:2px solid transparent;"><?= strtoupper(substr($u['username'], 0, 1)) ?></div>
                 <?php endif; ?>
                 <div style="flex:1; overflow:hidden;">
                     <div class="flex-between">

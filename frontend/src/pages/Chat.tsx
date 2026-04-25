@@ -123,7 +123,7 @@ export default function Chat() {
               return (
                 <div key={u.id} className={`chat-user-item ${activeUser?.id === u.id ? 'active' : ''}`} onClick={() => handleSelectUser(u.id)} style={{cursor:'pointer', padding:'1rem', display:'flex', alignItems:'center', gap:'10px', borderBottom:'1px solid var(--border)', background: activeUser?.id === u.id ? 'rgba(0,113,227,0.05)' : 'transparent'}}>
                   {u.profile_pic ? (
-                    <img src={assetUrl('uploads/' + u.profile_pic)} style={{width:'36px', height:'36px', borderRadius:'50%', objectFit:'cover'}} alt="Profile" />
+                    <img src={assetUrl('uploads/' + u.profile_pic)} className="viewable-image" style={{width:'36px', height:'36px', borderRadius:'50%', objectFit:'cover', cursor:'pointer'}} alt="Profile" />
                   ) : (
                     <div style={{width:'36px', height:'36px', borderRadius:'50%', background:'rgba(99,102,241,0.2)', display:'flex', alignItems:'center', justifyContent:'center', color:'var(--primary)', fontWeight:700, flexShrink:0}}>
                       {u.username.substring(0,1).toUpperCase()}

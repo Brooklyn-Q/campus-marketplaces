@@ -290,10 +290,11 @@ require_once 'includes/header.php';
                 <!-- SELLER TRUST PANEL -->
                 <div class="glass" style="padding:1rem; border-radius:16px; margin:0.5rem 0;">
                     <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.8rem;">
+                        <?php $sellerTierClass = 'profile-pic-' . ($product['seller_tier'] ?: 'basic'); ?>
                         <?php if($product['seller_pic']): ?>
-                            <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($product['seller_pic'])) ?>" class="profile-pic" style="width:44px;height:44px;" alt="">
+                            <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($product['seller_pic'])) ?>" class="profile-pic profile-pic-previewable <?= $sellerTierClass ?>" style="width:44px;height:44px;cursor:pointer;" alt="<?= htmlspecialchars($product['seller']) ?>">
                         <?php else: ?>
-                            <div class="profile-pic" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(0,113,227,0.1);color:var(--primary);font-weight:700;font-size:1.1rem;"><?= strtoupper(substr($product['seller'], 0, 1)) ?></div>
+                            <div class="profile-pic <?= $sellerTierClass ?>" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(0,113,227,0.1);color:var(--primary);font-weight:700;font-size:1.1rem;"><?= strtoupper(substr($product['seller'], 0, 1)) ?></div>
                         <?php endif; ?>
                         <div style="flex:1;">
                             <strong style="font-size:0.95rem;"><?= htmlspecialchars($product['seller']) ?></strong>

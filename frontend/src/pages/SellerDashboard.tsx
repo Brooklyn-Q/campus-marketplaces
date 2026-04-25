@@ -65,7 +65,7 @@ export default function SellerDashboard() {
         <div>
           <div className="glass fade-in" style={{padding:'2rem', textAlign:'center', marginBottom:'1.5rem'}}>
             {user?.profile_pic ? (
-              <img src={'/marketplace/uploads/' + user.profile_pic} className="profile-pic profile-pic-lg mb-2" alt="Profile" />
+              <img src={'/marketplace/uploads/' + user.profile_pic} className="profile-pic profile-pic-lg mb-2 viewable-image" alt="Profile" style={{cursor:'pointer'}} />
             ) : (
               <div className="profile-pic profile-pic-lg mb-2" style={{display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(99,102,241,0.2)', color:'var(--primary)', fontSize:'2.5rem', fontWeight:700, margin:'0 auto'}}>
                 {user?.username?.substring(0, 1).toUpperCase()}

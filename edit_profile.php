@@ -38,8 +38,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Phone format
     if ($phone && substr($phone, 0, 1) === '0') $phone = '+233' . substr($phone, 1);
 
-    // Profile pic (applies immediately — visual only)
-    $pic = $user['profile_pic'];
+    // Initialize counter and cancel any existing pending requests BEFORE creating new ones
+    $changes_submitted = 0;
+    $pdo->prepare("UPDATE profile_edit_requests SET status='rejected', resolved_at=NOW() WHERE user_id=? AND status='pending'")->execute([$user['id']]);
+    $insert_stmt = $pdo->prepare("INSERT INTO profile_edit_requests (user_id, field_name, old_value, new_value) VALUES (?,?,?,?)");
+
+    // ── Image uploads now queue for admin approval (no instant update) ──
+
+    // Profile pic
     if (isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] == 0) {
         $ext = strtolower(pathinfo($_FILES['profile_pic']['name'], PATHINFO_EXTENSION));
         if (in_array($ext, ['jpg','jpeg','png','webp'])) {
@@ -47,14 +53,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mime = 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
             $storedPath = storage_upload($_FILES['profile_pic']['tmp_name'], 'avatars', $fname, $mime);
             if ($storedPath) {
-                $pic = $storedPath;
-                $pdo->prepare("UPDATE users SET profile_pic=? WHERE id=?")->execute([$pic, $user['id']]);
+                // Strip 'uploads/' prefix — DB columns store paths without it
+                $dbPath = (strpos($storedPath, 'uploads/') === 0) ? substr($storedPath, 8) : $storedPath;
+                $insert_stmt->execute([$user['id'], 'profile_pic', $user['profile_pic'] ?? '', $dbPath]);
+                $changes_submitted++;
             }
         }
     }
 
-    // Shop banner (applies immediately — visual only)
-    $banner = $user['shop_banner'] ?? null;
+    // Shop banner
     if (isset($_FILES['shop_banner']) && $_FILES['shop_banner']['error'] == 0) {
         $ext = strtolower(pathinfo($_FILES['shop_banner']['name'], PATHINFO_EXTENSION));
         if (in_array($ext, ['jpg','jpeg','png','webp'])) {
@@ -62,13 +69,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $mime = 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
             $storedPath = storage_upload($_FILES['shop_banner']['tmp_name'], 'banners', $fname, $mime);
             if ($storedPath) {
-                $banner = $storedPath;
-                $pdo->prepare("UPDATE users SET shop_banner=? WHERE id=?")->execute([$banner, $user['id']]);
+                // Strip 'uploads/' prefix — DB columns store paths without it
+                $dbPath = (strpos($storedPath, 'uploads/') === 0) ? substr($storedPath, 8) : $storedPath;
+                $insert_stmt->execute([$user['id'], 'shop_banner', $user['shop_banner'] ?? '', $dbPath]);
+                $changes_submitted++;
             }
         }
     }
 
-    // Compare text fields and create pending requests for changed ones
+    // ── Text fields ──
     $new_values = [
         'bio' => $bio,
         'department' => $dept,
@@ -81,11 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'linkedin' => $li,
     ];
 
-    $changes_submitted = 0;
-    $insert_stmt = $pdo->prepare("INSERT INTO profile_edit_requests (user_id, field_name, old_value, new_value) VALUES (?,?,?,?)");
-    // Cancel any existing pending requests for this user before creating new ones
-    $pdo->prepare("UPDATE profile_edit_requests SET status='rejected', resolved_at=NOW() WHERE user_id=? AND status='pending'")->execute([$user['id']]);
-
     foreach ($new_values as $field => $new_val) {
         $old_val = $user[$field] ?? '';
         if ((string)$new_val !== (string)$old_val) {
@@ -95,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($changes_submitted > 0) {
-        $success = "✅ Your profile changes ({$changes_submitted} field" . ($changes_submitted > 1 ? 's' : '') . ") have been submitted for admin approval.";
+        $success = "✅ Your profile changes ({$changes_submitted} field" . ($changes_submitted > 1 ? 's' : '') . ") have been submitted for Administrator approval.";
     } else {
         $success = "No changes detected. Your profile is up to date.";
     }
@@ -131,7 +135,14 @@ require_once 'includes/header.php';
         <?php foreach($pending_edits as $pe): ?>
             <div style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0.6rem; background:rgba(0,0,0,0.03); border-radius:8px; margin-bottom:0.3rem; font-size:0.82rem;">
                 <span style="font-weight:600; text-transform:capitalize;"><?= htmlspecialchars(str_replace('_', ' ', $pe['field_name'])) ?></span>
-                <span style="color:var(--text-muted);">"<?= htmlspecialchars(mb_strimwidth($pe['old_value'] ?: '(empty)', 0, 20, '…')) ?>" → "<span style="color:var(--primary); font-weight:600;"><?= htmlspecialchars(mb_strimwidth($pe['new_value'] ?: '(empty)', 0, 20, '…')) ?></span>"</span>
+                <?php if (in_array($pe['field_name'], ['profile_pic', 'shop_banner'])): ?>
+                    <span style="color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+                        <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($pe['new_value'])) ?>" class="profile-pic-previewable" style="width:32px; height:32px; border-radius:6px; object-fit:cover; cursor:pointer; border:2px solid var(--primary);" alt="Pending <?= htmlspecialchars(str_replace('_', ' ', $pe['field_name'])) ?>">
+                        <span style="font-size:0.75rem; color:var(--primary); font-weight:600;">Pending</span>
+                    </span>
+                <?php else: ?>
+                    <span style="color:var(--text-muted);">"<?= htmlspecialchars(mb_strimwidth($pe['old_value'] ?: '(empty)', 0, 20, '…')) ?>" → "<span style="color:var(--primary); font-weight:600;"><?= htmlspecialchars(mb_strimwidth($pe['new_value'] ?: '(empty)', 0, 20, '…')) ?></span>"</span>
+                <?php endif; ?>
             </div>
         <?php endforeach; ?>
     </div>
@@ -140,10 +151,11 @@ require_once 'includes/header.php';
     <form method="POST" enctype="multipart/form-data">
         <?= csrf_field() ?>
         <div class="form-group text-center">
+            <?php $tierClass = 'profile-pic-' . ($user['role'] === 'seller' ? ($user['seller_tier'] ?: 'basic') : 'basic'); ?>
             <?php if($user['profile_pic']): ?>
-                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['profile_pic'])) ?>" class="profile-pic profile-pic-lg mb-2" alt="Profile">
+                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['profile_pic'])) ?>" class="profile-pic profile-pic-lg profile-pic-previewable <?= $tierClass ?> mb-2" style="cursor:pointer;" alt="Profile">
             <?php endif; ?>
-            <label>Profile Photo <small style="color:var(--text-muted);">(updates instantly)</small></label>
+            <label>Profile Photo <small style="color:var(--text-muted);">(requires admin approval)</small></label>
             <input type="file" name="profile_pic" class="form-control" accept="image/*">
         </div>
 
@@ -207,9 +219,9 @@ require_once 'includes/header.php';
 
         <?php if(isSeller()): ?>
         <div class="form-group">
-            <label>Shop Banner Image <small style="color:var(--text-muted);">(updates instantly)</small></label>
+            <label>Shop Banner Image <small style="color:var(--text-muted);">(requires admin approval)</small></label>
             <?php if(!empty($user['shop_banner'])): ?>
-                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['shop_banner'])) ?>" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:0.5rem;" alt="Banner">
+                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['shop_banner'])) ?>" class="profile-pic-previewable" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:0.5rem;cursor:pointer;" alt="Shop Banner">
             <?php endif; ?>
             <input type="file" name="shop_banner" class="form-control" accept="image/*">
         </div>
@@ -217,7 +229,7 @@ require_once 'includes/header.php';
 
         <div style="background:rgba(0,113,227,0.05); border:1px solid rgba(0,113,227,0.15); border-radius:12px; padding:0.8rem 1rem; margin-bottom:1.25rem; font-size:0.82rem; color:var(--text-muted); display:flex; align-items:center; gap:0.5rem;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0071e3" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-            Text field changes require admin approval. Image uploads apply immediately.
+            All profile changes (text fields and images) require admin approval before going live.
         </div>
 
         <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Submit Changes for Approval</button>
