@@ -207,9 +207,16 @@ function TermsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
                 <h4 style={{fontSize:'1.05rem', fontWeight:800, marginBottom:'0.5rem', textTransform:'capitalize'}}>{tier.tier_name} Account</h4>
                 <p style={{margin:0, fontSize:'0.9rem', lineHeight:1.6}}>
                     The <strong>{tier.tier_name}</strong> account allows users to upload up to <strong>{tier.product_limit}</strong> products with <strong>{tier.images_per_product}</strong> image(s) per product.
-                    This account {tier.price > 0 ? `requires a fee of GHS ${Number(tier.price).toFixed(2)}` : 'is completely free'} and assigns a customized badge color wrapping an update horizon of <strong>{tier.duration}</strong>. 
+                    This account {tier.price > 0 ? `requires a fee of GHS ${Number(tier.price).toFixed(2)}` : 'is completely free'} and assigns a customized badge color wrapping an update horizon of <strong>{tier.duration} months</strong>. 
                     Ads Boost feature is <strong>{tier.ads_boost ? 'enabled' : 'not available'}</strong> limit-wide.
                 </p>
+                {tier.benefits && tier.benefits.length > 0 && (
+                  <ul style={{marginTop: '0.8rem', paddingLeft: '1.2rem', fontSize: '0.85rem', color: 'var(--text-muted)'}}>
+                    {tier.benefits.map((b: string, i: number) => (
+                      <li key={i} style={{marginBottom: '0.3rem'}}>{b}</li>
+                    ))}
+                  </ul>
+                )}
               </div>
             )) : (
               <div style={{color:'var(--text-muted)'}}>Loading tier data...</div>

@@ -13,6 +13,7 @@ interface Tier {
   duration: string;
   badge: string;
   priority: string;
+  benefits?: string[];
 }
 
 function PaystackTrigger({ config, onSuccess, onClosed }: { config: any, onSuccess: (ref: any) => void, onClosed: () => void }) {
@@ -115,7 +116,7 @@ export default function UpgradeModal({ open, onClose }: { open: boolean; onClose
                 
                 <h3 style={{textTransform:'capitalize', marginBottom:'0.4rem', fontWeight:800, fontSize:'1.5rem'}}>{tier.tier_name}</h3>
                 <div style={{fontSize:'2.8rem', fontWeight:900, marginBottom:'1.5rem', color:'var(--primary)', letterSpacing:'-0.05em'}}>
-                  ₵{Number(tier.price).toFixed(0)}<span style={{fontSize:'0.9rem', fontWeight:600, color:'var(--text-muted)', marginLeft:'6px'}}>/ {tier.duration === 'forever' ? 'lifetime' : 'period'}</span>
+                  ₵{Number(tier.price).toFixed(0)}<span style={{fontSize:'0.9rem', fontWeight:600, color:'var(--text-muted)', marginLeft:'6px'}}>/ {tier.duration === 'forever' ? 'lifetime' : `${tier.duration} months`}</span>
                 </div>
                 
                 <ul style={{listStyle:'none', padding:0, marginBottom:'1.5rem', flexGrow:1}}>
@@ -151,6 +152,11 @@ export default function UpgradeModal({ open, onClose }: { open: boolean; onClose
                       </li>
                     </>
                   )}
+                  {tier.benefits && tier.benefits.length > 0 && tier.benefits.map((b, i) => (
+                    <li key={`benefit-${i}`} style={{marginBottom:'0.8rem', fontSize:'0.92rem', display:'flex', gap:'10px', fontWeight:500}}>
+                      <span style={{color:'var(--primary)', fontWeight:800}}>✓</span> {b}
+                    </li>
+                  ))}
                 </ul>
                 
                 {!active ? (
