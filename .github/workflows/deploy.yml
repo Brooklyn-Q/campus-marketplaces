@@ -59,6 +59,9 @@ jobs:
         run: npm ci --legacy-peer-deps
 
       - name: Build project
+        env:
+          VITE_API_URL: https://campusmarketplace.alwaysdata.net/api
+          VITE_PAYSTACK_PUBLIC_KEY: pk_live_ba277a24ca885b3f6299a479329bcfe265132cc2
         run: npm run build
 
       # Copies index.html → 404.html so React Router handles deep-link refreshes
