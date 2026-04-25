@@ -15,13 +15,22 @@ interface Tier {
   priority: string;
 }
 
+function PaystackTrigger({ config, onSuccess, onClosed }: { config: any, onSuccess: (ref: any) => void, onClosed: () => void }) {
+  const initializePayment = usePaystackPayment(config);
+  
+  useEffect(() => {
+    initializePayment(onSuccess, onClosed);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return null;
+}
+
 export default function UpgradeModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { user, checkAuth } = useAuth();
   const [tiers, setTiers] = useState<Tier[]>([]);
   const [loading, setLoading] = useState(false);
   const [paystackConfig, setPaystackConfig] = useState<any>(null);
-
-  const initializePayment = usePaystackPayment(paystackConfig || { publicKey: 'dummy' });
 
   useEffect(() => {
     if (open) {
@@ -31,32 +40,26 @@ export default function UpgradeModal({ open, onClose }: { open: boolean; onClose
     }
   }, [open]);
 
-  useEffect(() => {
-    if (paystackConfig) {
-      const onSuccess = (ref: any) => {
-        console.log('Payment successful. Verifying...', ref);
-        payments.verify(ref.reference).then(() => {
-          alert('Payment verified and account upgraded successfully!');
-          checkAuth(); // Refresh user data
-          onClose();
-        }).catch(err => {
-          console.error(err);
-          alert('Failed to verify payment on our servers. Please contact support.');
-        }).finally(() => {
-          setLoading(false);
-          setPaystackConfig(null);
-        });
-      };
+  const handleSuccess = (ref: any) => {
+    console.log('Payment successful. Verifying...', ref);
+    payments.verify(ref.reference).then(() => {
+      alert('Payment verified and account upgraded successfully!');
+      checkAuth(); // Refresh user data
+      onClose();
+    }).catch(err => {
+      console.error(err);
+      alert('Failed to verify payment on our servers. Please contact support.');
+    }).finally(() => {
+      setLoading(false);
+      setPaystackConfig(null);
+    });
+  };
 
-      const onClosed = () => {
-        console.log('Payment window closed.');
-        setLoading(false);
-        setPaystackConfig(null);
-      };
-
-      initializePayment(onSuccess, onClosed);
-    }
-  }, [paystackConfig]);
+  const handleClosed = () => {
+    console.log('Payment window closed.');
+    setLoading(false);
+    setPaystackConfig(null);
+  };
 
   if (!open) return null;
 
@@ -172,6 +175,9 @@ export default function UpgradeModal({ open, onClose }: { open: boolean; onClose
           )}
         </div>
       </div>
+      {paystackConfig && (
+        <PaystackTrigger config={paystackConfig} onSuccess={handleSuccess} onClosed={handleClosed} />
+      )}
     </div>
   );
 }
