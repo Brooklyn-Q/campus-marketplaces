@@ -67,7 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['profile_action'])) {
                     if ($pr['field_name'] === 'seller_tier' && $pr['new_value'] === 'basic') {
                         $pdo->prepare("UPDATE users SET seller_tier = 'basic', tier_expires_at = NULL WHERE id = ?")->execute([$pr['user_id']]);
                     } else {
-                        $pdo->prepare("UPDATE users SET `{$pr['field_name']}` = ? WHERE id = ?")->execute([$pr['new_value'], $pr['user_id']]);
+                        $pdo->prepare("UPDATE users SET {$pr['field_name']} = ? WHERE id = ?")->execute([$pr['new_value'], $pr['user_id']]);
                     }
                 }
                 $pdo->prepare("UPDATE profile_edit_requests SET status='approved', admin_id=?, resolved_at=NOW() WHERE id=?")->execute([$_SESSION['user_id'], $req_id]);
@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['profile_action'])) {
                     if ($pr['field_name'] === 'seller_tier' && $pr['new_value'] === 'basic') {
                         $pdo->prepare("UPDATE users SET seller_tier = 'basic', tier_expires_at = NULL WHERE id = ?")->execute([$pr['user_id']]);
                     } else {
-                        $pdo->prepare("UPDATE users SET `{$pr['field_name']}` = ? WHERE id = ?")->execute([$pr['new_value'], $pr['user_id']]);
+                        $pdo->prepare("UPDATE users SET {$pr['field_name']} = ? WHERE id = ?")->execute([$pr['new_value'], $pr['user_id']]);
                     }
                 }
                 $pdo->prepare("UPDATE profile_edit_requests SET status='approved', admin_id=?, resolved_at=NOW() WHERE id=?")->execute([$_SESSION['user_id'], $pr['id']]);
