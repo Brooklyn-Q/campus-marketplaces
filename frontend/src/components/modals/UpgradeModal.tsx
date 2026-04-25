@@ -141,7 +141,7 @@ export default function UpgradeModal({ open, onClose }: { open: boolean; onClose
         reference: res.reference,
         email: res.email || user?.email || '',
         amount: (res.amount || price) * 100,
-        publicKey: (import.meta as any).env.VITE_PAYSTACK_PUBLIC_KEY || 'pk_test_placeholder',
+        publicKey: 'pk_live_ba277a24ca885b3f6299a479329bcfe265132cc2',
         currency: 'GHS',
       });
     } catch (err: any) {
