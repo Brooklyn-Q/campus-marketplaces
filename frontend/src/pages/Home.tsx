@@ -97,6 +97,22 @@ export default function Home() {
     fetchData();
   }, [search, category, minPrice, maxPrice, page]);
 
+  useEffect(() => {
+    if (adsList.length > 1) {
+      const interval = setInterval(() => {
+        const c = document.getElementById('adCarousel');
+        if (!c) return;
+        const maxScroll = c.scrollWidth - c.offsetWidth;
+        if (c.scrollLeft >= maxScroll - 10) {
+          c.scrollTo({ left: 0, behavior: 'smooth' });
+        } else {
+          c.scrollBy({ left: c.offsetWidth, behavior: 'smooth' });
+        }
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [adsList.length]);
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const form = e.target as HTMLFormElement;
@@ -198,7 +214,7 @@ export default function Home() {
                  <a key={ad.id ?? `ad-${index}`} href={ad.link_url} target="_blank" rel="noopener noreferrer" onClick={() => ads.click(ad.id).catch(()=>{})} className="fade-in ad-item-link" style={{flex: '0 0 100%', scrollSnapAlign: 'start', minWidth: '100%', textDecoration: 'none'}}>
                      <div className="ad-image-container" style={{borderRadius:'24px', overflow:'hidden', border:'1px solid rgba(0,0,0,0.05)', position:'relative', transition:'all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1)', boxShadow: '0 10px 30px rgba(0,0,0,0.08)'}}>
                          {ad.image_url ? (
-                             <img src={ad.image_url} alt={ad.title} className="ad-banner-img" loading="lazy" style={{width:'100%', height:'100%', objectFit:'cover', display:'block'}} />
+                             <img src={assetUrl(ad.image_url)} alt={ad.title} className="ad-banner-img" loading="lazy" style={{width:'100%', height:'100%', objectFit:'cover', display:'block'}} />
                          ) : (
                              <div style={{background:'linear-gradient(135deg, #0071e3, #34aaff)', color:'#fff', padding:'2.5rem', textAlign:'center', minHeight:'160px', display:'flex', flexDirection:'column', justifyContent:'center'}}>
                                  <p style={{fontSize:'0.7rem', letterSpacing:'0.15em', textTransform:'uppercase', opacity:0.8, marginBottom:'0.5rem', fontWeight:700}}>Sponsored Content</p>
