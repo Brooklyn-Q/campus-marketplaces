@@ -27,7 +27,7 @@ if ($method === 'POST' && $action === 'chat') {
 
 Keep responses brief and friendly. If asked about something you don't know, suggest contacting the admin.";
 
-    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($apiKey);
+    $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" . urlencode($apiKey);
     $payload = [
         'contents' => [
             ['parts' => [['text' => $systemPrompt . "\n\nUser: " . $question]]]
@@ -64,7 +64,7 @@ elseif ($method === 'GET' && $action === 'describe') {
     if ($apiKey) {
         $prompt = "Generate a short, compelling product listing description (2-3 sentences) for a campus marketplace item titled: \"$title\". Make it student-friendly and mention condition, value, and convenience.";
 
-        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" . urlencode($apiKey);
+        $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" . urlencode($apiKey);
         $payload = [
             'contents' => [['parts' => [['text' => $prompt]]]],
             'generationConfig' => ['temperature' => 0.8, 'maxOutputTokens' => 200],
