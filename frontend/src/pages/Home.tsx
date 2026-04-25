@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { products, ads, recommendations } from '../services/api';
+import { assetUrl } from '../utils/assetUrl';
 import Hero from '../Hero';
 
 export default function Home() {
@@ -128,36 +129,6 @@ export default function Home() {
   const stableProducts = useMemo(() => dedupeById(productsList), [productsList]);
   const stableAds = useMemo(() => dedupeById(adsList), [adsList]);
   const stableAiRecs = useMemo(() => dedupeById(aiRecs), [aiRecs]);
-
-  const assetUrl = (path: string) => {
-    if (!path) return '';
-    // Already a full URL
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      let url = path;
-      const apiBase = import.meta.env.VITE_API_URL || '';
-      const backendRoot = apiBase ? apiBase.replace(/\/api\/?$/, '') : '';
-
-      // Rewrite broken localhost URLs → production backend
-      if (url.includes('localhost') && backendRoot) {
-        const match = url.match(/\/uploads\/.+$/);
-        if (match) url = `${backendRoot}${match[0]}`;
-      }
-
-      // Upgrade http → https (GitHub Pages blocks mixed content)
-      if (url.startsWith('http://')) {
-        url = url.replace('http://', 'https://');
-      }
-      return url;
-    }
-    // Relative upload path from the backend
-    if (path.startsWith('uploads/') || path.includes('/uploads/')) {
-      const apiBase = import.meta.env.VITE_API_URL || 'http://localhost/marketplace/backend/api';
-      const backendRoot = apiBase.replace(/\/api\/?$/, '');
-      return `${backendRoot}/${path}`;
-    }
-    // Local public assets
-    return path.startsWith('/') ? path : `${base}${path}`;
-  };
 
   return (
     <>

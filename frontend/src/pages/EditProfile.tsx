@@ -3,6 +3,7 @@ import Cropper from 'react-easy-crop';
 import getCroppedImg from '../utils/cropImage';
 import { useAuth } from '../contexts/AuthContext';
 import { users } from '../services/api';
+import { assetUrl } from '../utils/assetUrl';
 
 export default function EditProfile() {
   const { user, isSeller, refreshUser } = useAuth();
@@ -101,17 +102,7 @@ export default function EditProfile() {
     }
   };
 
-  const assetUrl = (path: string | undefined | null) => {
-    if (!path) return '';
-    if (path.startsWith('uploads/http')) return path.substring(8);
-    if (path.startsWith('http')) return path;
-    if (path.startsWith('uploads/')) {
-      const apiBase = (import.meta as any).env.VITE_API_URL || 'http://localhost/marketplace/backend/api';
-      const backendRoot = apiBase.replace(/\/api\/?$/, '');
-      return `${backendRoot}/../${path}`;
-    }
-    return path.startsWith('/') ? path : `/${path}`;
-  };
+
 
   if (!user) return <div className="container" style={{padding:'4rem 0', textAlign:'center'}}>Loading...</div>;
 

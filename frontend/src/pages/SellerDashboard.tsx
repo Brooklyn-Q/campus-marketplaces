@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { orders, products as productsApi, users } from '../services/api';
+import { assetUrl } from '../utils/assetUrl';
 import UpgradeModal from '../components/modals/UpgradeModal';
 
 export default function SellerDashboard() {
@@ -69,17 +70,7 @@ export default function SellerDashboard() {
   const limit = user?.seller_tier === 'premium' ? 15 : (user?.seller_tier === 'pro' ? 5 : 2);
   const usage_pct = (totalProducts / limit) * 100;
 
-  const assetUrl = (path: string | undefined | null) => {
-    if (!path) return '';
-    if (path.startsWith('uploads/http')) return path.substring(8);
-    if (path.startsWith('http')) return path;
-    if (path.startsWith('uploads/')) {
-      const apiBase = (import.meta as any).env.VITE_API_URL || 'http://localhost/marketplace/backend/api';
-      const backendRoot = apiBase.replace(/\/api\/?$/, '');
-      return `${backendRoot}/../${path}`;
-    }
-    return path.startsWith('/') ? path : `/${path}`;
-  };
+
 
   if (loading) return <div className="container" style={{padding:'4rem 0', textAlign:'center'}}>Loading...</div>;
 

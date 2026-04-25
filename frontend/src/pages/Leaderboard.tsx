@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { leaderboard } from '../services/api';
+import { assetUrl } from '../utils/assetUrl';
 
 export default function Leaderboard() {
   const [leaders, setLeaders] = useState<any[]>([]);
@@ -20,17 +21,7 @@ export default function Leaderboard() {
     fetchBoard();
   }, []);
 
-  const assetUrl = (path: string | undefined | null) => {
-    if (!path) return '';
-    if (path.startsWith('uploads/http')) return path.substring(8);
-    if (path.startsWith('http')) return path;
-    if (path.startsWith('uploads/')) {
-      const apiBase = (import.meta as any).env.VITE_API_URL || 'http://localhost/marketplace/backend/api';
-      const backendRoot = apiBase.replace(/\/api\/?$/, '');
-      return `${backendRoot}/../${path}`;
-    }
-    return path.startsWith('/') ? path : `/${path}`;
-  };
+
 
   const colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
 

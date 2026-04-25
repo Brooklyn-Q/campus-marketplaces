@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { products, orders } from '../services/api';
+import { assetUrl } from '../utils/assetUrl';
 
 export default function Product() {
   const { id } = useParams();
@@ -36,29 +37,7 @@ export default function Product() {
     }
   };
 
-  const assetUrl = (path: string) => {
-    if (!path) return '';
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      let url = path;
-      const apiBase = (import.meta as any).env.VITE_API_URL || '';
-      const backendRoot = apiBase ? apiBase.replace(/\/api\/?$/, '') : '';
 
-      if (url.includes('localhost') && backendRoot) {
-        const match = url.match(/\/uploads\/.+$/);
-        if (match) url = `${backendRoot}${match[0]}`;
-      }
-      if (url.startsWith('http://')) {
-        url = url.replace('http://', 'https://');
-      }
-      return url;
-    }
-    if (path.startsWith('uploads/') || path.includes('/uploads/')) {
-      const apiBase = (import.meta as any).env.VITE_API_URL || 'http://localhost/marketplace/backend/api';
-      const backendRoot = apiBase.replace(/\/api\/?$/, '');
-      return `${backendRoot}/${path}`;
-    }
-    return path.startsWith('/') ? path : `/${path}`;
-  };
 
   if (loading) return <div className="container" style={{padding:'4rem 0', textAlign:'center'}}>Loading...</div>;
   if (!product) return <div className="container" style={{padding:'4rem 0', textAlign:'center'}}>Product not found.</div>;

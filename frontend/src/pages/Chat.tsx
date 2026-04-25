@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { messages } from '../services/api';
+import { assetUrl } from '../utils/assetUrl';
 
 export default function Chat() {
   const { user } = useAuth();
@@ -94,17 +95,7 @@ export default function Chat() {
     }
   };
 
-  const assetUrl = (path: string) => {
-    if (!path) return '';
-    if (path.startsWith('uploads/http')) return path.substring(8);
-    if (path.startsWith('http')) return path;
-    if (path.startsWith('uploads/')) {
-      const apiBase = (import.meta as any).env.VITE_API_URL || 'http://localhost/marketplace/backend/api';
-      const backendRoot = apiBase.replace(/\/api\/?$/, '');
-      return `${backendRoot}/../${path}`;
-    }
-    return path.startsWith('/') ? path : `/${path}`;
-  };
+
 
   if (loading) return <div className="container" style={{padding:'4rem 0', textAlign:'center'}}>Loading messages...</div>;
 
