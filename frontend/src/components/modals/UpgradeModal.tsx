@@ -165,12 +165,13 @@ export default function UpgradeModal({ open, onClose }: { open: boolean; onClose
           inset: 0,
           background: 'rgba(0,0,0,0.92)',
           zIndex: 9999999,
-          alignItems: 'center',
+          alignItems: 'flex-start',
           justifyContent: 'center',
           backdropFilter: 'blur(20px)',
           overflowY: 'auto',
+          overflowX: 'hidden',
           WebkitOverflowScrolling: 'touch',
-          padding: '20px',
+          padding: '40px 20px 80px',
         }}
       >
         <motion.div
@@ -178,7 +179,7 @@ export default function UpgradeModal({ open, onClose }: { open: boolean; onClose
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.92 }}
           transition={{ type: 'spring', duration: 0.5 }}
-          style={{ width: '100%', maxWidth: '1100px', padding: '2.5rem 1.5rem', position: 'relative' }}
+          style={{ width: '100%', maxWidth: '1100px', padding: '2.5rem 1.5rem', position: 'relative', margin: 'auto 0' }}
         >
           {/* Close */}
           <button
