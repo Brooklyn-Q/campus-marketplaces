@@ -215,6 +215,12 @@ export const users = {
       method: 'POST',
       body: formData,
     }),
+
+  requestVacation: () =>
+    apiFetch('users/vacation', { method: 'POST' }),
+
+  endVacation: () =>
+    apiFetch('users/vacation', { method: 'DELETE' }),
 };
 
 // ── SETTINGS API ──

@@ -1,16 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { orders, products as productsApi } from '../services/api';
+import { orders, products as productsApi, users } from '../services/api';
 import UpgradeModal from '../components/modals/UpgradeModal';
 
 export default function SellerDashboard() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const [sellerOrders, setSellerOrders] = useState<any[]>([]);
   const [sellerProducts, setSellerProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailedView, setDetailedView] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [vacationLoading, setVacationLoading] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -29,6 +30,29 @@ export default function SellerDashboard() {
     };
     fetchData();
   }, []);
+
+  const handleVacationClick = async () => {
+    if (vacationLoading) return;
+    setVacationLoading(true);
+    try {
+      if (user?.vacation_mode) {
+        // End vacation
+        await users.endVacation();
+        alert('Vacation mode ended. Your products are now visible.');
+      } else if (!user?.vacation_pending) {
+        // Request vacation
+        if (confirm('Are you sure you want to request vacation mode? Your products will be hidden from the marketplace.')) {
+          await users.requestVacation();
+          alert('Vacation mode requested. Please wait for admin approval.');
+        }
+      }
+      await refreshUser();
+    } catch (err: any) {
+      alert(err.message || 'Failed to update vacation status');
+    } finally {
+      setVacationLoading(false);
+    }
+  };
 
   const totalProducts = sellerProducts.length;
   const approvedProducts = sellerProducts.filter(p => p.status === 'approved').length;
@@ -103,7 +127,17 @@ export default function SellerDashboard() {
             
             <div style={{marginTop:'1rem', display:'flex', gap:'0.5rem', flexDirection:'column'}}>
                <Link to="/edit-profile" className="btn btn-primary" style={{justifyContent:'center', borderRadius:'12px'}}>Edit Profile</Link>
-               <button className="btn btn-outline" style={{justifyContent:'center'}}>☀️ Vacation Mode</button>
+               <button 
+                 className={`btn ${user?.vacation_mode ? 'btn-danger' : user?.vacation_pending ? 'btn-secondary' : 'btn-outline'}`} 
+                 style={{justifyContent:'center'}}
+                 onClick={handleVacationClick}
+                 disabled={vacationLoading || user?.vacation_pending}
+               >
+                 {vacationLoading ? 'Loading...' : 
+                  user?.vacation_mode ? '🛑 End Vacation Mode' : 
+                  user?.vacation_pending ? '⏳ Vacation Requested' : 
+                  '☀️ Request Vacation'}
+               </button>
                 {user?.seller_tier !== 'premium' && (
                   <button type="button" className="btn btn-gold" style={{justifyContent:'center'}} onClick={() => setIsUpgradeModalOpen(true)}>🚀 Upgrade Account</button>
                 )}

@@ -113,6 +113,23 @@ elseif ($method === 'POST' && $action === 'vacation') {
     jsonSuccess('Vacation mode request submitted for admin approval');
 }
 
+// ── END VACATION ──
+elseif ($method === 'DELETE' && $action === 'vacation') {
+    $auth = authenticate();
+    requireSeller($pdo, $auth);
+
+    // Cancel any pending requests
+    $pdo->prepare("UPDATE vacation_requests SET status = 'cancelled' WHERE seller_id = ? AND status = 'pending'")
+        ->execute([$auth['user_id']]);
+
+    // Set vacation_mode to false
+    $boolF = sqlBool(false, $pdo);
+    $pdo->prepare("UPDATE users SET vacation_mode = $boolF WHERE id = ?")
+        ->execute([$auth['user_id']]);
+
+    jsonSuccess('Vacation mode ended. Your products are now visible.');
+}
+
 else {
     jsonError('User endpoint not found', 404);
 }

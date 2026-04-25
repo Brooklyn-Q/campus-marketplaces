@@ -118,7 +118,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vacation_action'])) {
         $req->execute([$vac_id]);
         $vr = $req->fetch();
         if ($vr) {
-            $pdo->prepare("UPDATE users SET vacation_mode = 1 WHERE id = ?")->execute([$vr['seller_id']]);
+            $boolT = sqlBool(true, $pdo);
+            $pdo->prepare("UPDATE users SET vacation_mode = $boolT WHERE id = ?")->execute([$vr['seller_id']]);
             $pdo->prepare("UPDATE vacation_requests SET status = 'approved' WHERE id = ?")->execute([$vac_id]);
             auditLog($pdo, $_SESSION['user_id'], "Approved vacation for seller #{$vr['seller_id']}");
             $disc_msg = "✅ Vacation mode approved for seller.";

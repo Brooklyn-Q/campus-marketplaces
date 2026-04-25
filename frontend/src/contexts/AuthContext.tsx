@@ -22,6 +22,7 @@ export interface User {
   phone?: string;
   bio?: string;
   vacation_mode?: number;
+  vacation_pending?: boolean;
   verified?: number;
   suspended?: number;
   has_unreviewed_orders?: boolean;

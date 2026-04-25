@@ -212,6 +212,11 @@ switch ($action) {
         $tiers = getAccountTiers($pdo);
         $user['tier_info'] = $tiers[$user['seller_tier'] ?: 'basic'] ?? null;
 
+        // Check for pending vacation requests
+        $vacStmt = $pdo->prepare("SELECT id FROM vacation_requests WHERE seller_id = ? AND status = 'pending'");
+        $vacStmt->execute([$user['id']]);
+        $user['vacation_pending'] = (bool)$vacStmt->fetch();
+
         jsonResponse(['user' => $user]);
         break;
 
