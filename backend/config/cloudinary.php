@@ -138,3 +138,66 @@ function uploadLocally(array $file, string $folder): ?string {
 
     return null;
 }
+
+/**
+ * Delete a file from Cloudinary by its URL.
+ * Extracts the public_id from the secure_url and calls the destroy API.
+ */
+function deleteFromCloudinary(string $url): bool {
+    $cloudName = env('CLOUDINARY_CLOUD_NAME', '');
+    $apiKey = env('CLOUDINARY_API_KEY', '');
+    $apiSecret = env('CLOUDINARY_API_SECRET', '');
+
+    if (!$cloudName || !$apiKey || !$apiSecret) {
+        return false;
+    }
+
+    // Only process Cloudinary URLs
+    if (strpos($url, 'cloudinary.com') === false && strpos($url, 'res.cloudinary.com') === false) {
+        return false;
+    }
+
+    // Extract public_id from URL
+    // URL format: https://res.cloudinary.com/{cloud}/image/upload/v123456/folder/filename.ext
+    $pattern = '/\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+$/';
+    if (!preg_match($pattern, $url, $matches)) {
+        error_log("Cloudinary delete: could not extract public_id from $url");
+        return false;
+    }
+
+    $publicId = $matches[1];
+    $timestamp = time();
+
+    // Generate signature
+    $signStr = "public_id=$publicId&timestamp=$timestamp" . $apiSecret;
+    $signature = sha1($signStr);
+
+    $postData = [
+        'public_id' => $publicId,
+        'api_key' => $apiKey,
+        'timestamp' => $timestamp,
+        'signature' => $signature,
+    ];
+
+    $destroyUrl = "https://api.cloudinary.com/v1_1/$cloudName/image/destroy";
+
+    $ch = curl_init($destroyUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $postData);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 15);
+
+    $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    if ($httpCode >= 200 && $httpCode < 300) {
+        $data = json_decode($response, true);
+        if (($data['result'] ?? '') === 'ok') {
+            error_log("Cloudinary delete OK: $publicId");
+            return true;
+        }
+    }
+
+    error_log("Cloudinary delete failed for $publicId: $response");
+    return false;
+}

@@ -58,6 +58,19 @@ elseif ($method === 'PUT' && $productId && $productAction === 'reject') {
 }
 
 elseif ($method === 'DELETE' && $productId) {
+    // Fetch image URLs before deleting records
+    $imgStmt = $pdo->prepare("SELECT image_path FROM product_images WHERE product_id = ?");
+    $imgStmt->execute([$productId]);
+    $images = $imgStmt->fetchAll();
+
+    // Delete each image from Cloudinary (or Supabase)
+    require_once __DIR__ . '/../../config/cloudinary.php';
+    foreach ($images as $img) {
+        if (!empty($img['image_path'])) {
+            deleteFromCloudinary($img['image_path']);
+        }
+    }
+
     $pdo->prepare("DELETE FROM product_images WHERE product_id = ?")->execute([$productId]);
     $pdo->prepare("DELETE FROM products WHERE id = ?")->execute([$productId]);
     auditLog($pdo, $auth['user_id'], "Deleted product #$productId", 'product', $productId);
