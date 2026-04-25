@@ -154,6 +154,11 @@ try {
             }
             break;
 
+        // ── SETTINGS ──
+        case 'settings':
+            require __DIR__ . '/routes/settings.php';
+            break;
+
         // ── HEALTH CHECK ──
         case '':
         case 'health':

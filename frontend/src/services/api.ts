@@ -217,13 +217,24 @@ export const users = {
     }),
 };
 
+// ── SETTINGS API ──
+
+export const settings = {
+  tiers: () => apiFetch('settings/tiers'),
+};
+
 // ── PAYMENTS API ──
 
 export const payments = {
-  verify: (reference: string, tier?: string, type?: string) =>
-    apiFetch('payments/verify', {
+  initialize: (type: 'pro' | 'premium' | 'deposit', amount?: number) =>
+    apiFetch('payments/initialize', {
       method: 'POST',
-      body: JSON.stringify({ reference, tier, type }),
+      body: JSON.stringify({ type, amount }),
+    }),
+
+  verify: (reference: string) =>
+    apiFetch(`payments/verify/${reference}`, {
+      method: 'GET',
     }),
 
   transactions: () => apiFetch('payments/transactions'),

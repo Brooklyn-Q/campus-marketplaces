@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { orders, products as productsApi } from '../services/api';
+import UpgradeModal from '../components/modals/UpgradeModal';
 
 export default function SellerDashboard() {
   const { user } = useAuth();
@@ -9,6 +10,7 @@ export default function SellerDashboard() {
   const [sellerProducts, setSellerProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [detailedView, setDetailedView] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -102,9 +104,9 @@ export default function SellerDashboard() {
             <div style={{marginTop:'1rem', display:'flex', gap:'0.5rem', flexDirection:'column'}}>
                <Link to="/edit-profile" className="btn btn-primary" style={{justifyContent:'center', borderRadius:'12px'}}>Edit Profile</Link>
                <button className="btn btn-outline" style={{justifyContent:'center'}}>☀️ Vacation Mode</button>
-               {user?.seller_tier !== 'premium' && (
-                 <button type="button" className="btn btn-gold" style={{justifyContent:'center'}}>🚀 Upgrade Account</button>
-               )}
+                {user?.seller_tier !== 'premium' && (
+                  <button type="button" className="btn btn-gold" style={{justifyContent:'center'}} onClick={() => setIsUpgradeModalOpen(true)}>🚀 Upgrade Account</button>
+                )}
             </div>
           </div>
 
@@ -276,6 +278,8 @@ export default function SellerDashboard() {
           </div>
         </div>
       </div>
+
+      <UpgradeModal open={isUpgradeModalOpen} onClose={() => setIsUpgradeModalOpen(false)} />
     </div>
   );
 }

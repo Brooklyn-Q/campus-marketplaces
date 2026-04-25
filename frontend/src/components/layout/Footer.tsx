@@ -2,13 +2,22 @@
  * Footer — Converted from includes/footer.php
  * Preserves footer layout, AI assistant chat widget, side cart drawer, and terms modal.
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ai } from '../../services/api';
+import { ai, settings } from '../../services/api';
 
 function TermsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [progressPercent, setProgressPercent] = useState(0);
+  const [tiers, setTiers] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (open) {
+      settings.tiers()
+        .then(res => setTiers(res.tiers || []))
+        .catch(console.error);
+    }
+  }, [open]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const el = e.currentTarget;
@@ -191,32 +200,20 @@ function TermsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
           </ul>
 
           <h3 style={{fontSize: '1.1rem', fontWeight: 700, marginTop: '2rem', marginBottom: '0.75rem'}}>21. ACCOUNT TIERS & SELLER RULES</h3>
-          <p>Users may choose from 3 account levels, each with specific system-enforced limits and benefits:</p>
+          <p>Users may choose from {tiers.length || 3} account levels, each with specific system-enforced limits and benefits:</p>
           <div style={{display:'flex', flexDirection:'column', gap:'1rem', marginBottom:'1.5rem'}}>
-            <div className="tier-block" style={{padding: '15px', border: '1px solid #0071e340', borderRadius: '12px', borderLeft: '4px solid #0071e3', background: 'rgba(0,0,0,0.02)'}}>
-              <h4 style={{fontSize:'1.05rem', fontWeight:800, marginBottom:'0.5rem', textTransform:'capitalize'}}>Basic Account</h4>
-              <p style={{margin:0, fontSize:'0.9rem', lineHeight:1.6}}>
-                  The <strong>Basic</strong> account allows users to upload up to <strong>2</strong> products with <strong>1</strong> image(s) per product.
-                  This account is completely <strong>free</strong> and assigns a customized badge color (#0071e3) wrapping an update horizon of <strong>forever</strong>. 
-                  Ads Boost feature is not available limit-wide.
-              </p>
-            </div>
-            <div className="tier-block" style={{padding: '15px', border: '1px solid #8e8e9340', borderRadius: '12px', borderLeft: '4px solid #8e8e93', background: 'rgba(0,0,0,0.02)'}}>
-              <h4 style={{fontSize:'1.05rem', fontWeight:800, marginBottom:'0.5rem', textTransform:'capitalize'}}>Pro Account</h4>
-              <p style={{margin:0, fontSize:'0.9rem', lineHeight:1.6}}>
-                  The <strong>Pro</strong> account allows users to upload up to <strong>5</strong> products with <strong>1</strong> image(s) per product.
-                  This account requires a fee of <strong>GHS 10.00</strong> and assigns a customized badge color (#8e8e93) wrapping an update horizon of <strong>2 weeks</strong>. 
-                  Ads Boost feature is not available limit-wide.
-              </p>
-            </div>
-            <div className="tier-block" style={{padding: '15px', border: '1px solid #ff9f0a40', borderRadius: '12px', borderLeft: '4px solid #ff9f0a', background: 'rgba(0,0,0,0.02)'}}>
-              <h4 style={{fontSize:'1.05rem', fontWeight:800, marginBottom:'0.5rem', textTransform:'capitalize'}}>Premium Account</h4>
-              <p style={{margin:0, fontSize:'0.9rem', lineHeight:1.6}}>
-                  The <strong>Premium</strong> account allows users to upload up to <strong>15</strong> products with <strong>3</strong> image(s) per product.
-                  This account requires a fee of <strong>GHS 20.00</strong> and assigns a customized badge color (#ff9f0a) wrapping an update horizon of <strong>weekly</strong>. 
-                  Ads Boost feature is <strong>enabled</strong> limit-wide.
-              </p>
-            </div>
+            {tiers.length > 0 ? tiers.map(tier => (
+              <div key={tier.id} className="tier-block" style={{padding: '15px', border: `1px solid ${tier.tier_name === 'basic' ? '#0071e340' : (tier.tier_name === 'pro' ? '#8e8e9340' : '#ff9f0a40')}`, borderRadius: '12px', borderLeft: `4px solid ${tier.tier_name === 'basic' ? '#0071e3' : (tier.tier_name === 'pro' ? '#8e8e93' : '#ff9f0a')}`, background: 'rgba(0,0,0,0.02)'}}>
+                <h4 style={{fontSize:'1.05rem', fontWeight:800, marginBottom:'0.5rem', textTransform:'capitalize'}}>{tier.tier_name} Account</h4>
+                <p style={{margin:0, fontSize:'0.9rem', lineHeight:1.6}}>
+                    The <strong>{tier.tier_name}</strong> account allows users to upload up to <strong>{tier.product_limit}</strong> products with <strong>{tier.images_per_product}</strong> image(s) per product.
+                    This account {tier.price > 0 ? `requires a fee of GHS ${Number(tier.price).toFixed(2)}` : 'is completely free'} and assigns a customized badge color wrapping an update horizon of <strong>{tier.duration}</strong>. 
+                    Ads Boost feature is <strong>{tier.ads_boost ? 'enabled' : 'not available'}</strong> limit-wide.
+                </p>
+              </div>
+            )) : (
+              <div style={{color:'var(--text-muted)'}}>Loading tier data...</div>
+            )}
           </div>
           <p><strong>Admin Rights:</strong> Admin may adjust product limits, fees, badges, and ads boost benefits at any time. All changes continuously pull from the system architecture.</p>
 
