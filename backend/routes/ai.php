@@ -9,6 +9,7 @@
 if ($method === 'POST' && $action === 'chat') {
     $body = getJsonBody();
     $question = trim($body['message'] ?? $body['question'] ?? '');
+    $history = $body['history'] ?? [];
 
     if (!$question) jsonError('Message is required');
 
@@ -18,20 +19,25 @@ if ($method === 'POST' && $action === 'chat') {
         jsonResponse(['response' => "I'm sorry, the AI assistant is currently unavailable. Please contact our admin through the messaging system for help."]);
     }
 
-    $systemPrompt = "You are CampusBot, a helpful AI assistant for the Campus Marketplace — a peer-to-peer marketplace for university students. You help with:
+    $systemPrompt = "You are CampusBot, a highly intelligent and witty AI assistant for the Campus Marketplace (created by Brooklyn Q) — a peer-to-peer marketplace for university students. You help with:
 - How to buy/sell products
 - Account tiers (Basic, Pro, Premium)  
 - Safety tips for in-person transactions
 - How to use the messaging and order system
 - Navigation guidance
 
-Keep responses brief and friendly. If asked about something you don't know, suggest contacting the admin.";
+Always be conversational, clever, and helpful. If asked about something outside your scope, gently steer the user back to marketplace topics or suggest contacting the admin.";
 
     $url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" . urlencode($apiKey);
+    
+    $contents = $history;
+    $contents[] = ['role' => 'user', 'parts' => [['text' => $question]]];
+
     $payload = [
-        'contents' => [
-            ['parts' => [['text' => $systemPrompt . "\n\nUser: " . $question]]]
+        'systemInstruction' => [
+            'parts' => [['text' => $systemPrompt]]
         ],
+        'contents' => $contents,
         'generationConfig' => ['temperature' => 0.7, 'maxOutputTokens' => 500],
     ];
 
@@ -40,7 +46,7 @@ Keep responses brief and friendly. If asked about something you don't know, sugg
     curl_setopt($ch, CURLOPT_POST, true);
     curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
     curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
 
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
