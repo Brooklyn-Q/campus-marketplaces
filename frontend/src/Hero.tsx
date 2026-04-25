@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, Upload, Users, ShoppingBag, GraduationCap, Rocket, BadgeDollarSign, Leaf } from 'lucide-react';
+import { assetUrl } from './utils/assetUrl';
 
 const cycleWords = ['Buy', 'Sell', 'Rent', 'Advertise'];
 
@@ -19,13 +20,13 @@ function buildHomeUrl(params: Record<string, string>) {
 }
 
 const categories = [
-  { title: "Computer & Accessories", image: `${LEGACY_BASE}assets/dist/IMG_5825.webp` },
-  { title: "Phone & Accessories",    image: `${LEGACY_BASE}assets/dist/IMG_5822.webp` },
-  { title: "Electrical Appliances",  image: `${LEGACY_BASE}assets/dist/IMG_5827.webp` },
-  { title: "Fashion",                image: `${LEGACY_BASE}assets/dist/IMG_5828.webp` },
-  { title: "Food & Groceries",       image: `${LEGACY_BASE}assets/dist/IMG_5830.webp` },
-  { title: "Education & Books",      image: `${LEGACY_BASE}assets/dist/IMG_5831.webp` },
-  { title: "Hostels for Rent",       image: `${LEGACY_BASE}assets/dist/IMG_5833.webp` }
+  { title: "Computer & Accessories", image: assetUrl('IMG_5825.webp') },
+  { title: "Phone & Accessories",    image: assetUrl('IMG_5822.webp') },
+  { title: "Electrical Appliances",  image: assetUrl('IMG_5827.webp') },
+  { title: "Fashion",                image: assetUrl('IMG_5828.webp') },
+  { title: "Food & Groceries",       image: assetUrl('IMG_5830.webp') },
+  { title: "Education & Books",      image: assetUrl('IMG_5831.webp') },
+  { title: "Hostels for Rent",       image: assetUrl('IMG_5833.webp') }
 ];
 
 const howItWorks = [
@@ -132,7 +133,7 @@ export default function Hero() {
           className="absolute inset-0 w-full h-full object-cover object-center md:object-[center_30%]"
         >
           <source 
-            src={`${LEGACY_BASE}assets/dist/hero.mp4`} 
+            src={assetUrl('hero.mp4')} 
             type="video/mp4" 
           />
         </video>

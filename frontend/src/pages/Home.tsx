@@ -42,15 +42,14 @@ export default function Home() {
     'Hostels for Rent'
   ];
 
-  const base = import.meta.env.BASE_URL || '/';
   const catImages: any = {
-    'Computer & Accessories': `${base}IMG_5825.webp`,
-    'Phone & Accessories': `${base}IMG_5822.webp`,
-    'Electrical Appliances': `${base}IMG_5827.webp`,
-    'Fashion': `${base}IMG_5828.webp`,
-    'Food & Groceries': `${base}IMG_5830.webp`,
-    'Education & Books': `${base}IMG_5831.webp`,
-    'Hostels for Rent': `${base}IMG_5833.webp`
+    'Computer & Accessories': 'IMG_5825.webp',
+    'Phone & Accessories': 'IMG_5822.webp',
+    'Electrical Appliances': 'IMG_5827.webp',
+    'Fashion': 'IMG_5828.webp',
+    'Food & Groceries': 'IMG_5830.webp',
+    'Education & Books': 'IMG_5831.webp',
+    'Hostels for Rent': 'IMG_5833.webp'
   };
 
   const catDescriptions: any = {

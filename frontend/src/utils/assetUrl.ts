@@ -34,5 +34,10 @@ export const assetUrl = (path: string | undefined | null) => {
   const cleanPath = path.startsWith('/') ? path.slice(1) : path;
   const cleanBase = base.endsWith('/') ? base : `${base}/`;
   
+  // If the path already starts with the base URL, return it directly
+  if (base !== '/' && path.startsWith(base)) {
+    return path;
+  }
+  
   return `${cleanBase}${cleanPath}`;
 };
