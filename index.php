@@ -221,8 +221,9 @@ $cat_desc = ($category && isset($cat_descriptions[$category])) ? $cat_descriptio
         <?php foreach($homepage_ads as $ad): ?>
         <a href="<?= htmlspecialchars($ad['link_url']) ?>" target="_blank" rel="noopener" onclick="fetch('ad_click.php?id=<?= $ad['id'] ?>')" class="fade-in ad-item-link" style="flex: 0 0 100%; scroll-snap-align: start; min-width: 100%; text-decoration: none;">
             <div class="ad-image-container" style="border-radius:24px; overflow:hidden; border:1px solid rgba(0,0,0,0.05); position:relative; transition:all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
-                <?php if($ad['image_url']): ?>
-                    <img src="<?= htmlspecialchars($ad['image_url']) ?>" alt="<?= htmlspecialchars($ad['title']) ?>" class="ad-banner-img" loading="lazy" style="width:100%; height:100%; object-fit:cover; display:block;">
+                <?php $ad_img = $ad['image_url'] ?? $ad['image_path'] ?? ''; ?>
+                <?php if($ad_img): ?>
+                    <img src="<?= htmlspecialchars($ad_img) ?>" alt="<?= htmlspecialchars($ad['title']) ?>" class="ad-banner-img" loading="lazy" style="width:100%; height:100%; object-fit:cover; display:block;">
                 <?php else: ?>
                     <div style="background:linear-gradient(135deg, #0071e3, #34aaff); color:#fff; padding:2.5rem; text-align:center; min-height:160px; display:flex; flex-direction:column; justify-content:center;">
                         <p style="font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; opacity:0.8; margin-bottom:0.5rem; font-weight:700;">Sponsored Content</p>
