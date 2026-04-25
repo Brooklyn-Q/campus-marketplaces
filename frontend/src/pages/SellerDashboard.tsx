@@ -192,7 +192,7 @@ export default function SellerDashboard() {
                       <div className="product-grid" style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'1.25rem'}}>
                           {sellerProducts.map(p => (
                               <div key={p.id} className="glass product-card" style={{display:'flex', flexDirection:'column', background:'var(--bg)', border:'1px solid var(--border)', borderRadius:'22px', overflow:'hidden', minHeight:'400px', position:'relative'}}>
-                                  <div className="product-img-wrap" style={{aspectRatio:'1/1', position:'relative', overflow:'hidden'}}>
+                                  <div className="product-img-wrap" style={{width: '100%', aspectRatio:'1/1', position:'relative', overflow:'hidden'}}>
                                       {p.images?.[0] ? (
                                           <img src={p.images[0].url.startsWith('http') ? p.images[0].url : '/marketplace/uploads/' + p.images[0].url} className="product-img" style={{width:'100%', height:'100%', objectFit:'cover'}} alt={p.title} />
                                       ) : (

@@ -232,7 +232,7 @@ export default function Home() {
          <div className="horizontal-scroll-container" style={{scrollSnapType: 'x mandatory', WebkitOverflowScrolling: 'touch'}}>
              {stableAiRecs.map((mp, index) => (
                  <Link key={mp.id ?? `rec-${index}`} to={`/product/${mp.id}`} className="scroll-card glass fade-in" style={{scrollSnapAlign: 'start', minWidth: '160px', textDecoration:'none'}}>
-                     <div className="product-img-wrap" style={{aspectRatio: '4/3', maxHeight: '140px', borderRadius: '12px', overflow:'hidden'}}>
+                     <div className="product-img-wrap" style={{width: '100%', aspectRatio: '4/3', maxHeight: '140px', borderRadius: '12px', overflow:'hidden'}}>
                          {mp.main_image ? (
                              <img src={assetUrl(mp.main_image)} alt={mp.title} className="product-img" loading="lazy" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                          ) : (
@@ -258,7 +258,7 @@ export default function Home() {
                const promo = p.promo_tag ? p.promo_tag.trim() : '';
                return (
                 <Link key={p.id ?? `product-${index}`} to={`/product/${p.id}`} className="glass product-card fade-in" style={{flexDirection:'column', textDecoration:'none', color:'inherit'}}>
-                <div className="product-img-wrap" style={{aspectRatio: '1 / 1', borderRadius: '14px', overflow:'hidden'}}>
+                <div className="product-img-wrap" style={{width: '100%', aspectRatio: '1 / 1', borderRadius: '14px', overflow:'hidden'}}>
                     {p.main_image ? (
                         <img src={assetUrl(p.main_image)} alt={p.title} className="product-img" loading="lazy" style={{width:'100%', height:'100%', objectFit:'cover'}} />
                     ) : (
