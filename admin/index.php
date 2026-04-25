@@ -139,8 +139,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_announcement']))
     $msg_content = trim($_POST['announcement_msg'] ?? '');
     $ann_type = $_POST['ann_type'] ?? 'info';
     if ($msg_content) {
-        $pdo->prepare("INSERT INTO announcements (admin_id, message) VALUES (?,?)")
-            ->execute([$_SESSION['user_id'], $msg_content]);
+        $ann_title = mb_substr($msg_content, 0, 60);
+        $pdo->prepare("INSERT INTO announcements (admin_id, title, type, message) VALUES (?,?,?,?)")
+            ->execute([$_SESSION['user_id'], $ann_title, $ann_type, $msg_content]);
         if (function_exists('auditLog')) {
             auditLog($pdo, $_SESSION['user_id'], "Published global announcement: " . substr($msg_content, 0, 30) . "...");
         }
