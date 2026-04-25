@@ -261,12 +261,20 @@ function AIAssistant() {
   const sendMessage = async () => {
     if (!input.trim()) return;
     const msg = input.trim();
+    
+    // Format history for Gemini: alternating user and model roles.
+    // Skip the first default welcome message to save tokens.
+    const history = messages.slice(1).map(m => ({
+      role: m.sender === 'ai' ? 'model' : 'user',
+      parts: [{ text: m.text }]
+    }));
+
     setMessages(prev => [...prev, { text: msg, sender: 'user' }]);
     setInput('');
     setTyping(true);
 
     try {
-      const data = await ai.chat(msg);
+      const data = await ai.chat(msg, history);
       setMessages(prev => [...prev, { text: data.response, sender: 'ai' }]);
     } catch {
       setMessages(prev => [...prev, { text: "I'm having trouble connecting right now, let's chat soon!", sender: 'ai' }]);

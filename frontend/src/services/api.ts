@@ -296,10 +296,10 @@ export const notifications = {
 // ── AI API ──
 
 export const ai = {
-  chat: (message: string) =>
+  chat: (message: string, history: any[] = []) =>
     apiFetch('ai/chat', {
       method: 'POST',
-      body: JSON.stringify({ message }),
+      body: JSON.stringify({ message, history }),
     }),
 };
 
