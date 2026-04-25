@@ -10,10 +10,16 @@ if ($method === 'GET' && !$action) {
 
     $driver = getenv('DB_DRIVER') ?: 'mysql';
     $randSql = $driver === 'pgsql' ? "RANDOM()" : "RAND()";
+    $boolTrue = sqlBool(true, $pdo);
 
-    $stmt = $pdo->prepare("SELECT id, title, image_url, link_url, placement FROM ad_placements WHERE is_active = 1 AND placement = ? ORDER BY $randSql");
+    $stmt = $pdo->prepare("SELECT id, title, image_path, link_url, placement FROM ad_placements WHERE is_active = $boolTrue AND placement = ? ORDER BY $randSql");
     $stmt->execute([$placement]);
-    $ads = $stmt->fetchAll();
+    $ads = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // Normalize: frontend expects `image_url`, DB column is `image_path`
+    foreach ($ads as &$ad) {
+        $ad['image_url'] = $ad['image_path'] ?? '';
+    }
 
     // Track impressions
     foreach ($ads as $ad) {
