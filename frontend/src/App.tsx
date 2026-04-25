@@ -100,52 +100,89 @@ function AppRoutes() {
 
 function GlobalImageViewer() {
   const [src, setSrc] = React.useState<string | null>(null);
+  const [alt, setAlt] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (target.tagName === 'IMG' && target.classList.contains('viewable-image')) {
-        setSrc((target as HTMLImageElement).src);
+      const isPreviewable = target.classList.contains('viewable-image') || target.classList.contains('profile-pic-previewable');
+      if (target.tagName === 'IMG' && isPreviewable) {
+        const img = target as HTMLImageElement;
+        setSrc(img.src);
+        setAlt(img.alt || '');
       }
     };
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, []);
 
+  React.useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && src) setSrc(null);
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [src]);
+
   if (!src) return null;
 
   return (
     <div 
       style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-        background: 'rgba(0,0,0,0.85)', zIndex: 99999, 
+        position: 'fixed', inset: 0, zIndex: 1000001, 
+        background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(18px)', 
+        WebkitBackdropFilter: 'blur(18px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        backdropFilter: 'blur(4px)', cursor: 'zoom-out'
+        cursor: 'zoom-out',
+        animation: 'fadeIn 0.3s ease forwards'
       }}
       onClick={() => setSrc(null)}
     >
-      <img 
-        src={src} 
-        alt="Preview" 
-        style={{
-          maxWidth: '90%', maxHeight: '90%', 
-          borderRadius: '8px', objectFit: 'contain',
-          boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
-          animation: 'modalSlideUp 0.25s cubic-bezier(0.22, 1, 0.36, 1)'
-        }} 
-        onClick={(e) => e.stopPropagation()}
-      />
-      <button 
-        style={{
-          position: 'absolute', top: '20px', right: '20px', 
-          background: 'rgba(255,255,255,0.2)', color: '#fff', border: 'none', 
-          borderRadius: '50%', width: '40px', height: '40px', cursor: 'pointer',
-          fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center'
-        }}
-        onClick={() => setSrc(null)}
-      >
-        ×
-      </button>
+      <div style={{
+          position: 'relative', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', gap: '1rem', padding: '20px',
+          animation: 'zoomIn 0.35s cubic-bezier(0.19,1,0.22,1) forwards'
+      }}>
+        <button 
+          style={{
+            position: 'absolute', top: '-12px', right: '-12px', 
+            background: 'rgba(255,255,255,0.12)', color: '#fff', border: 'none', 
+            borderRadius: '50%', width: '42px', height: '42px', cursor: 'pointer',
+            fontSize: '1.4rem', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'background 0.2s'
+          }}
+          onClick={(e) => { e.stopPropagation(); setSrc(null); }}
+          onMouseOver={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.22)')}
+          onMouseOut={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+          aria-label="Close preview"
+        >
+          ×
+        </button>
+        <img 
+          src={src} 
+          alt={alt || "Preview"} 
+          style={{
+            maxWidth: 'min(500px, 88vw)', maxHeight: '72vh', 
+            borderRadius: '20px', objectFit: 'contain',
+            boxShadow: '0 32px 100px rgba(0,0,0,0.55)',
+            border: '1px solid rgba(255,255,255,0.08)',
+            background: '#111'
+          }} 
+          onClick={(e) => e.stopPropagation()}
+        />
+        {alt && (
+          <div style={{
+            color: 'rgba(255,255,255,0.85)', fontWeight: 600,
+            fontSize: '0.95rem', letterSpacing: '-0.01em'
+          }}>
+            {alt}
+          </div>
+        )}
+      </div>
+      <style>{`
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes zoomIn { from { transform: scale(0.92); } to { transform: scale(1); } }
+      `}</style>
     </div>
   );
 }

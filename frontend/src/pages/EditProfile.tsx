@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
+import Cropper from 'react-easy-crop';
+import getCroppedImg from '../utils/cropImage';
 import { useAuth } from '../contexts/AuthContext';
 import { users } from '../services/api';
 
@@ -6,6 +8,47 @@ export default function EditProfile() {
   const { user, isSeller, refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState({ type: '', text: '' });
+  
+  // Cropper states
+  const [imageSrc, setImageSrc] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null);
+  const [showCropper, setShowCropper] = useState(false);
+  const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  const onCropComplete = useCallback((croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels);
+  }, []);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.addEventListener('load', () => {
+        setImageSrc(reader.result?.toString() || null);
+        setShowCropper(true);
+      });
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCropSave = async () => {
+    try {
+      if (imageSrc && croppedAreaPixels) {
+        const blob = await getCroppedImg(imageSrc, croppedAreaPixels, 0);
+        if (blob) {
+          setCroppedBlob(blob);
+          setPreviewUrl(URL.createObjectURL(blob));
+          setShowCropper(false);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+      setMsg({ type: 'error', text: 'Failed to crop image.' });
+    }
+  };
 
   const faculties = [
     'Faculty of Applied Arts and Technology',
@@ -35,12 +78,17 @@ export default function EditProfile() {
     };
 
     try {
-      const profilePic = formData.get('profile_pic');
-
-      if (profilePic instanceof File && profilePic.size > 0) {
+      if (croppedBlob) {
         const picFormData = new FormData();
-        picFormData.append('profile_pic', profilePic);
+        picFormData.append('profile_pic', croppedBlob, 'profile.jpg');
         await users.uploadProfilePic(picFormData);
+      } else {
+        const profilePic = formData.get('profile_pic');
+        if (profilePic instanceof File && profilePic.size > 0) {
+          const picFormData = new FormData();
+          picFormData.append('profile_pic', profilePic);
+          await users.uploadProfilePic(picFormData);
+        }
       }
 
       await users.updateProfile(body);
@@ -80,14 +128,16 @@ export default function EditProfile() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group text-center">
-            {user.profile_pic ? (
+            {previewUrl ? (
+                <img src={previewUrl} className="profile-pic profile-pic-lg mb-2 viewable-image" alt="Profile Preview" style={{width:'100px', height:'100px', borderRadius:'50%', objectFit:'cover', margin:'0 auto', cursor:'pointer'}} />
+            ) : user.profile_pic ? (
                 <img src={assetUrl('uploads/' + user.profile_pic)} className="profile-pic profile-pic-lg mb-2 viewable-image" alt="Profile" style={{width:'100px', height:'100px', borderRadius:'50%', objectFit:'cover', margin:'0 auto', cursor:'pointer'}} />
             ) : (
                 <div style={{width:'100px', height:'100px', borderRadius:'50%', background:'var(--border)', margin:'0 auto', display:'flex', alignItems:'center', justifyContent:'center'}}>User</div>
             )}
             <br />
             <label>Profile Photo</label>
-            <input type="file" name="profile_pic" className="form-control" accept="image/*" />
+            <input type="file" name="profile_pic" className="form-control" accept="image/*" onChange={handleFileChange} onClick={(e) => (e.currentTarget.value = '')} />
           </div>
 
           <div className="form-group">
@@ -142,6 +192,47 @@ export default function EditProfile() {
           </button>
         </form>
       </div>
+
+      {/* Cropper Modal */}
+      {showCropper && (
+        <div style={{position:'fixed', inset:0, zIndex:100000, background:'rgba(0,0,0,0.85)', backdropFilter:'blur(8px)', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center'}}>
+          <div style={{position:'relative', width:'90%', maxWidth:'600px', height:'60vh', background:'#111', borderRadius:'16px', overflow:'hidden', boxShadow:'0 24px 60px rgba(0,0,0,0.4)'}}>
+            {imageSrc && (
+              <Cropper
+                image={imageSrc}
+                crop={crop}
+                zoom={zoom}
+                aspect={1}
+                cropShape="round"
+                showGrid={false}
+                onCropChange={setCrop}
+                onCropComplete={onCropComplete}
+                onZoomChange={setZoom}
+              />
+            )}
+          </div>
+          
+          <div style={{width:'90%', maxWidth:'600px', background:'#fff', padding:'1.5rem', borderRadius:'0 0 16px 16px', display:'flex', flexDirection:'column', gap:'1rem'}}>
+            <div style={{display:'flex', alignItems:'center', gap:'1rem'}}>
+              <span style={{fontSize:'1.2rem'}}>🔍</span>
+              <input 
+                type="range" 
+                value={zoom} 
+                min={1} 
+                max={3} 
+                step={0.1} 
+                aria-labelledby="Zoom" 
+                onChange={(e) => setZoom(Number(e.target.value))} 
+                style={{flex:1}} 
+              />
+            </div>
+            <div style={{display:'flex', justifyContent:'flex-end', gap:'0.75rem'}}>
+              <button className="btn btn-outline" onClick={() => setShowCropper(false)}>Cancel</button>
+              <button className="btn btn-primary" onClick={handleCropSave} style={{fontWeight:700}}>Crop & Save</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -43,6 +43,18 @@ export default function SellerDashboard() {
   const limit = user?.seller_tier === 'premium' ? 15 : (user?.seller_tier === 'pro' ? 5 : 2);
   const usage_pct = (totalProducts / limit) * 100;
 
+  const assetUrl = (path: string | undefined | null) => {
+    if (!path) return '';
+    if (path.startsWith('uploads/http')) return path.substring(8);
+    if (path.startsWith('http')) return path;
+    if (path.startsWith('uploads/')) {
+      const apiBase = (import.meta as any).env.VITE_API_URL || 'http://localhost/marketplace/backend/api';
+      const backendRoot = apiBase.replace(/\/api\/?$/, '');
+      return `${backendRoot}/../${path}`;
+    }
+    return path.startsWith('/') ? path : `/${path}`;
+  };
+
   if (loading) return <div className="container" style={{padding:'4rem 0', textAlign:'center'}}>Loading...</div>;
 
   return (
@@ -64,13 +76,16 @@ export default function SellerDashboard() {
         {/* SIDEBAR */}
         <div>
           <div className="glass fade-in" style={{padding:'2rem', textAlign:'center', marginBottom:'1.5rem'}}>
-            {user?.profile_pic ? (
-              <img src={'/marketplace/uploads/' + user.profile_pic} className="profile-pic profile-pic-lg mb-2 viewable-image" alt="Profile" style={{cursor:'pointer'}} />
-            ) : (
-              <div className="profile-pic profile-pic-lg mb-2" style={{display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(99,102,241,0.2)', color:'var(--primary)', fontSize:'2.5rem', fontWeight:700, margin:'0 auto'}}>
-                {user?.username?.substring(0, 1).toUpperCase()}
-              </div>
-            )}
+            {(() => {
+              const tierClass = 'profile-pic-' + (user?.seller_tier || 'basic');
+              return user?.profile_pic ? (
+                <img src={assetUrl('uploads/' + user.profile_pic)} className={`profile-pic profile-pic-lg mb-2 profile-pic-previewable ${tierClass}`} alt="Profile" style={{cursor:'pointer'}} />
+              ) : (
+                <div className={`profile-pic profile-pic-lg mb-2 ${tierClass}`} style={{display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(99,102,241,0.2)', color:'var(--primary)', fontSize:'2.5rem', fontWeight:700, margin:'0 auto'}}>
+                  {user?.username?.substring(0, 1).toUpperCase()}
+                </div>
+              );
+            })()}
             <h3>{user?.username}</h3>
             <div className="mb-1">
               {user?.seller_tier === 'pro' && <span className="badge badge-gold">Pro</span>}

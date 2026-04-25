@@ -6,41 +6,72 @@ on:
       - main
   workflow_dispatch:
 
-# Sets permissions of the GITHUB_TOKEN to allow deployment to GitHub Pages
+# FIX #3: Moved FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 to workflow level so it
+# applies to ALL jobs (including deploy), not just the build job.
+# deploy-pages also runs a JS action internally and needs this env var.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 permissions:
   contents: read
   pages: write
   id-token: write
 
-# Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
+# FIX #2: Changed cancel-in-progress to false.
+# Cancelling a mid-flight GitHub Pages deployment leaves the site in a
+# half-deployed state. Let the current deploy finish; the next push will
+# queue naturally behind it.
 concurrency:
   group: "pages"
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+    # FIX #5: Scope build job to only the permissions it actually needs.
+    # The build job only reads code and uploads an artifact — no pages write needed.
+    permissions:
+      contents: read
     defaults:
       run:
+        # NOTE: defaults.run.working-directory applies to `run` steps ONLY.
+        # `uses:` action steps always run from the repo root regardless of this setting.
+        # That is why upload-pages-artifact uses path: './frontend/dist' (repo-root path)
+        # while `run` steps below use relative paths like dist/index.html (inside ./frontend).
         working-directory: ./frontend
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          # FIX #4: Pinned to Node 20 LTS instead of Node 24 (non-LTS).
+          # Non-LTS versions receive shorter support windows and can introduce
+          # unexpected breaking changes mid-project. Node 20 is the current LTS.
+          node-version: '20'
+          # FIX #6: Enable npm dependency caching so `npm ci` reuses the cached
+          # node_modules on unchanged lockfiles — saves ~30–60s per run.
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
       - name: Install dependencies
         run: npm ci
+
       - name: Build project
         run: npm run build
+
+      # Copies index.html → 404.html so React Router handles deep-link refreshes
+      # on GitHub Pages (which serves 404.html for unknown paths).
+      # Runs inside ./frontend (defaults.run), so dist/ → ./frontend/dist/. Correct.
       - name: Setup React Router Fallback
         run: cp dist/index.html dist/404.html
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
+          # This path is relative to the REPO ROOT (not working-directory)
+          # because `uses:` steps ignore defaults.run.working-directory.
           path: './frontend/dist'
 
   deploy:
@@ -49,6 +80,12 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     needs: build
+    # FIX #5: Explicit permissions on deploy job — only what it actually needs.
+    # contents: read is omitted because deploy only consumes the uploaded artifact,
+    # it doesn't need to read the repository source code.
+    permissions:
+      pages: write
+      id-token: write
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
