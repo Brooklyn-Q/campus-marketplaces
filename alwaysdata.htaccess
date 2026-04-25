@@ -1,0 +1,37 @@
+# Campus Marketplace — AlwaysData .htaccess
+# Simplified version compatible with AlwaysData shared hosting
+
+# ===== DISABLE DIRECTORY LISTING =====
+Options -Indexes
+
+# ===== PROTECT SENSITIVE FILES =====
+<FilesMatch "\.(env|env\.local|composer\.json|composer\.lock|gitignore)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+
+# ===== API ROUTING =====
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteBase /
+
+    # Don't rewrite real files or directories
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule .* - [L]
+
+    # Route /api/* to backend/index.php
+    RewriteRule ^api/(.*)$ backend/index.php?route=$1 [L,QSA]
+
+    # Default fallback for SPA routes (skip static assets and known paths)
+    RewriteCond %{REQUEST_URI} !\.(css|js|map|ico|png|jpg|jpeg|webp|gif|svg|mp4|woff|woff2|ttf|eot)$ [NC]
+    RewriteCond %{REQUEST_URI} !^/admin/ [NC]
+    RewriteCond %{REQUEST_URI} !^/assets/ [NC]
+    RewriteCond %{REQUEST_URI} !^/uploads/ [NC]
+    RewriteCond %{REQUEST_URI} !^/backend/ [NC]
+    RewriteCond %{REQUEST_URI} !^/includes/ [NC]
+    RewriteRule ^(.*)$ index.php [L,QSA]
+</IfModule>
+
+# ===== UTF-8 ENCODING =====
+AddDefaultCharset utf-8

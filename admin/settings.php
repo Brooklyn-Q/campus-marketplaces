@@ -59,10 +59,14 @@ function get_client_ip(): string
  */
 function is_ip_throttled(PDO $pdo, string $ip): bool
 {
+    $intervalSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+        ? "INTERVAL '" . ATTEMPT_WINDOW . " minutes'"
+        : "INTERVAL " . ATTEMPT_WINDOW . " MINUTE";
+
     $stmt = $pdo->prepare(
         "SELECT COUNT(*) FROM login_attempts
          WHERE ip_address = ?
-           AND attempt_time > NOW() - INTERVAL " . ATTEMPT_WINDOW . " MINUTE"
+           AND attempt_time > NOW() - $intervalSql"
     );
     $stmt->execute([$ip]);
     return (int) $stmt->fetchColumn() >= ATTEMPT_LIMIT;
@@ -95,9 +99,13 @@ function clear_attempts(PDO $pdo, string $ip): void
  */
 function purge_old_attempts(PDO $pdo): void
 {
+    $intervalSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+        ? "INTERVAL '" . ATTEMPT_WINDOW . " minutes'"
+        : "INTERVAL " . ATTEMPT_WINDOW . " MINUTE";
+
     $pdo->exec(
         "DELETE FROM login_attempts
-         WHERE attempt_time < NOW() - INTERVAL " . ATTEMPT_WINDOW . " MINUTE"
+         WHERE attempt_time < NOW() - $intervalSql"
     );
 }
 
@@ -195,10 +203,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             record_failed_attempt($pdo, $ip, $username);
 
             // Count remaining attempts so the admin knows how many are left
+            $intervalSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+                ? "INTERVAL '" . ATTEMPT_WINDOW . " minutes'"
+                : "INTERVAL " . ATTEMPT_WINDOW . " MINUTE";
+
             $stmt2 = $pdo->prepare(
                 "SELECT COUNT(*) FROM login_attempts
                  WHERE ip_address = ?
-                   AND attempt_time > NOW() - INTERVAL " . ATTEMPT_WINDOW . " MINUTE"
+                   AND attempt_time > NOW() - $intervalSql"
             );
             $stmt2->execute([$ip]);
             $attempts_so_far = (int) $stmt2->fetchColumn();
