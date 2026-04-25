@@ -1040,7 +1040,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
             <div class="discount-approval-card" style="border-left:4px solid #a855f7; margin-bottom:1rem;">
                 <div style="display:flex; align-items:center; gap:0.75rem; margin-bottom:0.8rem;">
                     <?php if (!empty($data['profile_pic'])): ?>
-                        <img src="../uploads/<?= htmlspecialchars($data['profile_pic']) ?>"
+                        <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($data['profile_pic'])) ?>"
                             style="width:36px;height:36px;border-radius:50%;object-fit:cover;" alt="">
                     <?php else: ?>
                         <div

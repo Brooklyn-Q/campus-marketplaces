@@ -47,33 +47,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Profile pic
     if (isset($_FILES['profile_pic']) && $_FILES['profile_pic']['error'] == 0) {
-        $ext = strtolower(pathinfo($_FILES['profile_pic']['name'], PATHINFO_EXTENSION));
-        if (in_array($ext, ['jpg','jpeg','png','webp'])) {
-            $fname = uniqid('av_') . '.' . $ext;
-            $mime = 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
-            $storedPath = storage_upload($_FILES['profile_pic']['tmp_name'], 'avatars', $fname, $mime);
-            if ($storedPath) {
-                // Strip 'uploads/' prefix — DB columns store paths without it
-                $dbPath = (strpos($storedPath, 'uploads/') === 0) ? substr($storedPath, 8) : $storedPath;
-                $insert_stmt->execute([$user['id'], 'profile_pic', $user['profile_pic'] ?? '', $dbPath]);
-                $changes_submitted++;
-            }
+        $url = uploadToCloudinary($_FILES['profile_pic'], 'marketplace/avatars');
+        if ($url) {
+            $insert_stmt->execute([$user['id'], 'profile_pic', $user['profile_pic'] ?? '', $url]);
+            $changes_submitted++;
         }
     }
 
     // Shop banner
     if (isset($_FILES['shop_banner']) && $_FILES['shop_banner']['error'] == 0) {
-        $ext = strtolower(pathinfo($_FILES['shop_banner']['name'], PATHINFO_EXTENSION));
-        if (in_array($ext, ['jpg','jpeg','png','webp'])) {
-            $fname = uniqid('bn_') . '.' . $ext;
-            $mime = 'image/' . ($ext === 'jpg' ? 'jpeg' : $ext);
-            $storedPath = storage_upload($_FILES['shop_banner']['tmp_name'], 'banners', $fname, $mime);
-            if ($storedPath) {
-                // Strip 'uploads/' prefix — DB columns store paths without it
-                $dbPath = (strpos($storedPath, 'uploads/') === 0) ? substr($storedPath, 8) : $storedPath;
-                $insert_stmt->execute([$user['id'], 'shop_banner', $user['shop_banner'] ?? '', $dbPath]);
-                $changes_submitted++;
-            }
+        $url = uploadToCloudinary($_FILES['shop_banner'], 'marketplace/banners');
+        if ($url) {
+            $insert_stmt->execute([$user['id'], 'shop_banner', $user['shop_banner'] ?? '', $url]);
+            $changes_submitted++;
         }
     }
 
@@ -153,10 +139,12 @@ require_once 'includes/header.php';
         <div class="form-group text-center">
             <?php $tierClass = 'profile-pic-' . ($user['role'] === 'seller' ? ($user['seller_tier'] ?: 'basic') : 'basic'); ?>
             <?php if($user['profile_pic']): ?>
-                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['profile_pic'])) ?>" class="profile-pic profile-pic-lg profile-pic-previewable <?= $tierClass ?> mb-2" style="cursor:pointer;" alt="Profile">
+                <img id="profilePicPreview" src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['profile_pic'])) ?>" class="profile-pic profile-pic-lg profile-pic-previewable <?= $tierClass ?> mb-2" style="cursor:pointer;" alt="Profile">
+            <?php else: ?>
+                <img id="profilePicPreview" src="<?= getAssetUrl('assets/img/default-avatar.png') ?>" class="profile-pic profile-pic-lg profile-pic-previewable <?= $tierClass ?> mb-2" style="cursor:pointer; display:none;" alt="Profile">
             <?php endif; ?>
             <label>Profile Photo <small style="color:var(--text-muted);">(requires admin approval)</small></label>
-            <input type="file" name="profile_pic" class="form-control" accept="image/*">
+            <input type="file" name="profile_pic" class="form-control" accept="image/*" onchange="previewSelectedImage(this, 'profilePicPreview')">
         </div>
 
         <div class="form-group">
@@ -221,9 +209,11 @@ require_once 'includes/header.php';
         <div class="form-group">
             <label>Shop Banner Image <small style="color:var(--text-muted);">(requires admin approval)</small></label>
             <?php if(!empty($user['shop_banner'])): ?>
-                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['shop_banner'])) ?>" class="profile-pic-previewable" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:0.5rem;cursor:pointer;" alt="Shop Banner">
+                <img id="shopBannerPreview" src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['shop_banner'])) ?>" class="profile-pic-previewable" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:0.5rem;cursor:pointer;" alt="Shop Banner">
+            <?php else: ?>
+                <img id="shopBannerPreview" src="" class="profile-pic-previewable" style="width:100%;max-height:120px;object-fit:cover;border-radius:8px;margin-bottom:0.5rem;cursor:pointer;display:none;" alt="Shop Banner">
             <?php endif; ?>
-            <input type="file" name="shop_banner" class="form-control" accept="image/*">
+            <input type="file" name="shop_banner" class="form-control" accept="image/*" onchange="previewSelectedImage(this, 'shopBannerPreview')">
         </div>
         <?php endif; ?>
 
@@ -235,5 +225,19 @@ require_once 'includes/header.php';
         <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;">Submit Changes for Approval</button>
     </form>
 </div>
+
+<script>
+function previewSelectedImage(input, imgId) {
+    if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const img = document.getElementById(imgId);
+            img.src = e.target.result;
+            img.style.display = 'inline-block';
+        }
+        reader.readAsDataURL(input.files[0]);
+    }
+}
+</script>
 
 <?php require_once 'includes/footer.php'; ?>

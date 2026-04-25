@@ -812,17 +812,19 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         </div>
 
         <!-- Contact Admin -->
+        <?php if($user['id'] != 1): ?>
         <div class="glass fade-in" style="padding:1.5rem; margin-top:1.5rem;">
             <h4 class="mb-2">📞 Contact Admin</h4>
             <p class="text-muted" style="font-size:0.8rem; margin-bottom:1rem;">Need clarification? Chat directly with the platform administrator.</p>
             <form method="POST" action="chat.php?action=send_fast" class="flex-column gap-1">
                 <?= csrf_field() ?>
                 <input type="hidden" name="receiver_id" value="1">
-                <textarea name="message" placeholder="Type your question here..." class="form-control" style="font-size:0.85rem; min-height:80px; padding:0.75rem; border-radius:12px;"></textarea>
+                <textarea name="message" placeholder="Type your question here..." class="form-control" style="font-size:0.85rem; min-height:80px; padding:0.75rem; border-radius:12px;" required></textarea>
                 <button class="btn btn-primary btn-sm" style="width:100%; border-radius:10px;">Send Message</button>
             </form>
             <a href="chat.php?user=1" class="btn btn-outline btn-sm mt-1" style="width:100%; justify-content:center; border-radius:10px;">Open Chat History</a>
         </div>
+        <?php endif; ?>
     </div>
 
     <!-- MAIN AREA -->
