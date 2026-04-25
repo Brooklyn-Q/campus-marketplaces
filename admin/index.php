@@ -203,8 +203,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_tiers'])) {
             ? $_POST["{$t}_benefits"] : [];
         $benefits = array_filter(array_map('trim', $benefits));
         $benefits_json = json_encode(array_values($benefits));
-        $pdo->prepare("UPDATE account_tiers SET product_limit=?, images_per_product=?, price=?, duration=?, badge=?, ads_boost=?, benefits=? WHERE tier_name=?")
-            ->execute([$limit, $img, $price, $dur, $badge, $ads, $benefits_json, $t]);
+        $pdo->prepare("UPDATE account_tiers SET product_limit=?, images_per_product=?, price=?, duration=?, badge=?, ads_boost=? WHERE tier_name=?")
+            ->execute([$limit, $img, $price, $dur, $badge, $ads, $t]);
     }
     auditLog($pdo, $_SESSION['user_id'], "Updated marketplace tier settings in account_tiers");
     $disc_msg = "✅ Tier configurations globally updated!";
