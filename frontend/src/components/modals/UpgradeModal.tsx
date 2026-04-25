@@ -33,27 +33,28 @@ export default function UpgradeModal({ open, onClose }: { open: boolean; onClose
 
   useEffect(() => {
     if (paystackConfig) {
-      initializePayment({
-        onSuccess: (ref: any) => {
-          console.log('Payment successful. Verifying...', ref);
-          payments.verify(ref.reference).then(() => {
-            alert('Payment verified and account upgraded successfully!');
-            checkAuth(); // Refresh user data
-            onClose();
-          }).catch(err => {
-            console.error(err);
-            alert('Failed to verify payment on our servers. Please contact support.');
-          }).finally(() => {
-            setLoading(false);
-            setPaystackConfig(null);
-          });
-        },
-        onClose: () => {
-          console.log('Payment window closed.');
+      const onSuccess = (ref: any) => {
+        console.log('Payment successful. Verifying...', ref);
+        payments.verify(ref.reference).then(() => {
+          alert('Payment verified and account upgraded successfully!');
+          checkAuth(); // Refresh user data
+          onClose();
+        }).catch(err => {
+          console.error(err);
+          alert('Failed to verify payment on our servers. Please contact support.');
+        }).finally(() => {
           setLoading(false);
           setPaystackConfig(null);
-        }
-      } as any);
+        });
+      };
+
+      const onClosed = () => {
+        console.log('Payment window closed.');
+        setLoading(false);
+        setPaystackConfig(null);
+      };
+
+      initializePayment(onSuccess, onClosed);
     }
   }, [paystackConfig]);
 
