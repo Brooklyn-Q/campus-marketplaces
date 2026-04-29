@@ -21,15 +21,18 @@ DirectoryIndex public/index.html index.php
     RewriteEngine On
     RewriteBase /
 
-    # ===== MAINTENANCE MODE =====
-    # If .maintenance file exists, redirect everyone to maintenance.php
-    # except: the maintenance page itself, admin pages, and static assets
+    # ===== MAINTENANCE MODE (React SPA only) =====
+    # PHP pages already handle maintenance via includes/header.php (which
+    # checks isAdmin() and lets admins through). This rule only covers the
+    # React SPA routes that bypass PHP entirely (they serve static index.html).
+    # When .maintenance exists, SPA routes go to maintenance.php instead.
     RewriteCond %{DOCUMENT_ROOT}/.maintenance -f
     RewriteCond %{REQUEST_URI} !^/maintenance\.php$ [NC]
     RewriteCond %{REQUEST_URI} !^/admin/ [NC]
     RewriteCond %{REQUEST_URI} !^/login\.php$ [NC]
-    RewriteCond %{REQUEST_URI} !^/google_signin\.php$ [NC]
-    RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|webp|gif|svg|ico|woff|woff2|ttf)$ [NC]
+    RewriteCond %{REQUEST_URI} !^/api/ [NC]
+    RewriteCond %{REQUEST_URI} !\.(css|js|map|png|jpg|jpeg|webp|gif|svg|ico|woff|woff2|ttf|eot)$ [NC]
+    RewriteCond %{REQUEST_URI} !\.(php)$ [NC]
     RewriteRule .* /maintenance.php [R=302,L]
 
     # Don't rewrite real files or directories
