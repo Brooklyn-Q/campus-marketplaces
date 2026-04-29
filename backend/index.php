@@ -63,8 +63,12 @@ try {
     $param = $segments[2] ?? '';
 
     switch ($resource) {
-        // ── DEBUG ──
+        // ── DEBUG (localhost only) ──
         case 'debug':
+            $remoteIp = $_SERVER['REMOTE_ADDR'] ?? '';
+            if ($remoteIp !== '127.0.0.1' && $remoteIp !== '::1') {
+                jsonError('Not found', 404);
+            }
             require __DIR__ . '/routes/debug.php';
             break;
 
@@ -73,9 +77,9 @@ try {
             require __DIR__ . '/routes/auth.php';
             break;
 
-        // ── TEMPORARY ADMIN SETUP ──
+        // ── ADMIN SETUP (disabled — run manually via CLI only) ──
         case 'setup':
-            require __DIR__ . '/create_admin.php';
+            jsonError('Not found', 404);
             break;
 
         // ── PRODUCTS ──
