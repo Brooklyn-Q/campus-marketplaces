@@ -343,6 +343,7 @@ export default function Footer() {
             <h4 style={{fontWeight:700, marginBottom:'0.5rem', fontSize:'0.75rem', textTransform:'uppercase', color:'var(--text-muted)'}}>Navigation</h4>
             <ul style={{listStyle:'none', padding:0, display:'flex', flexDirection:'column', gap:'0.25rem'}}>
               <li><Link to="/" style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>Home</Link></li>
+              <li><a href={buildLegacyUrl('/about.php')} style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>About</a></li>
               <li><a href={accountHomeUrl} style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>{accountHomeLabel}</a></li>
               {showSellLink && (
                 <li><a href={buildLegacyUrl('/add_product.php')} style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>Sell</a></li>
@@ -359,6 +360,8 @@ export default function Footer() {
           <div>
             <h4 style={{fontWeight:700, marginBottom:'0.5rem', fontSize:'0.75rem', textTransform:'uppercase', color:'var(--text-muted)'}}>Support</h4>
             <ul style={{listStyle:'none', padding:0, display:'flex', flexDirection:'column', gap:'0.25rem'}}>
+              <li><a href={buildLegacyUrl('/about.php#how-it-works')} style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>How it works</a></li>
+              <li><a href={buildLegacyUrl('/about.php#safe-trading')} style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>Safety</a></li>
               <li><a href="#" onClick={(e) => { e.preventDefault(); setTermsOpen(true); }} style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>Terms & Conditions</a></li>
             </ul>
           </div>
