@@ -29,7 +29,7 @@ switch ($action) {
         }
 
         // Support login via email OR username
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE email = ? OR username = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, password, role, username, suspended, whatsapp_joined, terms_accepted FROM users WHERE email = ? OR username = ? LIMIT 1");
         $stmt->execute([strtolower($identifier), $identifier]);
         $user = $stmt->fetch();
 

@@ -96,7 +96,7 @@ function clearPendingGoogleSignup(): void {
 }
 
 function findGoogleLinkedUser(PDO $pdo, array $profile): ?array {
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE google_id = ? OR LOWER(email) = ? ORDER BY CASE WHEN google_id = ? THEN 0 ELSE 1 END LIMIT 1");
+    $stmt = $pdo->prepare("SELECT id, role, username, email, suspended, whatsapp_joined, terms_accepted, google_id, auth_provider, google_avatar, profile_pic, email_verified_at FROM users WHERE google_id = ? OR LOWER(email) = ? ORDER BY CASE WHEN google_id = ? THEN 0 ELSE 1 END LIMIT 1");
     $stmt->execute([$profile['google_id'], $profile['email'], $profile['google_id']]);
     $user = $stmt->fetch();
     return $user ?: null;

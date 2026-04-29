@@ -620,6 +620,9 @@ function getUser(PDO $pdo, int $id): ?array {
     $stmt = $pdo->prepare("SELECT * FROM users WHERE id = ?");
     $stmt->execute([$id]);
     $u = $stmt->fetch();
+    if ($u) {
+        unset($u['password']); // Never carry the hash beyond auth code
+    }
     return $u ?: null;
 }
 

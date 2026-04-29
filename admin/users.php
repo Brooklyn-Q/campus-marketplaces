@@ -342,11 +342,12 @@ if (!array_key_exists($filter, $allowed_filters)) {
 $total_count = (int) $pdo->query("SELECT COUNT(*) FROM users")->fetchColumn();
 
 $role_filter = $allowed_filters[$filter];
+$userCols = "id, username, email, role, seller_tier, faculty, balance, suspended, verified, profile_pic, google_avatar, created_at";
 if ($role_filter !== null) {
-    $stmt = $pdo->prepare("SELECT * FROM users WHERE role = ? ORDER BY created_at DESC");
+    $stmt = $pdo->prepare("SELECT $userCols FROM users WHERE role = ? ORDER BY created_at DESC");
     $stmt->execute([$role_filter]);
 } else {
-    $stmt = $pdo->query("SELECT * FROM users ORDER BY created_at DESC");
+    $stmt = $pdo->query("SELECT $userCols FROM users ORDER BY created_at DESC");
 }
 $users = $stmt->fetchAll();
 

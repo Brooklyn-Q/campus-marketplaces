@@ -25,7 +25,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Too many failed login attempts. Please wait " . LOGIN_ATTEMPT_WINDOW . " minutes and try again.";
     } else {
         // Case-sensitive username check but insensitive email check
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR username = ?");
+        $stmt = $pdo->prepare("SELECT id, password, role, username, suspended, whatsapp_joined FROM users WHERE LOWER(email) = LOWER(?) OR username = ? LIMIT 1");
         $stmt->execute([$login_id, $login_id]);
         $user = $stmt->fetch();
 

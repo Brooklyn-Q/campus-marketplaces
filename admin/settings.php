@@ -73,7 +73,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_login'])) {
         auditLogWithContext($pdo, 0, "Blocked login from throttled IP: $ip", 'security', 0);
         $err = "Too many failed login attempts. Please wait " . ATTEMPT_WINDOW . " minutes and try again.";
     } else {
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE (LOWER(email) = LOWER(?) OR username = ?) AND role = 'admin' LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, password, role, username, suspended FROM users WHERE (LOWER(email) = LOWER(?) OR username = ?) AND role = 'admin' LIMIT 1");
         $stmt->execute([$username, $username]);
         $user = $stmt->fetch();
 
