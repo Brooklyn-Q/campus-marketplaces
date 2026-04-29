@@ -1,19 +1,63 @@
 <?php
 require_once 'includes/db.php';
 
+// ── Domain allowlist ──────────────────────────────────────────────────────────
+// Only proxy images from these trusted domains. Add new entries here if needed.
+// Subdomains are matched by suffix (e.g. '*.cloudinary.com').
+$ALLOWED_HOSTS = [
+    'res.cloudinary.com',
+    'api.cloudinary.com',
+    'lh3.googleusercontent.com',   // Google profile avatars
+    'lh4.googleusercontent.com',
+    'lh5.googleusercontent.com',
+    'lh6.googleusercontent.com',
+    'storage.googleapis.com',
+];
+
+// Also allow the project's own Supabase storage bucket dynamically.
+$supabaseRef = env('SUPABASE_PROJECT_REF', '');
+if ($supabaseRef !== '') {
+    $ALLOWED_HOSTS[] = $supabaseRef . '.supabase.co';
+    $ALLOWED_HOSTS[] = $supabaseRef . '.storage.supabase.co';
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 $src = trim((string) ($_GET['src'] ?? ''));
-if ($src === '' || !preg_match('#^https?://#i', $src)) {
+if ($src === '' || !preg_match('#^https://#i', $src)) {
     http_response_code(400);
     exit('Invalid image source');
 }
 
 $parsed = parse_url($src);
 $scheme = strtolower((string) ($parsed['scheme'] ?? ''));
-$host = strtolower((string) ($parsed['host'] ?? ''));
-if (!in_array($scheme, ['http', 'https'], true) || $host === '') {
+$host   = strtolower((string) ($parsed['host'] ?? ''));
+
+if ($scheme !== 'https' || $host === '') {
     http_response_code(400);
     exit('Invalid image source');
 }
+
+// ── Block private / internal IP ranges (SSRF protection) ─────────────────────
+// Reject if the host resolves to a loopback, link-local, or private address.
+if (filter_var($host, FILTER_VALIDATE_IP)) {
+    // Bare IP address in the URL — block all of them.
+    http_response_code(403);
+    exit('Access denied');
+}
+
+// ── Allowlist check ───────────────────────────────────────────────────────────
+$hostAllowed = false;
+foreach ($ALLOWED_HOSTS as $allowed) {
+    if ($host === $allowed || str_ends_with($host, '.' . $allowed)) {
+        $hostAllowed = true;
+        break;
+    }
+}
+if (!$hostAllowed) {
+    http_response_code(403);
+    exit('Host not allowed');
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 $statusCode = 0;
 $contentType = '';
@@ -74,5 +118,4 @@ if (stripos($contentType, 'image/') !== 0) {
 
 header('Content-Type: ' . $contentType);
 header('Cache-Control: public, max-age=86400');
-header('Access-Control-Allow-Origin: *');
 echo $body;
