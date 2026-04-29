@@ -11,25 +11,26 @@ if ($deploySecret === '' || !hash_equals($deploySecret, $provided)) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
-$zip = new ZipArchive();
-$res = $zip->open('app.zip');
+$dir  = __DIR__ . '/';
+$zip  = new ZipArchive();
+$res  = $zip->open($dir . 'app.zip');
 
 if ($res === true) {
-    $zip->extractTo('./');
+    $zip->extractTo($dir);
     $zip->close();
 
-    if (file_exists('alwaysdata.env')) {
-        if (file_exists('.env')) {
-            unlink('.env');
+    if (file_exists($dir . 'alwaysdata.env')) {
+        if (file_exists($dir . '.env')) {
+            unlink($dir . '.env');
         }
-        rename('alwaysdata.env', '.env');
+        rename($dir . 'alwaysdata.env', $dir . '.env');
     }
 
-    if (file_exists('alwaysdata.htaccess')) {
-        if (file_exists('.htaccess')) {
-            unlink('.htaccess');
+    if (file_exists($dir . 'alwaysdata.htaccess')) {
+        if (file_exists($dir . '.htaccess')) {
+            unlink($dir . '.htaccess');
         }
-        rename('alwaysdata.htaccess', '.htaccess');
+        rename($dir . 'alwaysdata.htaccess', $dir . '.htaccess');
     }
 
     clearstatcache();
@@ -39,7 +40,7 @@ if ($res === true) {
     }
 
     echo 'SUCCESS';
-    unlink('app.zip');
+    unlink($dir . 'app.zip');
 } else {
     echo 'FAILED with error code: ' . $res;
 }

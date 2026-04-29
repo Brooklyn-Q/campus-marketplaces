@@ -11,17 +11,19 @@ if ($deploySecret === '' || !hash_equals($deploySecret, $provided)) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+$dir = __DIR__ . '/';
 $zip = new ZipArchive;
-$res = $zip->open('react.zip');
+$res = $zip->open($dir . 'react.zip');
 if ($res === TRUE) {
-    if (!is_dir('./public')) { mkdir('./public', 0755, true); }
-    $zip->extractTo('./public');
+    $publicDir = $dir . 'public';
+    if (!is_dir($publicDir)) { mkdir($publicDir, 0755, true); }
+    $zip->extractTo($publicDir);
     $zip->close();
     if (function_exists('opcache_reset')) {
         @opcache_reset();
     }
     echo 'React assets extracted successfully.';
-    unlink('react.zip');
+    unlink($dir . 'react.zip');
 } else {
     echo 'Failed to extract React assets. Error code: ' . $res;
 }

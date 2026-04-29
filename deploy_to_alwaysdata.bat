@@ -170,12 +170,16 @@ curl.exe --noproxy "*" --ssl-reqd --ftp-pasv --retry 3 --retry-delay 5 -T "%UNZI
 
 :: Extract files on the server (secret required — see alwaysdata.env DEPLOY_SECRET)
 echo Extracting PHP files on the server...
-curl.exe --noproxy "*" -s "https://campusmarketplace.alwaysdata.net/unzip.php?secret=%DEPLOY_SECRET%"
-echo.
+set "_extract_out="
+for /f "delims=" %%R in ('curl.exe --noproxy "*" "https://campusmarketplace.alwaysdata.net/unzip.php?secret=%DEPLOY_SECRET%"') do set "_extract_out=%%R"
+echo %_extract_out%
+echo %_extract_out% | findstr /i "SUCCESS" >nul || (echo ERROR: PHP extraction failed: %_extract_out% && goto :error)
 
 echo Extracting React files on the server...
-curl.exe --noproxy "*" -s "https://campusmarketplace.alwaysdata.net/unzip_react.php?secret=%DEPLOY_SECRET%"
-echo.
+set "_react_out="
+for /f "delims=" %%R in ('curl.exe --noproxy "*" "https://campusmarketplace.alwaysdata.net/unzip_react.php?secret=%DEPLOY_SECRET%"') do set "_react_out=%%R"
+echo %_react_out%
+echo %_react_out% | findstr /i "successfully\|SUCCESS" >nul || (echo ERROR: React extraction failed: %_react_out% && goto :error)
 
 echo.
 echo ========================================================
