@@ -118,11 +118,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                 $insertParams = [$username, $email, $hashed, $role, $faculty, $department ?: null, $level ?: null, $hall ?: null, $hall_residence ?: null, $phone ?: null, $pic, $new_ref, $referred_by];
                 if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
-                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, accepted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,true,NOW()) RETURNING id");
+                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, whatsapp_joined) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,false,false) RETURNING id");
                     $stmt->execute($insertParams);
                     $user_id = (int) $stmt->fetchColumn();
                 } else {
-                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, accepted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,NOW())");
+                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, whatsapp_joined) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,0)");
                     $stmt->execute($insertParams);
                     $user_id = (int) $pdo->lastInsertId();
                 }
@@ -145,7 +145,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['user_id'] = $user_id;
                 $_SESSION['username'] = $username;
                 $_SESSION['role'] = $role;
-                redirect($role === 'admin' ? 'admin/' : 'dashboard.php');
+                // New users must join the WhatsApp channel before proceeding
+                redirect('whatsapp_join.php');
             } catch (Exception $e) {
                 $pdo->rollBack();
                 error_log('register.php registration failed: ' . $e->getMessage());
@@ -526,12 +527,12 @@ require_once 'includes/header.php';
                     </div>
                     <?php endif; ?>
 
-                    <div class="reg-terms">
-                        <input type="checkbox" name="terms" value="1" id="termsCheckbox" required>
-                        <label for="termsCheckbox">
-                            I have read and agree to the
-                            <a href="javascript:void(0)" onclick="openTermsModal()" class="auth-link" style="text-decoration:underline;">Terms &amp; Conditions</a>.
-                            (Please read first)
+                    <div class="reg-terms" id="termsRow" style="opacity:0.55;">
+                        <input type="checkbox" name="terms" value="1" id="termsCheckbox" required disabled>
+                        <label for="termsCheckbox" id="termsLabel">
+                            You must read the
+                            <a href="javascript:void(0)" onclick="openTermsModalReg()" class="auth-link" style="text-decoration:underline;">Terms &amp; Conditions</a>
+                            fully before you can agree.
                         </label>
                     </div>
 
@@ -548,6 +549,28 @@ require_once 'includes/header.php';
     </div>
 </div>
 
+<!-- Inline Terms Modal for Registration -->
+<div id="regTermsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.65); backdrop-filter:blur(8px); z-index:1000000; align-items:center; justify-content:center; padding:20px;">
+    <div style="width:100%; max-width:780px; height:85vh; border-radius:28px; display:flex; flex-direction:column; overflow:hidden; position:relative; box-shadow:0 30px 100px rgba(0,0,0,0.35); background:var(--card-bg, #fff); border:1px solid rgba(0,0,0,0.07);">
+        <div style="padding:1.25rem 1.75rem; border-bottom:1px solid rgba(0,0,0,0.08); display:flex; justify-content:space-between; align-items:center;">
+            <h3 style="margin:0; font-size:1.1rem; font-weight:800;">Terms & Conditions</h3>
+            <button onclick="closeRegTermsModal()" style="background:rgba(0,0,0,0.06); border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.4rem; display:flex; align-items:center; justify-content:center;">&times;</button>
+        </div>
+        <!-- Scroll progress bar -->
+        <div style="width:100%; height:3px; background:rgba(124,58,237,0.1); position:relative; overflow:hidden; flex-shrink:0;">
+            <div id="regTermsProgress" style="position:absolute; top:0; left:0; height:100%; width:0%; background:#7c3aed; transition:width 0.1s;"></div>
+        </div>
+        <div id="regTermsBody" onscroll="onRegTermsScroll(this)" style="flex:1; overflow-y:auto; padding:1.75rem 2rem; font-size:0.92rem; line-height:1.8; color:var(--text-main, #1a1a1a);">
+            <?php require_once 'includes/terms_content.php'; ?>
+        </div>
+        <div style="padding:1.25rem 1.75rem; border-top:1px solid rgba(0,0,0,0.08);">
+            <button id="regTermsAcceptBtn" onclick="acceptRegTerms()" disabled style="width:100%; padding:0.9rem; background:#7c3aed; color:#fff; border:none; border-radius:12px; font-size:0.95rem; font-weight:700; cursor:not-allowed; opacity:0.45; transition:opacity 0.2s;">
+                Scroll to the bottom to agree
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
 function togglePw(inputId, iconId) {
     const inp = document.getElementById(inputId);
@@ -560,6 +583,38 @@ function togglePw(inputId, iconId) {
             ? '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>'
             : '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>';
     }
+}
+
+function openTermsModalReg() {
+    const m = document.getElementById('regTermsModal');
+    m.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+function closeRegTermsModal() {
+    const m = document.getElementById('regTermsModal');
+    m.style.display = 'none';
+    document.body.style.overflow = '';
+}
+function onRegTermsScroll(el) {
+    const pct = (el.scrollTop / (el.scrollHeight - el.clientHeight)) * 100;
+    document.getElementById('regTermsProgress').style.width = Math.min(pct, 100) + '%';
+    if (el.scrollTop + el.clientHeight >= el.scrollHeight - 8) {
+        const btn = document.getElementById('regTermsAcceptBtn');
+        btn.disabled = false;
+        btn.style.opacity = '1';
+        btn.style.cursor = 'pointer';
+        btn.textContent = 'I have read & agree to the Terms';
+    }
+}
+function acceptRegTerms() {
+    closeRegTermsModal();
+    const cb = document.getElementById('termsCheckbox');
+    const row = document.getElementById('termsRow');
+    const lbl = document.getElementById('termsLabel');
+    cb.disabled = false;
+    cb.checked = true;
+    row.style.opacity = '1';
+    lbl.innerHTML = 'I have read and agree to the <a href="javascript:void(0)" onclick="openTermsModalReg()" class="auth-link" style="text-decoration:underline;">Terms & Conditions</a>.';
 }
 </script>
 

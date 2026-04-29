@@ -38,6 +38,7 @@ try {
         verified TINYINT(1) DEFAULT 0,
         suspended TINYINT(1) DEFAULT 0,
         terms_accepted TINYINT(1) DEFAULT 0,
+        whatsapp_joined TINYINT(1) DEFAULT 0,
         accepted_at DATETIME DEFAULT NULL,
         last_upload_at DATETIME DEFAULT NULL,
         last_seen DATETIME DEFAULT NULL,

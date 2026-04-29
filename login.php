@@ -44,7 +44,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw $e;
                     }
                 }
-                redirect(($user['role'] ?? '') === 'admin' ? 'admin/' : 'dashboard.php');
+                // Non-admin users must have joined the WhatsApp channel
+                $isAdmin = ($user['role'] ?? '') === 'admin';
+                $hasJoined = filter_var($user['whatsapp_joined'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                if (!$isAdmin && !$hasJoined) {
+                    redirect('whatsapp_join.php');
+                }
+                redirect($isAdmin ? 'admin/' : 'dashboard.php');
             }
         } else {
             $error = "Invalid email/username or password.";

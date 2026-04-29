@@ -122,14 +122,14 @@ function createGoogleMarketplaceUser(PDO $pdo, array $profile, string $role): ?a
     $boolTrue = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' ? 'true' : '1';
 
     if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
-        $insert = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, seller_tier, verified, terms_accepted, accepted_at, google_id, auth_provider, google_avatar, email_verified_at)
-            VALUES (?, ?, ?, ?, ?, ?, {$boolTrue}, {$boolTrue}, NOW(), ?, 'google', ?, NOW())
+        $insert = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, seller_tier, verified, terms_accepted, whatsapp_joined, google_id, auth_provider, google_avatar, email_verified_at)
+            VALUES (?, ?, ?, ?, ?, ?, {$boolTrue}, false, false, ?, 'google', ?, NOW())
             RETURNING id");
         $insert->execute([$username, $profile['email'], $randomPassword, $role, $faculty, $tier, $profile['google_id'], $profile['picture'] ?: null]);
         $userId = (int) $insert->fetchColumn();
     } else {
-        $insert = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, seller_tier, verified, terms_accepted, accepted_at, google_id, auth_provider, google_avatar, email_verified_at)
-            VALUES (?, ?, ?, ?, ?, ?, 1, 1, NOW(), ?, 'google', ?, NOW())");
+        $insert = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, seller_tier, verified, terms_accepted, whatsapp_joined, google_id, auth_provider, google_avatar, email_verified_at)
+            VALUES (?, ?, ?, ?, ?, ?, 1, 0, 0, ?, 'google', ?, NOW())");
         $insert->execute([$username, $profile['email'], $randomPassword, $role, $faculty, $tier, $profile['google_id'], $profile['picture'] ?: null]);
         $userId = (int) $pdo->lastInsertId();
     }
@@ -158,7 +158,12 @@ function startGoogleUserSession(PDO $pdo, array $user, bool $isNewUser = false):
     }
 
     if ($isNewUser && in_array($user['role'] ?? '', ['buyer', 'seller'], true)) {
-        redirect('edit_profile.php?google_setup=1');
+        redirect('whatsapp_join.php');
+    }
+
+    // Existing Google users who haven't joined WhatsApp yet
+    if (in_array($user['role'] ?? '', ['buyer', 'seller'], true) && !filter_var($user['whatsapp_joined'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+        redirect('whatsapp_join.php');
     }
 
     redirect('dashboard.php');

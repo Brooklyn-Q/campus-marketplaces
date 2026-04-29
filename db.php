@@ -303,6 +303,7 @@ function ensureFeatureSupportSchema(PDO $pdo): void {
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN NOT NULL DEFAULT TRUE");
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS browser_notifications BOOLEAN NOT NULL DEFAULT TRUE");
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_joined BOOLEAN NOT NULL DEFAULT FALSE");
         runSchemaStatement($pdo, "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users (google_id)");
 
         runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS password_reset_tokens (
@@ -380,6 +381,7 @@ function ensureFeatureSupportSchema(PDO $pdo): void {
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications TINYINT(1) NOT NULL DEFAULT 1");
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS browser_notifications TINYINT(1) NOT NULL DEFAULT 1");
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at DATETIME NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_joined TINYINT(1) NOT NULL DEFAULT 0");
         runSchemaStatement($pdo, "CREATE UNIQUE INDEX idx_users_google_id ON users (google_id)");
 
         runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS password_reset_tokens (

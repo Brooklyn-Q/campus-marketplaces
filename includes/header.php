@@ -11,10 +11,16 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-i
 if (isLoggedIn()) {
     $current_file = basename($_SERVER['PHP_SELF']);
     // Skip enforcement for certain pages to prevent redirect loops
-    $exempt_pages = ['terms.php', 'logout.php', 'login.php', 'register.php'];
+    $exempt_pages = ['terms.php', 'logout.php', 'login.php', 'register.php', 'whatsapp_join.php'];
     
     if (!in_array($current_file, $exempt_pages)) {
         $user_meta = getUser($pdo, $_SESSION['user_id']);
+        $isAdminRole = ($user_meta['role'] ?? '') === 'admin';
+        // Non-admin must have joined WhatsApp channel first
+        if ($user_meta && !$isAdminRole && !filter_var($user_meta['whatsapp_joined'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+            redirect('whatsapp_join.php');
+        }
+        // Then must accept terms
         if ($user_meta && !$user_meta['terms_accepted']) {
             redirect('terms.php');
         }

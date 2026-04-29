@@ -30,6 +30,7 @@ run_query($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS hall_residence VARCH
 run_query($pdo, "ALTER TABLE users MODIFY COLUMN seller_tier ENUM('basic','pro','premium') DEFAULT 'basic'", "Seller Tier ENUM");
 run_query($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier_expires_at DATETIME DEFAULT NULL", "Tier Expiration Column");
 run_query($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_mode TINYINT(1) DEFAULT 0", "Vacation Mode Column");
+run_query($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_joined TINYINT(1) DEFAULT 0", "WhatsApp Channel Joined Column");
 
 // 2. Products Enhancements
 run_query($pdo, "ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_tag VARCHAR(50) DEFAULT '' AFTER quantity", "Product Promo Tag");
