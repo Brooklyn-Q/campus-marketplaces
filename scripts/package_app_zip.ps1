@@ -29,7 +29,17 @@ $paths = @(
     'alwaysdata.htaccess'
 )
 
-$paths += Get-ChildItem -LiteralPath $resolvedRootDir -Filter '*.php' -File | Select-Object -ExpandProperty Name
+# Exclude dev/test/debug/migration PHP files that should never go to production
+$excludedPhpFiles = @(
+    'test.php', 'test_cloud.php', 'test_ftp_connection.php', 'test-redirect.php',
+    'debug_pics.php', 'unzip_debug.php', 'unzip_react_debug.php',
+    'verify_alignment_fixes.php', 'git_index_head.php', 'index_tmp.php',
+    'migrate.php', 'setup.php', 'patch_pics.php'
+)
+
+$paths += Get-ChildItem -LiteralPath $resolvedRootDir -Filter '*.php' -File |
+    Where-Object { $excludedPhpFiles -notcontains $_.Name } |
+    Select-Object -ExpandProperty Name
 $existing = $paths | Where-Object { Test-Path -LiteralPath (Join-Path $resolvedRootDir $_) }
 
 if (-not $existing -or $existing.Count -eq 0) {
