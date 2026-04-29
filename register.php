@@ -536,9 +536,12 @@ require_once 'includes/header.php';
                         <p id="termsStatusMsg" style="font-size:0.78rem; color:var(--auth-muted); margin:0.4rem 0 0; text-align:center;">You must read to the end before you can agree.</p>
                     </div>
 
-                    <!-- Step 2: Agree checkbox — locked until terms are read -->
+                    <!-- Hidden input — set to 1 by JS when terms are accepted; ensures it always submits -->
+                    <input type="hidden" name="terms" id="termsHidden" value="">
+
+                    <!-- Step 2: Agree checkbox — locked until terms are read (visual only) -->
                     <div class="reg-terms" id="termsRow" style="opacity:0.45; pointer-events:none;">
-                        <input type="checkbox" name="terms" value="1" id="termsCheckbox" required disabled>
+                        <input type="checkbox" id="termsCheckbox" disabled>
                         <label for="termsCheckbox" id="termsLabel" style="cursor:not-allowed;">
                             I have read and agree to the Terms &amp; Conditions.
                         </label>
@@ -617,11 +620,14 @@ function onRegTermsScroll(el) {
 function acceptRegTerms() {
     closeRegTermsModal();
     const cb = document.getElementById('termsCheckbox');
+    const hidden = document.getElementById('termsHidden');
     const row = document.getElementById('termsRow');
     const lbl = document.getElementById('termsLabel');
     const msg = document.getElementById('termsStatusMsg');
     const readBtn = document.getElementById('readTermsBtn');
-    // Unlock the checkbox
+    // Set the hidden input so it always submits regardless of browser/disabled quirks
+    if (hidden) hidden.value = '1';
+    // Unlock the visual checkbox too
     cb.disabled = false;
     cb.checked = true;
     row.style.opacity = '1';
