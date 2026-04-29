@@ -228,9 +228,20 @@ function enableConfirm() {
         btn.classList.add('active');
     }
 }
+
 // If user returns to this page after visiting channel in another tab
 document.addEventListener('visibilitychange', function() {
     if (!document.hidden) enableConfirm();
+});
+
+// Form submission handler
+document.getElementById('waConfirmForm').addEventListener('submit', function(e) {
+    const btn = document.getElementById('waConfirmBtn');
+    if (btn && btn.disabled) {
+        e.preventDefault();
+        alert('Please click the "Open WhatsApp Channel" button first, then confirm you have joined.');
+        return false;
+    }
 });
 </script>
 

@@ -33,6 +33,7 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
     .leaderboard-container {
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
+    
     .leaderboard-grid {
         display: grid;
         grid-template-columns: 80px 1fr 100px 180px;
@@ -42,6 +43,7 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
         border-bottom: 1px solid rgba(128,128,128,0.06);
         transition: all 0.2s ease;
     }
+    
     .leaderboard-header {
         font-weight: 800;
         color: var(--text-muted);
@@ -52,6 +54,187 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
         background: rgba(0,0,0,0.02);
         padding-top: 1rem;
         padding-bottom: 1rem;
+    }
+    
+    /* RANK COLUMN ALIGNMENT */
+    .leaderboard-grid > div:nth-child(1) {
+        text-align: center;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    
+    /* SELLER DETAILS COLUMN ALIGNMENT */
+    .leaderboard-grid > div:nth-child(2) {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    
+    .leaderboard-grid > div:nth-child(2) .profile-pic {
+        width: 48px;
+        height: 48px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 2px solid var(--border);
+    }
+    
+    .leaderboard-grid > div:nth-child(2) .seller-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .leaderboard-grid > div:nth-child(2) .seller-name {
+        font-weight: 700;
+        font-size: 0.95rem;
+        color: var(--text-main);
+        margin: 0;
+    }
+    
+    .leaderboard-grid > div:nth-child(2) .seller-meta {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin: 0;
+    }
+    
+    /* DEALS COLUMN ALIGNMENT */
+    .leaderboard-grid > div:nth-child(3) {
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 0.25rem;
+    }
+    
+    .leaderboard-grid > div:nth-child(3) .deals-count {
+        font-size: 1.25rem;
+        font-weight: 800;
+        color: var(--text-main);
+    }
+    
+    .leaderboard-grid > div:nth-child(3) .deals-label {
+        font-size: 0.7rem;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* PERFORMANCE COLUMN ALIGNMENT */
+    .leaderboard-grid > div:nth-child(4) {
+        text-align: right;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: flex-end;
+        gap: 0.25rem;
+    }
+    
+    .leaderboard-grid > div:nth-child(4) .performance-earnings {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--success);
+    }
+    
+    .leaderboard-grid > div:nth-child(4) .performance-listings {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+    }
+    
+    /* HEADER ALIGNMENT */
+    .leaderboard-header > div:nth-child(1) {
+        text-align: center;
+    }
+    
+    .leaderboard-header > div:nth-child(2) {
+        text-align: left;
+    }
+    
+    .leaderboard-header > div:nth-child(3) {
+        text-align: center;
+    }
+    
+    .leaderboard-header > div:nth-child(4) {
+        text-align: right;
+    }
+    
+    /* RANK BADGE STYLING */
+    .rank-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        font-weight: 800;
+        font-size: 0.9rem;
+        color: white;
+    }
+    
+    .rank-badge.gold {
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+    }
+    
+    .rank-badge.silver {
+        background: linear-gradient(135deg, #C0C0C0, #808080);
+    }
+    
+    .rank-badge.bronze {
+        background: linear-gradient(135deg, #CD7F32, #8B4513);
+    }
+    
+    .rank-badge.regular {
+        background: var(--border);
+        color: var(--text-muted);
+    }
+    
+    /* VERIFIED BADGE */
+    .verified-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: rgba(34, 197, 94, 0.1);
+        color: var(--success);
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* TIER BADGE */
+    .tier-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        background: rgba(124, 58, 237, 0.1);
+        color: var(--primary);
+        padding: 0.25rem 0.5rem;
+        border-radius: 12px;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    /* HOVER EFFECTS */
+    .leaderboard-grid:hover {
+        background: rgba(124, 58, 237, 0.04);
+        transform: translateY(-1px);
+    }
+    
+    .leaderboard-grid:hover .rank-badge {
+        transform: scale(1.05);
+    }
+    
+    /* SMOOTH TRANSITIONS */
+    .leaderboard-grid,
+    .rank-badge,
+    .verified-badge,
+    .tier-badge {
+        transition: all 0.2s ease;
     }
     @media (max-width: 768px) {
         .leaderboard-grid {
@@ -89,21 +272,21 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
                 ?>
                 <div class="leaderboard-grid" style="cursor:pointer;" onmouseover="this.style.background='rgba(124,58,237,0.04)'" onmouseout="this.style.background='transparent'" onclick="window.location.href='chat.php?user=<?= $l['id'] ?>'">
                     <!-- Rank Column -->
-                    <div style="text-align:center;">
+                    <div>
                         <?php if($rankEmoji): ?>
                             <span style="font-size:1.8rem; filter:drop-shadow(0 4px 8px rgba(0,0,0,0.1));"><?= $rankEmoji ?></span>
                         <?php else: ?>
-                            <span style="font-size:1.1rem; font-weight:800; color:var(--text-muted); opacity:0.6;">#<?= ($index+1) ?></span>
+                            <div class="rank-badge regular">#<?= ($index+1) ?></div>
                         <?php endif; ?>
                     </div>
                     
                     <!-- User Info Column -->
-                    <div style="display:flex; align-items:center; gap:1.25rem;">
+                    <div>
                         <div style="position:relative;">
                             <?php if($l['profile_pic']): ?>
-                                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($l['profile_pic'])) ?>" alt="<?= htmlspecialchars($l['username']) ?>" class="profile-pic-previewable" style="width:56px; height:56px; border-radius:18px; object-fit:cover; border:2px solid <?= $isTop3 ? $rankColor : 'rgba(128,128,128,0.1)' ?>; box-shadow:0 8px 16px rgba(0,0,0,0.05); cursor:pointer;">
+                                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($l['profile_pic'])) ?>" alt="<?= htmlspecialchars($l['username']) ?>" class="profile-pic-previewable profile-pic">
                             <?php else: ?>
-                                <div style="width:56px; height:56px; border-radius:18px; background:linear-gradient(135deg, rgba(124,58,237,0.1), rgba(124,58,237,0.05)); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.4rem; border:2px solid <?= $isTop3 ? $rankColor : 'rgba(128,128,128,0.1)' ?>;">
+                                <div class="profile-pic" style="background:linear-gradient(135deg, rgba(124,58,237,0.1), rgba(124,58,237,0.05)); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.4rem;">
                                     <?= strtoupper(substr($l['username'], 0, 1)) ?>
                                 </div>
                             <?php endif; ?>
@@ -112,42 +295,32 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
                             <?php endif; ?>
                         </div>
                         
-                        <div style="overflow:hidden;">
-                            <h4 style="font-size:1rem; font-weight:700; color:var(--text-main); margin:0; display:flex; align-items:center; gap:6px;">
+                        <div class="seller-info">
+                            <h4 class="seller-name">
                                 <?= htmlspecialchars($l['username']) ?>
                                 <?php if($l['seller_tier']==='premium'): ?>
-                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#facc15"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                    <span class="tier-badge">⭐ Premium</span>
                                 <?php endif; ?>
                             </h4>
-                            <p style="color:var(--text-muted); font-size:0.75rem; margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-weight:500;">
+                            <p class="seller-meta">
                                 <?= htmlspecialchars($l['department']) ?: 'Verified Seller' ?>
+                                <?php if($l['verified']): ?>
+                                    <span class="verified-badge">✓ Verified</span>
+                                <?php endif; ?>
                             </p>
                         </div>
                     </div>
 
                     <!-- Statistics Column -->
-                    <div style="text-align:center;">
-                        <span style="font-size:1.1rem; font-weight:800; color:var(--text-main); letter-spacing:-0.4px;"><?= ($l['sales_today'] > 0) ? $l['sales_today'] : $l['lifetime_sales'] ?></span>
-                        <div style="font-size:0.55rem; color:var(--text-muted); text-transform:uppercase; font-weight:700; letter-spacing:0.4px; margin-top:-1px;">
-                            <?= ($l['sales_today'] > 0) ? 'Sold Today' : 'Sold Total' ?>
-                        </div>
+                    <div>
+                        <div class="deals-count"><?= ($l['sales_today'] > 0) ? $l['sales_today'] : $l['lifetime_sales'] ?></div>
+                        <div class="deals-label"><?= ($l['sales_today'] > 0) ? 'Sold Today' : 'Sold Total' ?></div>
                     </div>
 
-                    <!-- Badge/Status Column -->
-                    <div style="text-align:right;" class="hide-mobile">
-                        <?php if($l['sales_today'] > 0): ?>
-                            <div style="display:inline-flex; align-items:center; gap:4px; background:rgba(124, 58, 237, 0.1); color:var(--primary); padding:0.4rem 0.8rem; border-radius:10px; font-size:0.75rem; font-weight:800; border:1px solid rgba(124,58,237,0.2);">
-                                <span>🚀</span> Trending
-                            </div>
-                        <?php elseif($l['lifetime_sales'] > 10): ?>
-                            <div style="display:inline-flex; align-items:center; gap:4px; background:rgba(250, 204, 21, 0.1); color:#ca8a04; padding:0.4rem 0.8rem; border-radius:10px; font-size:0.75rem; font-weight:800; border:1px solid rgba(250,204,21,0.2);">
-                                <span>💎</span> Power Seller
-                            </div>
-                        <?php else: ?>
-                            <div style="display:inline-flex; align-items:center; gap:4px; background:rgba(128, 128, 128, 0.08); color:var(--text-muted); padding:0.4rem 0.8rem; border-radius:10px; font-size:0.75rem; font-weight:700; border:1px solid rgba(128,128,128,0.15);">
-                                Growing
-                            </div>
-                        <?php endif; ?>
+                    <!-- Performance Column -->
+                    <div class="hide-mobile">
+                        <div class="performance-earnings">GHS <?= number_format($l['total_earnings'], 0) ?></div>
+                        <div class="performance-listings"><?= $l['active_listings'] ?> listings</div>
                     </div>
                 </div>
             <?php endforeach; ?>

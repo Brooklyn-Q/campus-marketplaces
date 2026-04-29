@@ -144,7 +144,7 @@ require_once 'includes/header.php';
             <?php if($user['profile_pic']): ?>
                 <img id="profilePicPreview" src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['profile_pic'])) ?>" class="profile-pic profile-pic-lg profile-pic-previewable <?= $tierClass ?> mb-2" style="cursor:pointer;" alt="Profile">
             <?php else: ?>
-                <img id="profilePicPreview" src="<?= getAssetUrl('assets/img/default-avatar.png') ?>" class="profile-pic profile-pic-lg profile-pic-previewable <?= $tierClass ?> mb-2" style="cursor:pointer; display:none;" alt="Profile">
+                <img id="profilePicPreview" src="<?= getAssetUrl('assets/img/default-avatar.svg') ?>" class="profile-pic profile-pic-lg profile-pic-previewable <?= $tierClass ?> mb-2" style="cursor:pointer; display:none;" alt="Profile">
             <?php endif; ?>
             <label>Profile Photo <small style="color:var(--text-muted);">(requires admin approval)</small></label>
             <input type="file" name="profile_pic" class="form-control" accept="image/*" onchange="previewSelectedImage(this, 'profilePicPreview')">
