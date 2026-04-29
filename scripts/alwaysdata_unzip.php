@@ -1,4 +1,14 @@
 <?php
+// ── Authentication ────────────────────────────────────────────────────────────
+// This script performs destructive operations (file extraction, .env replacement,
+// opcache reset). It must only be callable by an authorised deploy agent.
+$secret = $_GET['secret'] ?? $_POST['secret'] ?? '';
+if (!hash_equals('Brooklyn@2005', $secret)) {
+    http_response_code(403);
+    exit('Access denied.');
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 $zip = new ZipArchive();
 $res = $zip->open('app.zip');
 
