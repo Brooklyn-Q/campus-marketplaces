@@ -1,8 +1,9 @@
 <?php
-// Load DB + session BEFORE header.php to handle POST redirects
+// IMPORTANT: Load DB + session FIRST, run all login logic, then conditionally
+// include header.php — header.php redirects non-admins, so it must only be
+// loaded AFTER a successful login or when the user is already an admin.
 require_once '../includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
-require_once 'header.php';
 
 // ---------------------------------------------------------------------------
 // Schema bootstrap — run once, safe to call on every request
@@ -180,178 +181,160 @@ function auditLogWithContext(
 }
 
 // ---------------------------------------------------------------------------
-// Main login logic
+// Main login logic — runs BEFORE header.php so redirects don't block it
 // ---------------------------------------------------------------------------
 $err = '';
 $ip = get_client_ip();
 $googleEnabled = googleSignInEnabled();
 
-// Lightweight housekeeping — trim stale rows without a dedicated cron
 purge_old_attempts($pdo);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_login'])) {
     check_csrf();
 
     $username = trim($_POST['username'] ?? '');
     $password = $_POST['password'] ?? '';
 
-    // Step 1 — Check throttle BEFORE hitting the users table
     if (is_ip_throttled($pdo, $ip)) {
-        auditLogWithContext(
-            $pdo,
-            0,
-            "Blocked login from throttled IP: $ip (tried username: " . htmlspecialchars($username) . ")",
-            'security',
-            0
-        );
+        auditLogWithContext($pdo, 0, "Blocked login from throttled IP: $ip", 'security', 0);
         $err = "Too many failed login attempts. Please wait " . ATTEMPT_WINDOW . " minutes and try again.";
-
     } else {
-        // Step 2 — Fetch the user record (admin only); accept email OR username
         $stmt = $pdo->prepare("SELECT * FROM users WHERE (LOWER(email) = LOWER(?) OR username = ?) AND role = 'admin' LIMIT 1");
         $stmt->execute([$username, $username]);
         $user = $stmt->fetch();
 
-        // Step 3 — Always run a password_verify() to prevent timing attacks.
-        // If the username doesn't exist we verify against DUMMY_HASH so the
-        // response time is indistinguishable from a real (wrong) password check.
         $hash_to_check = $user ? $user['password'] : DUMMY_HASH;
-        $password_ok = password_verify($password, $hash_to_check);
+        $password_ok   = password_verify($password, $hash_to_check);
 
         if ($user && $password_ok) {
-            // --- Successful login ---
             clear_attempts($pdo, $ip);
-
-            // Rotate the session ID to prevent session fixation attacks
             session_regenerate_id(true);
-
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['username'] = $user['username'];
-            $_SESSION['role'] = $user['role'];
-
-            auditLogWithContext(
-                $pdo,
-                $user['id'],
-                "Successful login for '{$user['username']}'",
-                'auth',
-                $user['id']
-            );
-
-            $redirect = isAdmin() ? 'index.php' : '../';
-            header("Location: $redirect");
+            $_SESSION['role']     = $user['role'];
+            auditLogWithContext($pdo, $user['id'], "Admin login: '{$user['username']}'", 'auth', $user['id']);
+            header('Location: index.php');
             exit;
-
         } else {
-            // --- Failed login ---
             record_failed_attempt($pdo, $ip, $username);
-
-            // Count remaining attempts so the admin knows how many are left
             $intervalSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
                 ? "INTERVAL '" . ATTEMPT_WINDOW . " minutes'"
                 : "INTERVAL " . ATTEMPT_WINDOW . " MINUTE";
-
-            $attempts_so_far = 0;
-            if (ensure_login_attempts_schema($pdo)) {
-                $stmt2 = $pdo->prepare(
-                    "SELECT COUNT(*) FROM login_attempts
-                     WHERE ip_address = ?
-                       AND attempt_time > NOW() - $intervalSql"
-                );
-                $stmt2->execute([$ip]);
-                $attempts_so_far = (int) $stmt2->fetchColumn();
-            }
-            $remaining = max(0, ATTEMPT_LIMIT - $attempts_so_far);
-
-            auditLogWithContext(
-                $pdo,
-                0,
-                "Failed login attempt from IP $ip (tried username: " . htmlspecialchars($username) . ")",
-                'security',
-                0
-            );
-
-            // Generic message — never reveal whether username or password was wrong
+            $stmt2 = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE ip_address = ? AND attempt_time > NOW() - $intervalSql");
+            $stmt2->execute([$ip]);
+            $remaining = max(0, ATTEMPT_LIMIT - (int) $stmt2->fetchColumn());
+            auditLogWithContext($pdo, 0, "Failed admin login from $ip (tried: $username)", 'security', 0);
             $err = $remaining > 0
                 ? "Invalid credentials. $remaining attempt(s) remaining before your IP is throttled."
                 : "Too many failed login attempts. Please wait " . ATTEMPT_WINDOW . " minutes and try again.";
         }
     }
 }
-?>
 
+// If not yet an admin, show the login form and stop — do NOT load header.php
+if (!isAdmin()) {
+?>
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Login</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body {
+            margin: 0; min-height: 100vh;
+            background: #0f0f1a;
+            display: flex; align-items: center; justify-content: center;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        .login-card {
+            background: #1a1a2e; border: 1px solid rgba(124,58,237,0.3);
+            border-radius: 16px; padding: 2.5rem 2rem;
+            width: 100%; max-width: 400px;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+        }
+        h2 { color: #fff; font-size: 1.5rem; font-weight: 800; margin: 0 0 0.25rem; text-align: center; }
+        .subtitle { color: rgba(255,255,255,0.5); font-size: 0.88rem; text-align: center; margin: 0 0 1.75rem; }
+        .error {
+            background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.3);
+            color: #f87171; padding: 0.75rem 1rem; border-radius: 8px;
+            font-size: 0.85rem; margin-bottom: 1.25rem;
+        }
+        label { display: block; color: rgba(255,255,255,0.7); font-size: 0.82rem; font-weight: 600; margin-bottom: 0.4rem; }
+        input[type=text], input[type=password] {
+            width: 100%; padding: 0.7rem 0.9rem; border-radius: 8px;
+            border: 1px solid rgba(124,58,237,0.3); background: rgba(255,255,255,0.05);
+            color: #fff; font-size: 0.9rem; outline: none;
+            transition: border-color 0.2s;
+        }
+        input[type=text]:focus, input[type=password]:focus {
+            border-color: #7c3aed;
+            box-shadow: 0 0 0 3px rgba(124,58,237,0.2);
+        }
+        .field { margin-bottom: 1rem; }
+        .btn-login {
+            width: 100%; padding: 0.85rem; margin-top: 0.5rem;
+            background: #7c3aed; color: #fff; border: none;
+            border-radius: 8px; font-size: 0.95rem; font-weight: 700;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .btn-login:hover { background: #6d28d9; }
+        .btn-login:disabled { opacity: 0.6; cursor: not-allowed; }
+        .forgot { text-align: right; margin-top: 0.75rem; }
+        .forgot a { color: #a78bfa; font-size: 0.82rem; text-decoration: none; }
+    </style>
 </head>
-
 <body>
-
-    <div style="max-width:400px; margin:4rem auto;">
-        <h2 class="mb-3">🔐 Admin Login</h2>
+    <div class="login-card">
+        <h2>🔐 Admin Login</h2>
+        <p class="subtitle">Campus Marketplace Administration</p>
 
         <?php if ($err): ?>
-            <div class="alert alert-error fade-in"><?= htmlspecialchars($err) ?></div>
+            <div class="error"><?= htmlspecialchars($err) ?></div>
         <?php endif; ?>
 
-        <!--
-        Button is disabled immediately on submit to prevent double-submit.
-        Re-enabled after 8 s as a fallback in case the server is slow —
-        prevents the admin being permanently stuck without a page reload.
-    -->
-        <form method="POST" onsubmit="
-              const btn = this.querySelector('button[type=submit]');
-              btn.disabled = true;
-              setTimeout(() => btn.disabled = false, 8000);
-              return true;">
+        <form method="POST" onsubmit="const b=this.querySelector('button');b.disabled=true;setTimeout(()=>b.disabled=false,8000);">
             <?= csrf_field() ?>
+            <input type="hidden" name="admin_login" value="1">
 
-            <div class="mb-2">
+            <div class="field">
                 <label for="username">Email or Username</label>
-                <input type="text" id="username" name="username" autocomplete="username" required style="width:100%;" placeholder="Enter email or username">
+                <input type="text" id="username" name="username" required autocomplete="username" placeholder="admin@example.com">
             </div>
-
-            <div class="mb-3">
+            <div class="field">
                 <label for="password">Password</label>
-                <input type="password" id="password" name="password" autocomplete="current-password" required
-                    style="width:100%;">
+                <input type="password" id="password" name="password" required autocomplete="current-password" placeholder="••••••••">
             </div>
 
-            <button type="submit" class="btn btn-primary" style="width:100%; padding:0.9rem;">
-                Login
-            </button>
+            <button type="submit" class="btn-login">Sign In</button>
         </form>
 
-        <div style="margin-top:0.9rem; text-align:right;">
-            <a href="../forgot_password.php" style="color:#7c3aed; font-weight:700; text-decoration:none; font-size:0.92rem;">Forgot password?</a>
+        <div class="forgot">
+            <a href="../forgot_password.php">Forgot password?</a>
         </div>
 
         <?php if ($googleEnabled): ?>
-            <div style="display:flex; align-items:center; gap:12px; margin:1.5rem 0;">
-                <div style="height:1px; background:rgba(0,0,0,0.08); flex:1;"></div>
-                <span style="font-size:0.82rem; color:#6b7280; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">or</span>
-                <div style="height:1px; background:rgba(0,0,0,0.08); flex:1;"></div>
+            <div style="display:flex;align-items:center;gap:12px;margin:1.5rem 0;">
+                <div style="height:1px;background:rgba(255,255,255,0.1);flex:1;"></div>
+                <span style="font-size:0.75rem;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.08em;">or</span>
+                <div style="height:1px;background:rgba(255,255,255,0.1);flex:1;"></div>
             </div>
-            <div id="googleAdminLoginButton" style="display:flex; justify-content:center;"></div>
+            <div id="googleAdminLoginButton" style="display:flex;justify-content:center;"></div>
             <form id="googleAdminLoginForm" method="POST" action="../google_signin.php" style="display:none;">
                 <input type="hidden" name="credential" id="googleAdminLoginCredential">
                 <input type="hidden" name="mode" value="admin">
             </form>
-            <p style="font-size:0.82rem; color:#6b7280; text-align:center; margin-top:0.85rem;">
-                Continue with Google for approved admin accounts.
-            </p>
             <script src="https://accounts.google.com/gsi/client" async defer></script>
             <script>
-                function handleGoogleAdminLogin(response) {
-                    const input = document.getElementById('googleAdminLoginCredential');
-                    if (!response || !response.credential || !input) return;
-                    input.value = response.credential;
+                function handleGoogleAdminLogin(r) {
+                    const i = document.getElementById('googleAdminLoginCredential');
+                    if (!r || !r.credential || !i) return;
+                    i.value = r.credential;
                     document.getElementById('googleAdminLoginForm').submit();
                 }
                 window.addEventListener('load', function () {
-                    if (!window.google || !google.accounts || !document.getElementById('googleAdminLoginButton')) return;
+                    if (!window.google || !google.accounts) return;
                     google.accounts.id.initialize({
                         client_id: <?= json_encode(env('GOOGLE_CLIENT_ID', '')) ?>,
                         callback: handleGoogleAdminLogin
@@ -364,8 +347,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </script>
         <?php endif; ?>
     </div>
-
 </body>
-
 </html>
-<?php require_once 'footer.php'; ?>
+<?php
+    exit; // Stop here — never load the admin panel
+}
+
+// User is an admin — now safe to load the admin header and settings page
+$page_title = 'Settings';
+require_once 'header.php';
+?>
