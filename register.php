@@ -527,12 +527,20 @@ require_once 'includes/header.php';
                     </div>
                     <?php endif; ?>
 
-                    <div class="reg-terms" id="termsRow" style="opacity:0.55;">
+                    <!-- Step 1: Read Terms button (always visible and clickable) -->
+                    <div style="margin:1.25rem 0 0.75rem;">
+                        <button type="button" onclick="openTermsModalReg()" id="readTermsBtn" style="width:100%; padding:0.75rem 1rem; background:rgba(124,58,237,0.08); border:1.5px solid rgba(124,58,237,0.3); border-radius:10px; color:#7c3aed; font-weight:700; font-size:0.9rem; cursor:pointer; display:flex; align-items:center; justify-content:center; gap:0.5rem; transition:all 0.2s;" onmouseover="this.style.background='rgba(124,58,237,0.14)'" onmouseout="this.style.background='rgba(124,58,237,0.08)'">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                            Read Terms &amp; Conditions (required)
+                        </button>
+                        <p id="termsStatusMsg" style="font-size:0.78rem; color:var(--auth-muted); margin:0.4rem 0 0; text-align:center;">You must read to the end before you can agree.</p>
+                    </div>
+
+                    <!-- Step 2: Agree checkbox — locked until terms are read -->
+                    <div class="reg-terms" id="termsRow" style="opacity:0.45; pointer-events:none;">
                         <input type="checkbox" name="terms" value="1" id="termsCheckbox" required disabled>
-                        <label for="termsCheckbox" id="termsLabel">
-                            You must read the
-                            <a href="javascript:void(0)" onclick="openTermsModalReg()" class="auth-link" style="text-decoration:underline;">Terms &amp; Conditions</a>
-                            fully before you can agree.
+                        <label for="termsCheckbox" id="termsLabel" style="cursor:not-allowed;">
+                            I have read and agree to the Terms &amp; Conditions.
                         </label>
                     </div>
 
@@ -611,10 +619,24 @@ function acceptRegTerms() {
     const cb = document.getElementById('termsCheckbox');
     const row = document.getElementById('termsRow');
     const lbl = document.getElementById('termsLabel');
+    const msg = document.getElementById('termsStatusMsg');
+    const readBtn = document.getElementById('readTermsBtn');
+    // Unlock the checkbox
     cb.disabled = false;
     cb.checked = true;
     row.style.opacity = '1';
-    lbl.innerHTML = 'I have read and agree to the <a href="javascript:void(0)" onclick="openTermsModalReg()" class="auth-link" style="text-decoration:underline;">Terms & Conditions</a>.';
+    row.style.pointerEvents = 'auto';
+    lbl.style.cursor = 'pointer';
+    lbl.innerHTML = 'I have read and agree to the Terms &amp; Conditions.';
+    // Update status
+    if (msg) { msg.textContent = '✓ Terms read. You may now submit.'; msg.style.color = '#16a34a'; }
+    // Update the read button to show it's done
+    if (readBtn) {
+        readBtn.style.background = 'rgba(22,163,74,0.08)';
+        readBtn.style.border = '1.5px solid rgba(22,163,74,0.3)';
+        readBtn.style.color = '#16a34a';
+        readBtn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Terms read — click to review again';
+    }
 }
 </script>
 
