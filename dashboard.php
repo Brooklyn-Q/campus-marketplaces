@@ -492,14 +492,14 @@ function dashboardTierVisual(string $tierName): array {
             'shadow' => 'rgba(142,142,147,0.18)',
         ],
         default => [
-            'accent' => '#0071e3',
+            'accent' => '#7c3aed',
             'background' => 'linear-gradient(180deg, rgba(10,10,14,0.9), rgba(10,10,14,0.68))',
-            'border' => 'rgba(0,113,227,0.24)',
+            'border' => 'rgba(124,58,237,0.24)',
             'button_text' => '#ffffff',
             'text' => '#ffffff',
             'label' => 'rgba(255,255,255,0.72)',
-            'soft' => 'rgba(0,113,227,0.16)',
-            'shadow' => 'rgba(0,113,227,0.18)',
+            'soft' => 'rgba(124,58,237,0.16)',
+            'shadow' => 'rgba(124,58,237,0.18)',
         ],
     };
 
@@ -1062,14 +1062,14 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
             $tierPricingConfig = [];
             foreach ($tiers as &$tier) {
                 $tier['visual'] = array_replace([
-                    'accent' => '#0071e3',
+                    'accent' => '#7c3aed',
                     'background' => 'linear-gradient(180deg, rgba(10,10,14,0.9), rgba(10,10,14,0.68))',
-                    'border' => 'rgba(0,113,227,0.24)',
+                    'border' => 'rgba(124,58,237,0.24)',
                     'button_text' => '#ffffff',
                     'text' => '#ffffff',
                     'label' => 'rgba(255,255,255,0.72)',
-                    'soft' => 'rgba(0,113,227,0.16)',
-                    'shadow' => 'rgba(0,113,227,0.18)',
+                    'soft' => 'rgba(124,58,237,0.16)',
+                    'shadow' => 'rgba(124,58,237,0.18)',
                 ], dashboardTierVisual((string)($tier['tier_name'] ?? 'basic')));
                 $tier['duration_label'] = (string) dashboardTierDurationLabel($tier['duration'] ?? '');
                 $tier['feature_list'] = array_values(array_filter(dashboardTierFeatures($tier), static fn($feature) => is_string($feature) && trim($feature) !== ''));
@@ -1301,8 +1301,8 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                             {
                                 label: 'Revenue (GHS)',
                                 data: <?= json_encode(array_column($chart_data, 'sales')) ?>,
-                                backgroundColor: 'rgba(0,113,227,0.4)',
-                                borderColor: '#0071e3',
+                                backgroundColor: 'rgba(124,58,237,0.4)',
+                                borderColor: '#7c3aed',
                                 borderWidth: 2,
                                 borderRadius: 6,
                                 yAxisID: 'y'
@@ -1402,7 +1402,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         <?php if($user['role'] === 'seller' || $user['role'] === 'admin'): ?>
         <!-- Products Section (Consolidated Card) -->
         <div id="products_section" class="fade-in mb-3">
-            <div class="glass" style="padding:2rem; border-radius:24px; position:relative; overflow:hidden; background:linear-gradient(135deg, rgba(0,113,227,0.1) 0%, rgba(20,20,20,0) 100%); border:1px solid rgba(0,113,227,0.2);">
+            <div class="glass" style="padding:2rem; border-radius:24px; position:relative; overflow:hidden; background:linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(20,20,20,0) 100%); border:1px solid rgba(124,58,237,0.2);">
                 <div class="products_section_summary" style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
                         <div style="display:flex; align-items:center; gap:12px; margin-bottom:0.5rem;">
@@ -1461,7 +1461,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                                                 'pending' => '#ff9500',
                                                 'paused' => '#8e8e93',
                                                 'sold' => '#ff3b30',
-                                                default => '#0071e3'
+                                                default => '#7c3aed'
                                             };
                                         ?>
                                         <span class="badge" style="background:<?= $statusColor ?>; color:#fff; border:none; font-size:0.65rem; padding:4px 10px; font-weight:700; backdrop-filter:blur(10px);"><?= strtoupper($p['status']) ?></span>
@@ -1575,7 +1575,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:1rem; border-radius:12px;">
                         <div class="flex-between mb-1">
                             <strong>#ORDER-<?= $ord['id'] ?> &bull; <?= htmlspecialchars($ord['product_title']) ?></strong>
-                            <span class="badge" style="background:#0071e3;color:#fff;">GHS <?= number_format($ord['product_price'], 2) ?></span>
+                            <span class="badge" style="background:#7c3aed;color:#fff;">GHS <?= number_format($ord['product_price'], 2) ?></span>
                         </div>
                         <p class="text-muted" style="font-size:0.85rem;">Buyer: <strong><?= htmlspecialchars($ord['buyer_name']) ?></strong> &bull; Date: <?= date('M d, Y H:i', strtotime($ord['created_at'])) ?></p>
                         
@@ -1637,7 +1637,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:1rem; border-radius:12px;">
                         <div class="flex-between mb-1">
                             <strong><?= htmlspecialchars($ord['product_title']) ?></strong>
-                            <span class="badge" style="background:#0071e3;color:#fff;">GHS <?= number_format($ord['product_price'], 2) ?></span>
+                            <span class="badge" style="background:#7c3aed;color:#fff;">GHS <?= number_format($ord['product_price'], 2) ?></span>
                         </div>
                         <p class="text-muted" style="font-size:0.85rem;">Seller: <strong><?= htmlspecialchars($ord['seller_name']) ?></strong> &bull; <?= date('M d, Y H:i', strtotime($ord['created_at'])) ?></p>
                         

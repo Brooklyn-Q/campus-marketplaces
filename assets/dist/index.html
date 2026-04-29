@@ -6,22 +6,26 @@
     <meta name="description" content="Campus Marketplace — Buy, sell, and trade safely with fellow students. Your campus, your marketplace." />
     <title>Campus Marketplace</title>
     <!-- Legacy design system CSS -->
-    <link rel="stylesheet" href="/campus-marketplaces/assets/css/style.css?v=2.1">
+    <link rel="stylesheet" href="/public/assets/css/style.css?v=2.1">
     <!-- Prevent FOUC: apply theme before React loads -->
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark-mode');
         }
     </script>
-    <script type="module" crossorigin src="/campus-marketplaces/app.js"></script>
-    <link rel="modulepreload" crossorigin href="/campus-marketplaces/lucide-react.js">
-    <link rel="stylesheet" crossorigin href="/campus-marketplaces/app.css">
+    <script type="module" crossorigin src="/public/app.js"></script>
+    <link rel="modulepreload" crossorigin href="/public/rolldown-runtime.js">
+    <link rel="modulepreload" crossorigin href="/public/icons.js">
+    <link rel="modulepreload" crossorigin href="/public/router.js">
+    <link rel="modulepreload" crossorigin href="/public/motion.js">
+    <link rel="modulepreload" crossorigin href="/public/react-vendor.js">
+    <link rel="stylesheet" crossorigin href="/public/app.css">
   </head>
   <body>
     <div id="root"></div>
     <!-- Load React App -->
     <!-- Legacy JS for side cart compatibility -->
-    <script src="/campus-marketplaces/assets/js/main.js"></script>
+    <script src="/public/assets/js/main.js"></script>
 
     <!-- SIDE CART DRAWER -->
     <div class="cart-drawer-backdrop" id="sideCartBackdrop" onclick="closeSideCart()"></div>

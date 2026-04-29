@@ -71,7 +71,7 @@ require_once 'includes/header.php';
             <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:1rem; margin-bottom:1.5rem;">
                 <label style="display:block; cursor:pointer;">
                     <input type="radio" name="role" value="buyer" style="display:none;" checked>
-                    <div style="border:1px solid rgba(0,113,227,0.12); border-radius:24px; padding:1.5rem; background:rgba(0,113,227,0.03); height:100%;">
+                    <div style="border:1px solid rgba(124,58,237,0.12); border-radius:24px; padding:1.5rem; background:rgba(124,58,237,0.03); height:100%;">
                         <div style="font-size:1.2rem; font-weight:800; margin-bottom:0.5rem;">Buyer Account</div>
                         <p style="margin:0; color:var(--text-muted); line-height:1.6;">
                             Browse products, place orders, chat with sellers, and track your purchases.
@@ -80,7 +80,7 @@ require_once 'includes/header.php';
                 </label>
                 <label style="display:block; cursor:pointer;">
                     <input type="radio" name="role" value="seller" style="display:none;">
-                    <div style="border:1px solid rgba(0,113,227,0.12); border-radius:24px; padding:1.5rem; background:rgba(0,113,227,0.03); height:100%;">
+                    <div style="border:1px solid rgba(124,58,237,0.12); border-radius:24px; padding:1.5rem; background:rgba(124,58,237,0.03); height:100%;">
                         <div style="font-size:1.2rem; font-weight:800; margin-bottom:0.5rem;">Seller Account</div>
                         <p style="margin:0; color:var(--text-muted); line-height:1.6;">
                             List products, manage orders, talk to buyers, and grow your campus shop.

@@ -155,12 +155,12 @@ require_once 'includes/header.php';
     }
 
     .about-btn-primary {
-        background: #0071e3;
+        background: #7c3aed;
         color: #fff;
     }
 
     .about-btn-primary:hover {
-        background: #0085ff;
+        background: #6d28d9;
         color: #fff;
     }
 
@@ -267,8 +267,8 @@ require_once 'includes/header.php';
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        background: rgba(0, 113, 227, 0.12);
-        color: #0071e3;
+        background: rgba(124, 58, 237, 0.12);
+        color: #7c3aed;
         font-weight: 800;
         font-size: 0.85rem;
     }
@@ -405,7 +405,7 @@ require_once 'includes/header.php';
 
     .about-tier-list li::before {
         content: "•";
-        color: #0071e3;
+        color: #7c3aed;
         font-size: 1.1rem;
         line-height: 1;
         margin-top: 0.15rem;
@@ -441,8 +441,8 @@ require_once 'includes/header.php';
         border-radius: 28px;
         padding: 2.25rem;
         background:
-            linear-gradient(135deg, rgba(0, 113, 227, 0.96), rgba(14, 165, 233, 0.88)),
-            #0071e3;
+            linear-gradient(135deg, rgba(124, 58, 237, 0.96), rgba(167, 139, 250, 0.88)),
+            #7c3aed;
         color: #fff;
     }
 

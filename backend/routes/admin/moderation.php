@@ -206,7 +206,7 @@ case 'tiers':
                     (int)($d['images_per_product'] ?? 1),
                     (float)($d['price'] ?? 0),
                     $d['duration'] ?? 'forever',
-                    $d['badge'] ?? '#0071e3',
+                    $d['badge'] ?? '#7c3aed',
                     (int)($d['ads_boost'] ?? 0),
                     $t
                 ]);

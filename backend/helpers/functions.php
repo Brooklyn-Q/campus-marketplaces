@@ -306,10 +306,10 @@ function createNotification(PDO $pdo, int $userId, string $type, string $message
 
     $absoluteLink = rtrim(getAppUrl(), '/') . '/' . ltrim($linkUrl, '/');
     $html = "<div style=\"font-family:Arial,sans-serif;line-height:1.6;color:#111827\">
-        <h2 style=\"margin:0 0 12px;color:#0071e3\">" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</h2>
+        <h2 style=\"margin:0 0 12px;color:#7c3aed\">" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</h2>
         <p>Hello " . htmlspecialchars($targetUser['username'] ?? 'there', ENT_QUOTES, 'UTF-8') . ",</p>
         <p>" . nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8')) . "</p>
-        <p><a href=\"" . htmlspecialchars($absoluteLink, ENT_QUOTES, 'UTF-8') . "\" style=\"display:inline-block;padding:10px 18px;background:#0071e3;color:#fff;text-decoration:none;border-radius:999px;font-weight:700\">Open Campus Marketplace</a></p>
+        <p><a href=\"" . htmlspecialchars($absoluteLink, ENT_QUOTES, 'UTF-8') . "\" style=\"display:inline-block;padding:10px 18px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:999px;font-weight:700\">Open Campus Marketplace</a></p>
     </div>";
 
     sendMarketplaceEmail($targetUser['email'], $title . ' | Campus Marketplace', $html);

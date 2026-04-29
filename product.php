@@ -131,7 +131,7 @@ $soldLast24->execute(['%' . $product['title'] . '%']); $sold24h = $soldLast24->f
 $badges = [];
 if ($product['verified']) $badges[] = ['icon' => '✓', 'label' => 'Verified Seller', 'color' => '#34c759'];
 if ($sellerRating >= 4.0) $badges[] = ['icon' => '⭐', 'label' => 'Top Rated', 'color' => '#ff9500'];
-if ($sellerSales >= 5) $badges[] = ['icon' => '⚡', 'label' => 'Fast Seller', 'color' => '#0071e3'];
+if ($sellerSales >= 5) $badges[] = ['icon' => '⚡', 'label' => 'Fast Seller', 'color' => '#7c3aed'];
 if ($product['seller_tier'] === 'premium') $badges[] = ['icon' => '💎', 'label' => 'Premium', 'color' => '#af52de'];
 
 // Fetch more from seller
@@ -318,7 +318,7 @@ require_once 'includes/header.php';
                         <?php if($product['seller_pic']): ?>
                             <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($product['seller_pic'])) ?>" class="profile-pic profile-pic-previewable <?= $sellerTierClass ?>" style="width:44px;height:44px;cursor:pointer;" alt="<?= htmlspecialchars($product['seller']) ?>">
                         <?php else: ?>
-                            <div class="profile-pic <?= $sellerTierClass ?>" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(0,113,227,0.1);color:var(--primary);font-weight:700;font-size:1.1rem;"><?= strtoupper(substr($product['seller'], 0, 1)) ?></div>
+                            <div class="profile-pic <?= $sellerTierClass ?>" style="width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:rgba(124,58,237,0.1);color:var(--primary);font-weight:700;font-size:1.1rem;"><?= strtoupper(substr($product['seller'], 0, 1)) ?></div>
                         <?php endif; ?>
                         <div style="flex:1;">
                             <strong style="font-size:0.95rem;"><?= htmlspecialchars($product['seller']) ?></strong>
@@ -348,7 +348,7 @@ require_once 'includes/header.php';
                             </a>
                         <?php endif; ?>
                         <?php if(isLoggedIn() && !$isOwner): ?>
-                            <a href="chat.php?user=<?= $product['seller_id'] ?>" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#0071e3; color:#fff; font-weight:600; padding:0.55rem 0.7rem; border-radius:10px; font-size:0.8rem; text-decoration:none; border:none; transition:all 0.2s;">
+                            <a href="chat.php?user=<?= $product['seller_id'] ?>" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#7c3aed; color:#fff; font-weight:600; padding:0.55rem 0.7rem; border-radius:10px; font-size:0.8rem; text-decoration:none; border:none; transition:all 0.2s;">
                                 ✉️ Message
                             </a>
                         <?php endif; ?>
@@ -382,9 +382,9 @@ require_once 'includes/header.php';
                         </button>
                         
                         <?php if(isLoggedIn()): ?>
-                            <a href="chat.php?user=<?= $product['seller_id'] ?>" style="flex:1; background:#0071e3; color:#fff; padding:0.9rem; border-radius:12px; font-weight:700; text-align:center; text-decoration:none; transition:all 0.3s;">✉️ Message Seller</a>
+                            <a href="chat.php?user=<?= $product['seller_id'] ?>" style="flex:1; background:#7c3aed; color:#fff; padding:0.9rem; border-radius:12px; font-weight:700; text-align:center; text-decoration:none; transition:all 0.3s;">✉️ Message Seller</a>
                         <?php else: ?>
-                            <a href="login.php" style="flex:1; background:#0071e3; color:#fff; padding:0.9rem; border-radius:12px; font-weight:700; text-align:center; text-decoration:none; transition:all 0.3s;">Login to Message</a>
+                            <a href="login.php" style="flex:1; background:#7c3aed; color:#fff; padding:0.9rem; border-radius:12px; font-weight:700; text-align:center; text-decoration:none; transition:all 0.3s;">Login to Message</a>
                         <?php endif; ?>
                     </div>
                     
@@ -520,7 +520,7 @@ require_once 'includes/header.php';
                         <?php if($ad['image_url']): ?>
                             <img src="<?= htmlspecialchars($ad['image_url']) ?>" alt="<?= htmlspecialchars($ad['title']) ?>" class="ad-banner-img-prod" loading="lazy" style="width:100%; display:block; object-fit:cover;">
                         <?php else: ?>
-                            <div style="background:linear-gradient(135deg, #0071e3, #34aaff); color:#fff; padding:2rem; text-align:center; min-height:140px; display:flex; flex-direction:column; justify-content:center;">
+                            <div style="background:linear-gradient(135deg, #7c3aed, #a78bfa); color:#fff; padding:2rem; text-align:center; min-height:140px; display:flex; flex-direction:column; justify-content:center;">
                                 <p style="font-size:0.6rem; letter-spacing:0.12em; text-transform:uppercase; opacity:0.8; margin-bottom:0.4rem; font-weight:700;">Featured Partner</p>
                                 <p style="font-size:1.25rem; font-weight:800; letter-spacing:-0.02em;"><?= htmlspecialchars($ad['title']) ?></p>
                             </div>

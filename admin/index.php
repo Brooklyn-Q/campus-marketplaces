@@ -908,7 +908,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                             <td style="padding:0.75rem;"><a
                                     href="messages.php?view=chat&u1=<?= $o['buyer_id'] ?>&u2=<?= $o['seller_id'] ?>"
                                     class="btn btn-sm"
-                                    style="font-size:0.7rem; background:rgba(0,113,227,0.1); color:#0071e3;">View Chat Log</a>
+                                    style="font-size:0.7rem; background:rgba(124,58,237,0.1); color:#7c3aed;">View Chat Log</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>

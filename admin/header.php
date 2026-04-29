@@ -145,7 +145,7 @@ $adminUnreadNotifications = getUnreadNotificationCount($pdo, $_SESSION['user_id'
         }
 
         .nav-link-cta {
-            background: #0071e3;
+            background: #7c3aed;
             color: #fff !important;
             font-weight: 700;
             font-size: 0.95rem;
