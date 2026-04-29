@@ -22,7 +22,7 @@ if ($res === TRUE) {
     if (function_exists('opcache_reset')) {
         @opcache_reset();
     }
-    echo 'React assets extracted successfully.';
+    echo 'SUCCESS';
     unlink($dir . 'react.zip');
 } else {
     echo 'Failed to extract React assets. Error code: ' . $res;

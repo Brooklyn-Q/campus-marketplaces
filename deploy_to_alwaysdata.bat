@@ -151,7 +151,7 @@ if errorlevel 1 (
 
 :: Upload unzip scripts (inject DEPLOY_SECRET into placeholder before uploading)
 echo Creating unzip.php...
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '%~dp0scripts\alwaysdata_unzip.php' -Raw).Replace('%%%%DEPLOY_SECRET%%%%', '%DEPLOY_SECRET%') | Set-Content '%UNZIP_PHP%' -Encoding UTF8"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[IO.File]::WriteAllText('%UNZIP_PHP%', (Get-Content '%~dp0scripts\alwaysdata_unzip.php' -Raw).Replace('%%%%DEPLOY_SECRET%%%%', '%DEPLOY_SECRET%'), [Text.UTF8Encoding]::new($false))"
 if not exist "%UNZIP_PHP%" (
     echo ERROR: unzip.php was not created
     goto :error
@@ -160,7 +160,7 @@ echo Uploading unzip.php...
 curl.exe --noproxy "*" --ssl-reqd --ftp-pasv --retry 3 --retry-delay 5 -T "%UNZIP_PHP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass% || goto :error
 
 echo Creating unzip_react.php...
-powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '%~dp0scripts\alwaysdata_unzip_react.php' -Raw).Replace('%%%%DEPLOY_SECRET%%%%', '%DEPLOY_SECRET%') | Set-Content '%UNZIP_REACT_PHP%' -Encoding UTF8"
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[IO.File]::WriteAllText('%UNZIP_REACT_PHP%', (Get-Content '%~dp0scripts\alwaysdata_unzip_react.php' -Raw).Replace('%%%%DEPLOY_SECRET%%%%', '%DEPLOY_SECRET%'), [Text.UTF8Encoding]::new($false))"
 if not exist "%UNZIP_REACT_PHP%" (
     echo ERROR: unzip_react.php was not created
     goto :error
@@ -173,13 +173,13 @@ echo Extracting PHP files on the server...
 set "_extract_out="
 for /f "delims=" %%R in ('curl.exe --noproxy "*" "https://campusmarketplace.alwaysdata.net/unzip.php?secret=%DEPLOY_SECRET%"') do set "_extract_out=%%R"
 echo %_extract_out%
-echo %_extract_out% | findstr /i "SUCCESS" >nul || (echo ERROR: PHP extraction failed: %_extract_out% && goto :error)
+echo %_extract_out% | findstr /i /c:"SUCCESS" >nul || (echo ERROR: PHP extraction failed: %_extract_out% && goto :error)
 
 echo Extracting React files on the server...
 set "_react_out="
 for /f "delims=" %%R in ('curl.exe --noproxy "*" "https://campusmarketplace.alwaysdata.net/unzip_react.php?secret=%DEPLOY_SECRET%"') do set "_react_out=%%R"
 echo %_react_out%
-echo %_react_out% | findstr /i "successfully\|SUCCESS" >nul || (echo ERROR: React extraction failed: %_react_out% && goto :error)
+echo %_react_out% | findstr /i /c:"SUCCESS" >nul || (echo ERROR: React extraction failed: %_react_out% && goto :error)
 
 echo.
 echo ========================================================
