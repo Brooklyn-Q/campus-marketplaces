@@ -14,16 +14,15 @@ require_once 'header.php';
     margin-bottom: 1.5rem;
 }
 
-table {
-    width: 100%;
-    min-width: 1100px;
+#users-table {
+    width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
     font-size: 0.85rem;
     background: transparent;
-    table-layout: fixed;
 }
 
-table th {
+#users-table th {
     background: rgba(0, 0, 0, 0.02);
     color: var(--text-muted);
     font-weight: 700;
@@ -33,52 +32,58 @@ table th {
     padding: 0.75rem 0.75rem;
     text-align: left;
     border-bottom: 2px solid var(--border);
-    white-space: nowrap !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
-table td {
+#users-table td {
     padding: 0.75rem 0.75rem;
     vertical-align: middle;
     border-bottom: 1px solid rgba(128, 128, 128, 0.06);
     line-height: 1.4;
-    overflow: hidden;
+    white-space: nowrap;
 }
 
-table tr:hover {
+#users-table tr:hover {
     background: rgba(124, 58, 237, 0.02);
 }
 
-/* Column widths — fixed layout so headers never wrap */
-table th:nth-child(1),  table td:nth-child(1)  { width: 48px;  text-align: center; font-weight: 600; }
-table th:nth-child(2),  table td:nth-child(2)  { width: 160px; }
-table th:nth-child(3),  table td:nth-child(3)  { width: 190px; }
-table th:nth-child(4),  table td:nth-child(4)  { width: 70px;  text-align: center; }
-table th:nth-child(5),  table td:nth-child(5)  { width: 80px;  text-align: center; }
-table th:nth-child(6),  table td:nth-child(6)  { width: 120px; }
-table th:nth-child(7),  table td:nth-child(7)  { width: 90px;  text-align: right; font-weight: 600; font-family: 'Courier New', monospace; }
-table th:nth-child(8),  table td:nth-child(8)  { width: 90px;  text-align: center; }
-table th:nth-child(9),  table td:nth-child(9)  { width: 90px;  text-align: center; font-size: 0.78rem; }
-table th:nth-child(10), table td:nth-child(10) { width: auto;  min-width: 220px; overflow: visible; }
+/* Column widths */
+#users-table th:nth-child(1),  #users-table td:nth-child(1)  { width: 52px;  text-align: center; font-weight: 600; }
+#users-table th:nth-child(2),  #users-table td:nth-child(2)  { width: 160px; }
+#users-table th:nth-child(3),  #users-table td:nth-child(3)  { width: 200px; }
+#users-table th:nth-child(4),  #users-table td:nth-child(4)  { width: 75px;  text-align: center; }
+#users-table th:nth-child(5),  #users-table td:nth-child(5)  { width: 90px;  text-align: center; }
+#users-table th:nth-child(6),  #users-table td:nth-child(6)  { width: 140px; }
+#users-table th:nth-child(7),  #users-table td:nth-child(7)  { width: 90px;  text-align: right; font-weight: 600; font-family: 'Courier New', monospace; }
+#users-table th:nth-child(8),  #users-table td:nth-child(8)  { width: 100px; text-align: center; }
+#users-table th:nth-child(9),  #users-table td:nth-child(9)  { width: 95px;  text-align: center; font-size: 0.78rem; }
+#users-table th:nth-child(10), #users-table td:nth-child(10) { width: 240px; }
 
-/* User column — inline-flex on inner wrapper, not the td itself */
-table td:nth-child(2) .user-cell {
+/* User cell */
+#users-table td:nth-child(2) .user-cell {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    max-width: 100%;
     white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
 }
 
-table td:nth-child(2) .user-cell img {
+#users-table td:nth-child(2) .user-cell img {
     flex-shrink: 0;
     width: 28px;
     height: 28px;
     border-radius: 50%;
     object-fit: cover;
+}
+
+/* Email wraps only if needed */
+#users-table td:nth-child(3) {
+    white-space: normal;
+    word-break: break-all;
+}
+
+/* Actions cell always wraps buttons nicely */
+#users-table td:nth-child(10) {
+    white-space: normal;
 }
 
 /* Badge styling */
@@ -413,7 +418,7 @@ function adminResolvedAvatarUrl(array $user): string {
 </div>
 
 <div class="glass fade-in" style="padding:1.5rem; overflow-x:auto; -webkit-overflow-scrolling:touch;">
-    <table>
+    <table id="users-table">
         <thead>
             <tr>
                 <th>ID</th>
