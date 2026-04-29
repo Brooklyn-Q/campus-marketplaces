@@ -1,6 +1,8 @@
 <?php
-$page_title = 'Settings';
-require_once 'header.php';
+// Load DB + session BEFORE header.php so POST actions (check_csrf, redirects)
+// can run before any HTML is output — same pattern as admin/index.php.
+require_once '../includes/db.php';
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 $msg = '';
 $err = '';
@@ -53,6 +55,10 @@ if (is_dir($backup_dir)) {
     rsort($files);
     $backups = array_slice(array_values($files), 0, 5);
 }
+
+// Now safe to load header — all logic that could die()/redirect() is done
+$page_title = 'Settings';
+require_once 'header.php';
 ?>
 
 <h2 class="mb-3" style="display:flex; align-items:center; gap:0.5rem; color:var(--text-main); font-size:1.5rem; font-weight:800;">
