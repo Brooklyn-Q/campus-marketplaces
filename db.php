@@ -232,8 +232,14 @@ function getAssetUrl(string $path): string {
 
 function redirect(string $url): void {
     global $baseUrl;
-    // If not an absolute URL, prefix with base
-    if (strpos($url, 'http') !== 0 && strpos($url, '/') !== 0) {
+    // SECURITY: only allow relative paths — reject absolute URLs and
+    // protocol-relative URLs (//evil.com) which browsers treat as external.
+    // A valid relative path starts with a single '/' (not '//') or no slash.
+    if (preg_match('#^https?://#i', $url) || preg_match('#^//#', $url)) {
+        // Discard the untrusted URL and fall back to the dashboard
+        $url = 'dashboard.php';
+    }
+    if (strpos($url, '/') !== 0) {
         $url = $baseUrl . $url;
     }
     header("Location: $url");
