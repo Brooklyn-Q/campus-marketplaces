@@ -8,14 +8,23 @@ if (isLoggedIn()) {
 $error = '';
 $success = '';
 
+$_reset_ip = get_login_client_ip();
+purge_old_reset_attempts($pdo);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $loginId = strtolower(trim($_POST['login_id'] ?? ''));
 
     if ($loginId === '') {
         $error = 'Please enter your email address or username.';
+    } elseif (is_reset_throttled($pdo, $_reset_ip)) {
+        // Reveal as little as possible — same message as success to avoid leaking throttle state
+        $success = 'If that account exists, a password reset link has been sent to its email address.';
     } else {
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE LOWER(email) = ? OR LOWER(username) = ? LIMIT 1");
+        // Record the attempt regardless of whether the account exists (prevents enumeration via timing)
+        record_reset_attempt($pdo, $_reset_ip);
+
+        $stmt = $pdo->prepare("SELECT id, email, username FROM users WHERE LOWER(email) = ? OR LOWER(username) = ? LIMIT 1");
         $stmt->execute([$loginId, $loginId]);
         $user = $stmt->fetch();
 

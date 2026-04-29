@@ -1012,6 +1012,70 @@ function remaining_login_attempts(PDO $pdo, string $ip): int
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Password-reset rate limiting (separate table/limits from login attempts)
+// ────────────────────────────────────────────────────────────────────────
+
+if (!defined('RESET_ATTEMPT_LIMIT')) {
+    define('RESET_ATTEMPT_LIMIT', 3);   // max reset requests per IP
+    define('RESET_ATTEMPT_WINDOW', 30); // minutes
+}
+
+function ensure_password_reset_attempts_table(PDO $pdo): bool
+{
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    try {
+        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS password_reset_attempts (
+                id SERIAL PRIMARY KEY,
+                ip_address VARCHAR(45) NOT NULL,
+                attempt_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )");
+            $pdo->exec("CREATE INDEX IF NOT EXISTS idx_pra_ip_time ON password_reset_attempts (ip_address, attempt_time)");
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS password_reset_attempts (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                ip_address VARCHAR(45) NOT NULL,
+                attempt_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_pra_ip_time (ip_address, attempt_time)
+            ) ENGINE=InnoDB");
+        }
+        $ready = true;
+    } catch (PDOException $e) {
+        error_log('password_reset_attempts schema check failed: ' . $e->getMessage());
+        $ready = false;
+    }
+    return $ready;
+}
+
+function is_reset_throttled(PDO $pdo, string $ip): bool
+{
+    if (!ensure_password_reset_attempts_table($pdo)) return false;
+    $interval = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+        ? "INTERVAL '" . RESET_ATTEMPT_WINDOW . " minutes'"
+        : "INTERVAL " . RESET_ATTEMPT_WINDOW . " MINUTE";
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM password_reset_attempts WHERE ip_address = ? AND attempt_time > NOW() - $interval");
+    $stmt->execute([$ip]);
+    return (int) $stmt->fetchColumn() >= RESET_ATTEMPT_LIMIT;
+}
+
+function record_reset_attempt(PDO $pdo, string $ip): void
+{
+    if (!ensure_password_reset_attempts_table($pdo)) return;
+    $pdo->prepare("INSERT INTO password_reset_attempts (ip_address, attempt_time) VALUES (?, NOW())")
+        ->execute([$ip]);
+}
+
+function purge_old_reset_attempts(PDO $pdo): void
+{
+    if (!ensure_password_reset_attempts_table($pdo)) return;
+    $interval = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+        ? "INTERVAL '" . RESET_ATTEMPT_WINDOW . " minutes'"
+        : "INTERVAL " . RESET_ATTEMPT_WINDOW . " MINUTE";
+    $pdo->exec("DELETE FROM password_reset_attempts WHERE attempt_time < NOW() - $interval");
+}
+
+// ────────────────────────────────────────────────────────────────────────
 
 // Update last_seen on each request
 if (isLoggedIn() && $pdo) {
