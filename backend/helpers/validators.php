@@ -29,30 +29,56 @@ function validateInArray($value, array $allowed): bool {
 }
 
 function validateImageFile(array $file): ?string {
-    $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
-    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        return "Upload error occurred.";
+    }
 
-    if (!in_array($ext, $allowed)) {
-        return "Invalid image format. Allowed: " . implode(', ', $allowed);
+    $allowedExts  = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    $allowedMimes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowedExts)) {
+        return "Invalid image format. Allowed: " . implode(', ', $allowedExts);
+    }
+
+    // SECURITY: verify actual file contents, not just the name
+    $finfo    = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+    if (!in_array($mimeType, $allowedMimes)) {
+        return "Invalid image file. Detected type: " . $mimeType;
     }
 
     if ($file['size'] > 10 * 1024 * 1024) { // 10MB
         return "File too large. Maximum 10MB.";
     }
 
-    if ($file['error'] !== UPLOAD_ERR_OK) {
-        return "Upload error occurred.";
-    }
-
     return null; // Valid
 }
 
 function validateMediaFile(array $file): ?string {
-    $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mp3', 'wav', 'm4a', 'ogg'];
-    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        return "Upload error occurred.";
+    }
 
-    if (!in_array($ext, $allowed)) {
+    $allowedExts  = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm', 'mov', 'mp3', 'wav', 'm4a', 'ogg'];
+    $allowedMimes = [
+        'image/jpeg', 'image/png', 'image/webp', 'image/gif',
+        'video/mp4', 'video/webm', 'video/quicktime',
+        'audio/mpeg', 'audio/wav', 'audio/mp4', 'audio/ogg',
+    ];
+
+    $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+    if (!in_array($ext, $allowedExts)) {
         return "Invalid file format.";
+    }
+
+    // SECURITY: verify actual file contents, not just the name
+    $finfo    = finfo_open(FILEINFO_MIME_TYPE);
+    $mimeType = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+    if (!in_array($mimeType, $allowedMimes)) {
+        return "Invalid media file. Detected type: " . $mimeType;
     }
 
     if ($file['size'] > 50 * 1024 * 1024) { // 50MB for video
