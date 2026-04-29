@@ -3,6 +3,21 @@
 // Reads only the .maintenance file and the PHP session (already started
 // by a prior page load if the user is logged in as admin).
 if (session_status() === PHP_SESSION_NONE) {
+    // Match the same cookie params as db.php so the existing session is
+    // resumed correctly (secure flag on HTTPS, httponly, SameSite=Lax).
+    $isHttps = (
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+    );
+    $sessionParams = session_get_cookie_params();
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path'     => '/',
+        'domain'   => $sessionParams['domain'] ?? '',
+        'secure'   => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
     session_start();
 }
 
