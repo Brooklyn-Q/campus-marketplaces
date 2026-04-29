@@ -21,6 +21,17 @@ DirectoryIndex public/index.html index.php
     RewriteEngine On
     RewriteBase /
 
+    # ===== MAINTENANCE MODE =====
+    # If .maintenance file exists, redirect everyone to maintenance.php
+    # except: the maintenance page itself, admin pages, and static assets
+    RewriteCond %{DOCUMENT_ROOT}/.maintenance -f
+    RewriteCond %{REQUEST_URI} !^/maintenance\.php$ [NC]
+    RewriteCond %{REQUEST_URI} !^/admin/ [NC]
+    RewriteCond %{REQUEST_URI} !^/login\.php$ [NC]
+    RewriteCond %{REQUEST_URI} !^/google_signin\.php$ [NC]
+    RewriteCond %{REQUEST_URI} !\.(css|js|png|jpg|jpeg|webp|gif|svg|ico|woff|woff2|ttf)$ [NC]
+    RewriteRule .* /maintenance.php [R=302,L]
+
     # Don't rewrite real files or directories
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
