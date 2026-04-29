@@ -1,7 +1,10 @@
 <?php
-// Standalone maintenance page — intentionally does NOT include header.php
-// to avoid any recursive maintenance check or DB dependency.
-require_once __DIR__ . '/includes/db.php';
+// Standalone maintenance page — no DB dependency, no header.php.
+// Reads only the .maintenance file and the PHP session (already started
+// by a prior page load if the user is logged in as admin).
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // If maintenance is off, redirect home
 if (!file_exists(__DIR__ . '/.maintenance')) {
@@ -9,8 +12,9 @@ if (!file_exists(__DIR__ . '/.maintenance')) {
     exit;
 }
 
-// Admins can pass through to the site — send them to admin panel
-if (function_exists('isAdmin') && isAdmin()) {
+// Admins bypass — check session directly, no DB call needed
+$isAdmin = isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+if ($isAdmin) {
     header('Location: /admin/');
     exit;
 }
