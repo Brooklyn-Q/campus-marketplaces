@@ -28,9 +28,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $delivery_method = $_POST['delivery_method'] ?? 'Pickup';
     $payment_agreement = $_POST['payment_agreement'] ?? 'Pay on delivery';
 
-    // Ensure promo_tag column exists
-    try { $pdo->exec("ALTER TABLE products ADD COLUMN promo_tag VARCHAR(50) DEFAULT '' AFTER quantity"); } catch(Exception $e) {}
-
     if (empty($title) || empty($description)) { $error = "Title and description are required."; }
     elseif ($price === false || $price <= 0)   { $error = "Enter a valid price."; }
     else {

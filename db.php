@@ -373,6 +373,7 @@ function ensureFeatureSupportSchema(PDO $pdo): void {
         runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT ''");
         runSchemaStatement($pdo, "ALTER TABLE ad_placements ALTER COLUMN image_url TYPE TEXT");
         runSchemaStatement($pdo, "UPDATE ad_placements SET image_path = COALESCE(NULLIF(image_path, ''), image_url, '')");
+        runSchemaStatement($pdo, "ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_tag VARCHAR(50) DEFAULT ''");
     } else {
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(191) NULL");
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(32) NULL");
@@ -448,6 +449,7 @@ function ensureFeatureSupportSchema(PDO $pdo): void {
         runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS clicks INT DEFAULT 0");
         runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_url TEXT NULL");
         runSchemaStatement($pdo, "UPDATE ad_placements SET image_path = COALESCE(NULLIF(image_path, ''), image_url, '')");
+        runSchemaStatement($pdo, "ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_tag VARCHAR(50) DEFAULT ''");
     }
 
     $ready = true;
