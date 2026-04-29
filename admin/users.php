@@ -3,6 +3,7 @@ $page_title = 'Users';
 require_once 'header.php';
 ?>
 <style>
+/* NOTE: This <style> block comes AFTER header.php so it overrides app.css */
 /* ADMIN USERS PAGE ALIGNMENT FIXES */
 .glass {
     backdrop-filter: blur(12px);
@@ -15,7 +16,7 @@ require_once 'header.php';
 
 table {
     width: 100%;
-    min-width: 900px;
+    min-width: 1100px;
     border-collapse: collapse;
     font-size: 0.85rem;
     background: transparent;
@@ -32,7 +33,7 @@ table th {
     padding: 0.75rem 0.75rem;
     text-align: left;
     border-bottom: 2px solid var(--border);
-    white-space: nowrap;
+    white-space: nowrap !important;
     overflow: hidden;
     text-overflow: ellipsis;
 }
@@ -411,7 +412,7 @@ function adminResolvedAvatarUrl(array $user): string {
     <a href="?filter=admins" class="btn <?= $filter === 'admins' ? 'btn-primary' : 'btn-outline' ?> btn-sm">Admins</a>
 </div>
 
-<div class="glass fade-in" style="padding:1.5rem; overflow-x:auto;">
+<div class="glass fade-in" style="padding:1.5rem; overflow-x:auto; -webkit-overflow-scrolling:touch;">
     <table>
         <thead>
             <tr>
