@@ -8,6 +8,7 @@ set "REACT_SOURCE=%DEPLOY_ROOT%frontend\dist"
 set "REACT_ZIP=%ARTIFACT_DIR%\react.zip"
 set "APP_ZIP=%ARTIFACT_DIR%\app.zip"
 set "UNZIP_PHP=%ARTIFACT_DIR%\unzip.php"
+set "UNZIP_REACT_PHP=%ARTIFACT_DIR%\unzip_react.php"
 set "REACT_ZIP_LOG=%ARTIFACT_DIR%\react_zip.log"
 set "APP_ZIP_LOG=%ARTIFACT_DIR%\app_zip.log"
 set "DEPLOY_MODE=full"
@@ -147,7 +148,7 @@ if errorlevel 1 (
     goto :error
 )
 
-:: Upload unzip script (for PHP extraction)
+:: Upload unzip scripts
 echo Creating unzip.php...
 copy /y "%~dp0scripts\alwaysdata_unzip.php" "%UNZIP_PHP%" >nul
 if not exist "%UNZIP_PHP%" (
@@ -156,6 +157,15 @@ if not exist "%UNZIP_PHP%" (
 )
 echo Uploading unzip.php...
 curl.exe --noproxy "*" --ssl-reqd --ftp-pasv --retry 3 --retry-delay 5 -T "%UNZIP_PHP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass% || goto :error
+
+echo Creating unzip_react.php...
+copy /y "%~dp0scripts\alwaysdata_unzip_react.php" "%UNZIP_REACT_PHP%" >nul
+if not exist "%UNZIP_REACT_PHP%" (
+    echo ERROR: unzip_react.php was not created
+    goto :error
+)
+echo Uploading unzip_react.php...
+curl.exe --noproxy "*" --ssl-reqd --ftp-pasv --retry 3 --retry-delay 5 -T "%UNZIP_REACT_PHP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass% || goto :error
 
 :: Extract files on the server (secret required — see alwaysdata.env DEPLOY_SECRET)
 set "DEPLOY_SECRET=Brooklyn@2005"
