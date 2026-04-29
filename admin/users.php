@@ -1,6 +1,203 @@
 <?php
 $page_title = 'Users';
 require_once 'header.php';
+?>
+<style>
+/* ADMIN USERS PAGE ALIGNMENT FIXES */
+.glass {
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+table {
+    width: 100%;
+    min-width: 900px;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    background: transparent;
+    table-layout: fixed;
+}
+
+table th {
+    background: rgba(0, 0, 0, 0.02);
+    color: var(--text-muted);
+    font-weight: 700;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.75rem 0.75rem;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+table td {
+    padding: 0.75rem 0.75rem;
+    vertical-align: middle;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.06);
+    line-height: 1.4;
+    overflow: hidden;
+}
+
+table tr:hover {
+    background: rgba(124, 58, 237, 0.02);
+}
+
+/* Column widths — fixed layout so headers never wrap */
+table th:nth-child(1),  table td:nth-child(1)  { width: 48px;  text-align: center; font-weight: 600; }
+table th:nth-child(2),  table td:nth-child(2)  { width: 160px; }
+table th:nth-child(3),  table td:nth-child(3)  { width: 190px; }
+table th:nth-child(4),  table td:nth-child(4)  { width: 70px;  text-align: center; }
+table th:nth-child(5),  table td:nth-child(5)  { width: 80px;  text-align: center; }
+table th:nth-child(6),  table td:nth-child(6)  { width: 120px; }
+table th:nth-child(7),  table td:nth-child(7)  { width: 90px;  text-align: right; font-weight: 600; font-family: 'Courier New', monospace; }
+table th:nth-child(8),  table td:nth-child(8)  { width: 90px;  text-align: center; }
+table th:nth-child(9),  table td:nth-child(9)  { width: 90px;  text-align: center; font-size: 0.78rem; }
+table th:nth-child(10), table td:nth-child(10) { width: auto;  min-width: 220px; overflow: visible; }
+
+/* User column — inline-flex on inner wrapper, not the td itself */
+table td:nth-child(2) .user-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+table td:nth-child(2) .user-cell img {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+/* Badge styling */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    line-height: 1;
+}
+
+.badge-gold {
+    background: linear-gradient(135deg, rgba(250, 204, 21, 0.15), rgba(250, 204, 21, 0.05));
+    color: #ca8a04;
+    border: 1px solid rgba(250, 204, 21, 0.2);
+}
+
+.badge-blue {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05));
+    color: #1e40af;
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.badge-rejected {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.15), rgba(239, 68, 68, 0.05));
+    color: #dc2626;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+/* Action buttons */
+.flex.gap-1 {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.375rem 0.75rem;
+    border-radius: 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    line-height: 1.2;
+}
+
+.btn-sm {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.65rem;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--text-main);
+    border-color: var(--border);
+}
+
+.btn-success {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+}
+
+.btn-warn {
+    background: var(--warning);
+    color: white;
+    border-color: var(--warning);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: white;
+    border-color: var(--danger);
+}
+
+.btn-gold {
+    background: linear-gradient(135deg, #facc15, #eab308);
+    color: #713f12;
+    border: 1px solid #facc15;
+}
+
+/* Email and balance styling */
+table td:nth-child(3) {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    word-break: break-all;
+}
+
+table td:nth-child(7) {
+    color: var(--success);
+    font-size: 0.9rem;
+}
+
+/* Responsive fixes */
+@media (max-width: 1200px) {
+    table { font-size: 0.8rem; }
+    table th, table td { padding: 0.75rem 0.5rem; }
+    table th:nth-child(6), table td:nth-child(6) { display: none; }
+}
+
+@media (max-width: 768px) {
+    .glass { padding: 1rem; overflow-x: auto; }
+    table { font-size: 0.75rem; min-width: 800px; }
+    .btn { padding: 0.25rem 0.5rem; font-size: 0.6rem; }
+    table th:nth-child(5), table td:nth-child(5) { display: none; }
+}
+</style>
+<?php
 
 // ─── CSRF helpers ────────────────────────────────────────────────────────────
 // Using check_csrf() from db.php
@@ -240,14 +437,16 @@ function adminResolvedAvatarUrl(array $user): string {
                 ?>
                 <tr>
                     <td><?= $uid ?></td>
-                    <td class="flex gap-1" style="align-items:center;">
+                    <td>
+                        <span class="user-cell">
                         <?php $tierClass = 'profile-pic-' . ($u['role'] === 'seller' ? ($u['seller_tier'] ?: 'basic') : 'basic'); ?>
                         <img src="<?= htmlspecialchars($avatarSrc, ENT_QUOTES, 'UTF-8') ?>"
                             class="profile-pic-previewable <?= $tierClass ?>"
-                            style="width:28px;height:28px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid transparent;"
+                            style="cursor:pointer;border:2px solid transparent;"
                             onerror="this.onerror=null;this.src='<?= htmlspecialchars($avatarFallback, ENT_QUOTES, 'UTF-8') ?>';"
                             alt="<?= htmlspecialchars($u['username']) ?>">
-                        <?= htmlspecialchars($u['username']) ?>
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($u['username']) ?></span>
+                        </span>
                     </td>
                     <td><?= htmlspecialchars($u['email']) ?></td>
                     <td>
