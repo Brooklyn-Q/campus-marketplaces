@@ -157,30 +157,49 @@ if not exist "%UNZIP_PHP%" (
 echo Uploading unzip.php...
 curl.exe --noproxy "*" --ssl-reqd --ftp-pasv --retry 3 --retry-delay 5 -T "%UNZIP_PHP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass% || goto :error
 
-:: Extract files on the server
+:: Extract files on the server (secret required — see alwaysdata.env DEPLOY_SECRET)
+set "DEPLOY_SECRET=Brooklyn@2005"
 echo Extracting PHP files on the server...
-curl.exe --noproxy "*" -s https://campusmarketplace.alwaysdata.net/unzip.php
+curl.exe --noproxy "*" -s "https://campusmarketplace.alwaysdata.net/unzip.php?secret=%DEPLOY_SECRET%"
+echo.
 
 echo Extracting React files on the server...
-curl.exe --noproxy "*" -s https://campusmarketplace.alwaysdata.net/unzip_react.php
+curl.exe --noproxy "*" -s "https://campusmarketplace.alwaysdata.net/unzip_react.php?secret=%DEPLOY_SECRET%"
+echo.
 
 echo.
 echo ========================================================
-echo ✅ DEPLOYMENT COMPLETED!
+echo DEPLOYMENT COMPLETED!
 echo ========================================================
-echo 🎯 Your fixes have been deployed to:
-echo    https://campusmarketplace.alwaysdata.net
+echo Site: https://campusmarketplace.alwaysdata.net
 echo.
-echo 🔧 WHAT WAS FIXED:
-echo    • Profile picture preview in register.php
-echo    • WhatsApp join validation in whatsapp_join.php  
-echo    • Default avatar issue in edit_profile.php
-echo    • Added default-avatar.svg file
+echo SECURITY FIXES NOW LIVE:
+echo   #1  reset_admin_password.php deleted
+echo   #2  alwaysdata_unzip.php protected with DEPLOY_SECRET
+echo   #3  image_proxy.php SSRF fixed
+echo   #4  login.php brute-force rate limiting
+echo   #5  forgot_password.php rate limiting
+echo   #6  SELECT * on users table eliminated
+echo   #7  ALTER TABLE removed from add_product.php hot path
+echo   #8  Google tokens verified locally
+echo   #9  Dev scripts deleted / XSS in notifications fixed
+echo   #10 Path traversal in admin API route blocked
+echo   #11 File upload MIME-type validation added
+echo   #12 Messages IDOR fixed
+echo   #13 Open redirect blocked
+echo   #14 display_errors off in production
+echo   #15 Dev/migration scripts deleted
 echo.
-echo 📋 NEXT STEPS:
-echo    1. Run database migration: deploy_database_migration.sql
-echo    2. Test registration at: /register.php
-echo    3. Test WhatsApp join at: /whatsapp_join.php
+echo UI IMPROVEMENTS NOW LIVE:
+echo   - Profile pic preview on registration
+echo   - Leaderboard styling and badges
+echo   - WhatsApp join form validation
+echo   - Default avatar updated to SVG
+echo.
+echo NEXT STEPS:
+echo   1. Visit site and test login, register, checkout
+echo   2. Rotate secrets: Cloudinary, Paystack, DB password, JWT
+echo   3. Check AlwaysData error logs for any PHP errors
 echo ========================================================
 
 :success
