@@ -95,7 +95,7 @@ if ($selected_u1 && $selected_u2) {
                     $isActive = ($selected_u1 == $c['u1'] && $selected_u2 == $c['u2']);
                     ?>
                     <a href="?u1=<?= $c['u1'] ?>&u2=<?= $c['u2'] ?>"
-                        style="display:block; padding:1rem; border-radius:12px; border:1px solid <?= $isActive ? 'var(--primary)' : 'rgba(255,255,255,0.05)' ?>; background:<?= $isActive ? 'rgba(0,113,227,0.1)' : 'rgba(255,255,255,0.02)' ?>; margin-bottom:0.75rem; text-decoration:none; transition:all 0.2s;">
+                        style="display:block; padding:1rem; border-radius:12px; border:1px solid <?= $isActive ? 'var(--primary)' : 'rgba(255,255,255,0.05)' ?>; background:<?= $isActive ? 'rgba(124,58,237,0.1)' : 'rgba(255,255,255,0.02)' ?>; margin-bottom:0.75rem; text-decoration:none; transition:all 0.2s;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                             <strong style="color:<?= $isActive ? 'var(--primary)' : '#fff' ?>; font-size:0.9rem;">
                                 <?= htmlspecialchars($c['u1_name']) ?> ⬌ <?= htmlspecialchars($c['u2_name']) ?>
@@ -144,7 +144,7 @@ if ($selected_u1 && $selected_u2) {
                         // Give User 2 a slightly different bubble color so the two users are distinct.
                         $bubbleColor = 'rgba(255,255,255,0.05)'; // Default: User 1 (Gray)
                         if ($m['sender_id'] == $selected_u2) {
-                            $bubbleColor = 'rgba(0,113,227,0.1)'; // User 2 (Slightly Blue)
+                            $bubbleColor = 'rgba(124,58,237,0.1)'; // User 2 (Slightly Blue)
                         }
                         if ($isSupport) {
                             $bubbleColor = 'linear-gradient(135deg, #af52de, #7d3ca1)'; // Admin (Purple)

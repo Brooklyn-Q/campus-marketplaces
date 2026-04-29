@@ -220,8 +220,8 @@ require_once 'includes/header.php';
         </div>
         <?php endif; ?>
 
-        <div style="background:rgba(0,113,227,0.05); border:1px solid rgba(0,113,227,0.15); border-radius:12px; padding:0.8rem 1rem; margin-bottom:1.25rem; font-size:0.82rem; color:var(--text-muted); display:flex; align-items:center; gap:0.5rem;">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0071e3" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div style="background:rgba(124,58,237,0.05); border:1px solid rgba(124,58,237,0.15); border-radius:12px; padding:0.8rem 1rem; margin-bottom:1.25rem; font-size:0.82rem; color:var(--text-muted); display:flex; align-items:center; gap:0.5rem;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
             All profile changes (text fields and images) require admin approval before going live.
         </div>
 

@@ -46,8 +46,8 @@ require_once 'includes/header.php';
 <div class="auth-wrapper" style="min-height: calc(100vh - 100px); display:flex; align-items:center; justify-content:center; padding: 20px;">
     <div class="glass form-container fade-in" style="width:100%; max-width:480px; box-shadow:0 32px 80px rgba(0,0,0,0.12);">
         <div class="text-center" style="margin-bottom:2.5rem;">
-            <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:22px; background:linear-gradient(135deg, rgba(0,113,227,0.12), rgba(0,113,227,0.06)); margin-bottom:1.25rem; border:1px solid rgba(0,113,227,0.1);">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0071e3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+            <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:22px; background:linear-gradient(135deg, rgba(124,58,237,0.12), rgba(124,58,237,0.06)); margin-bottom:1.25rem; border:1px solid rgba(124,58,237,0.1);">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
             </div>
             <h1 style="font-size:2rem; font-weight:800; letter-spacing:-0.03em; margin:0;">Welcome Back</h1>
             <p style="color:var(--text-muted); font-size:1.05rem; margin-top:0.5rem; font-weight:500;">Access your safe campus marketplace</p>
@@ -69,7 +69,7 @@ require_once 'includes/header.php';
                 <label>Password</label>
                 <input type="password" name="password" class="form-control" placeholder="••••••••" required>
             </div>
-            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:1.1rem; font-size:1.05rem; font-weight:700; box-shadow:0 10px 30px rgba(0,113,227,0.2);">Sign In</button>
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:1.1rem; font-size:1.05rem; font-weight:700; box-shadow:0 10px 30px rgba(124,58,237,0.2);">Sign In</button>
         </form>
 
         <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid rgba(0,0,0,0.06); text-align:center;">

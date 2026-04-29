@@ -601,11 +601,11 @@ require_once 'includes/header.php';
                 background: rgba(255,255,255,0.05);
             }
             .tier-card.popular {
-                background: rgba(0,113,227,0.04);
-                border-color: rgba(0,113,227,0.3);
+                background: rgba(124,58,237,0.04);
+                border-color: rgba(124,58,237,0.3);
             }
             .dark-mode .tier-card.popular {
-                background: rgba(0,113,227,0.15);
+                background: rgba(124,58,237,0.15);
             }
             @media (max-width: 640px) {
                 .upgrade-modal-content {
@@ -705,13 +705,13 @@ require_once 'includes/header.php';
                             
                             <?php if(!$active): ?>
                                 <?php if($tier['price'] > 0): ?>
-                                    <button type="button" onclick="payWithPaystack('<?= $tier['tier_name'] ?>', <?= $tier['price'] ?>)" class="btn <?= $is_popular ? 'btn-primary' : 'btn-outline' ?>" style="width:100%; border-radius:14px; padding:1.2rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;box-shadow:0 10px 20px rgba(0,113,227,0.1);">Upgrade to <?= ucfirst($tier['tier_name']) ?></button>
+                                    <button type="button" onclick="payWithPaystack('<?= $tier['tier_name'] ?>', <?= $tier['price'] ?>)" class="btn <?= $is_popular ? 'btn-primary' : 'btn-outline' ?>" style="width:100%; border-radius:14px; padding:1.2rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;box-shadow:0 10px 20px rgba(124,58,237,0.1);">Upgrade to <?= ucfirst($tier['tier_name']) ?></button>
                                 <?php else: ?>
                                     <a href="?action=request_<?= htmlspecialchars($tier['tier_name']) ?>" class="btn <?= $is_popular ? 'btn-primary' : 'btn-outline' ?>" style="width:100%; text-align:center; border-radius:14px; padding:1.2rem; font-weight:800;">Get Started Free</a>
                                 <?php endif; ?>
                             <?php else: ?>
                                 <div style="display:flex; flex-direction:column; gap:0.5rem;">
-                                    <div style="width:100%; text-align:center; background:rgba(0,113,227,0.08); padding:1rem; border-radius:14px; font-weight:800; color:var(--primary); border:2px solid var(--primary);">Active Plan</div>
+                                    <div style="width:100%; text-align:center; background:rgba(124,58,237,0.08); padding:1rem; border-radius:14px; font-weight:800; color:var(--primary); border:2px solid var(--primary);">Active Plan</div>
                                     <?php if($tier['tier_name'] !== 'basic'): ?>
                                         <a href="?action=cancel_tier" class="btn btn-outline btn-sm" style="font-size:0.8rem; justify-content:center; color:var(--danger); border-color:rgba(255,59,48,0.2); font-weight:700;" onclick="return confirm('Request to downgrade to Basic? Your limits will be reduced.')">Downgrade to Basic</a>
                                     <?php endif; ?>
@@ -835,8 +835,8 @@ require_once 'includes/header.php';
                             {
                                 label: 'Revenue (₵)',
                                 data: <?= json_encode(array_column($chart_data, 'sales')) ?>,
-                                backgroundColor: 'rgba(0,113,227,0.4)',
-                                borderColor: '#0071e3',
+                                backgroundColor: 'rgba(124,58,237,0.4)',
+                                borderColor: '#7c3aed',
                                 borderWidth: 2,
                                 borderRadius: 6,
                                 yAxisID: 'y'
@@ -936,7 +936,7 @@ require_once 'includes/header.php';
         <?php if($user['role'] === 'seller' || $user['role'] === 'admin'): ?>
         <!-- Products Section (Consolidated Card) -->
         <div id="products_section" class="fade-in mb-3">
-            <div class="glass" style="padding:2rem; border-radius:24px; position:relative; overflow:hidden; background:linear-gradient(135deg, rgba(0,113,227,0.1) 0%, rgba(20,20,20,0) 100%); border:1px solid rgba(0,113,227,0.2);">
+            <div class="glass" style="padding:2rem; border-radius:24px; position:relative; overflow:hidden; background:linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(20,20,20,0) 100%); border:1px solid rgba(124,58,237,0.2);">
                 <div class="products_section_summary" style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
                         <div style="display:flex; align-items:center; gap:12px; margin-bottom:0.5rem;">
@@ -995,7 +995,7 @@ require_once 'includes/header.php';
                                                 'pending' => '#ff9500',
                                                 'paused' => '#8e8e93',
                                                 'sold' => '#ff3b30',
-                                                default => '#0071e3'
+                                                default => '#7c3aed'
                                             };
                                         ?>
                                         <span class="badge" style="background:<?= $statusColor ?>; color:#fff; border:none; font-size:0.65rem; padding:4px 10px; font-weight:700; backdrop-filter:blur(10px);"><?= strtoupper($p['status']) ?></span>
@@ -1084,7 +1084,7 @@ require_once 'includes/header.php';
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:1rem; border-radius:12px;">
                         <div class="flex-between mb-1">
                             <strong>#ORDER-<?= $ord['id'] ?> &bull; <?= htmlspecialchars($ord['product_title']) ?></strong>
-                            <span class="badge" style="background:#0071e3;color:#fff;">₵<?= number_format($ord['product_price'], 2) ?></span>
+                            <span class="badge" style="background:#7c3aed;color:#fff;">₵<?= number_format($ord['product_price'], 2) ?></span>
                         </div>
                         <p class="text-muted" style="font-size:0.85rem;">Buyer: <strong><?= htmlspecialchars($ord['buyer_name']) ?></strong> &bull; Date: <?= date('M d, Y H:i', strtotime($ord['created_at'])) ?></p>
                         
@@ -1125,7 +1125,7 @@ require_once 'includes/header.php';
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:1rem; border-radius:12px;">
                         <div class="flex-between mb-1">
                             <strong><?= htmlspecialchars($ord['product_title']) ?></strong>
-                            <span class="badge" style="background:#0071e3;color:#fff;">₵<?= number_format($ord['product_price'], 2) ?></span>
+                            <span class="badge" style="background:#7c3aed;color:#fff;">₵<?= number_format($ord['product_price'], 2) ?></span>
                         </div>
                         <p class="text-muted" style="font-size:0.85rem;">Seller: <strong><?= htmlspecialchars($ord['seller_name']) ?></strong> &bull; <?= date('M d, Y H:i', strtotime($ord['created_at'])) ?></p>
                         

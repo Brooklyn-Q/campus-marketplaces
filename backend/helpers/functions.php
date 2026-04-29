@@ -424,9 +424,9 @@ function getAccountTiers(PDO $pdo): array {
             $driver = getenv('DB_DRIVER') ?: 'mysql';
             $sql = $driver === 'pgsql' 
                 ? "INSERT INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
-                    ('basic', 0, 'forever', 2, 1, '#0071e3', FALSE) ON CONFLICT (tier_name) DO NOTHING"
+                    ('basic', 0, 'forever', 2, 1, '#7c3aed', FALSE) ON CONFLICT (tier_name) DO NOTHING"
                 : "INSERT IGNORE INTO account_tiers (tier_name, price, duration, product_limit, images_per_product, badge, ads_boost) VALUES 
-                    ('basic', 0, 'forever', 2, 1, '#0071e3', 0)";
+                    ('basic', 0, 'forever', 2, 1, '#7c3aed', 0)";
             
             $pdo->exec($sql);
             
@@ -512,7 +512,7 @@ function formatPhone(string $phone): string {
 
 function getBadgeData(string $tier): array {
     $badges = [
-        'basic' => ['label' => 'Basic', 'color' => '#0071e3', 'bg' => 'rgba(0,113,227,0.1)'],
+        'basic' => ['label' => 'Basic', 'color' => '#7c3aed', 'bg' => 'rgba(124,58,237,0.1)'],
         'pro' => ['label' => 'Pro', 'color' => '#8e8e93', 'bg' => 'rgba(142,142,147,0.12)'],
         'premium' => ['label' => 'Premium', 'color' => '#ff9f0a', 'bg' => 'rgba(255,159,10,0.12)'],
     ];

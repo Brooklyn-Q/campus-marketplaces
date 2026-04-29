@@ -29,8 +29,8 @@ require_once 'includes/header.php';
     <div class="glass form-container fade-in" style="width:100%; max-width:850px; padding:3.5rem; box-shadow:0 32px 80px rgba(0,0,0,0.12);">
         
         <div class="text-center" style="margin-bottom:2rem;">
-            <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:22px; background:linear-gradient(135deg, rgba(0,113,227,0.12), rgba(0,113,227,0.06)); margin-bottom:1.25rem; border:1px solid rgba(0,113,227,0.1);">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0071e3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:22px; background:linear-gradient(135deg, rgba(124,58,237,0.12), rgba(124,58,237,0.06)); margin-bottom:1.25rem; border:1px solid rgba(124,58,237,0.1);">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
             </div>
             <h1 style="font-size:2.2rem; font-weight:800; letter-spacing:-0.03em; margin:0;">Terms & Conditions</h1>
             <p style="color:var(--text-muted); font-size:1.1rem; margin-top:0.5rem; font-weight:500;">Please read and accept our platform standards to continue</p>
@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', function() {
             acceptBtn.style.opacity = '1';
             acceptBtn.style.cursor = 'pointer';
             acceptBtn.innerText = 'I Agree & Continue';
-            acceptBtn.style.boxShadow = '0 12px 30px rgba(0,113,227,0.3)';
+            acceptBtn.style.boxShadow = '0 12px 30px rgba(124,58,237,0.3)';
         }
     });
 });

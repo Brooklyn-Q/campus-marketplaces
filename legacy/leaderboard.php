@@ -61,7 +61,7 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
 
 <div class="container fade-in leaderboard-container" style="max-width:960px; padding:3rem 5%;">
     <div style="text-align:center; margin-bottom:4rem;">
-        <span style="background:rgba(0,113,227,0.1); color:var(--primary); padding:0.5rem 1.2rem; border-radius:20px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:1.5rem; display:inline-block;">Ranking</span>
+        <span style="background:rgba(124,58,237,0.1); color:var(--primary); padding:0.5rem 1.2rem; border-radius:20px; font-size:0.85rem; font-weight:700; text-transform:uppercase; letter-spacing:1px; margin-bottom:1.5rem; display:inline-block;">Ranking</span>
         <h1 style="font-size:3.5rem; font-weight:900; letter-spacing:-0.05em; color:var(--text-main); line-height:1.1; margin-bottom:1rem;">Seller Leaderboard</h1>
         <p style="color:var(--text-muted); font-size:1.2rem; max-width:600px; margin:0 auto; font-weight:500;">Recognizing our most dedicated campus sellers. Activity and sales drive the rankings.</p>
     </div>
@@ -82,7 +82,7 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
                     $rankEmoji = ['🥇','🥈','🥉'][$index] ?? null;
                     $rankColor = $isTop3 ? $colors[$index] : 'var(--text-muted)';
                 ?>
-                <div class="leaderboard-grid" style="cursor:pointer;" onmouseover="this.style.background='rgba(0,113,227,0.04)'" onmouseout="this.style.background='transparent'" onclick="window.location.href='chat.php?user=<?= $l['id'] ?>'">
+                <div class="leaderboard-grid" style="cursor:pointer;" onmouseover="this.style.background='rgba(124,58,237,0.04)'" onmouseout="this.style.background='transparent'" onclick="window.location.href='chat.php?user=<?= $l['id'] ?>'">
                     <!-- Rank Column -->
                     <div style="text-align:center;">
                         <?php if($rankEmoji): ?>
@@ -98,7 +98,7 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
                             <?php if($l['profile_pic']): ?>
                                 <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($l['profile_pic'])) ?>" alt="" style="width:56px; height:56px; border-radius:18px; object-fit:cover; border:2px solid <?= $isTop3 ? $rankColor : 'rgba(128,128,128,0.1)' ?>; box-shadow:0 8px 16px rgba(0,0,0,0.05);">
                             <?php else: ?>
-                                <div style="width:56px; height:56px; border-radius:18px; background:linear-gradient(135deg, rgba(0,113,227,0.1), rgba(0,113,227,0.05)); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.4rem; border:2px solid <?= $isTop3 ? $rankColor : 'rgba(128,128,128,0.1)' ?>;">
+                                <div style="width:56px; height:56px; border-radius:18px; background:linear-gradient(135deg, rgba(124,58,237,0.1), rgba(124,58,237,0.05)); color:var(--primary); display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.4rem; border:2px solid <?= $isTop3 ? $rankColor : 'rgba(128,128,128,0.1)' ?>;">
                                     <?= strtoupper(substr($l['username'], 0, 1)) ?>
                                 </div>
                             <?php endif; ?>
@@ -131,7 +131,7 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
                     <!-- Badge/Status Column -->
                     <div style="text-align:right;" class="hide-mobile">
                         <?php if($l['sales_today'] > 0): ?>
-                            <div style="display:inline-flex; align-items:center; gap:4px; background:rgba(0, 113, 227, 0.1); color:var(--primary); padding:0.4rem 0.8rem; border-radius:10px; font-size:0.75rem; font-weight:800; border:1px solid rgba(0,113,227,0.2);">
+                            <div style="display:inline-flex; align-items:center; gap:4px; background:rgba(124, 58, 237, 0.1); color:var(--primary); padding:0.4rem 0.8rem; border-radius:10px; font-size:0.75rem; font-weight:800; border:1px solid rgba(124,58,237,0.2);">
                                 <span>🚀</span> Trending
                             </div>
                         <?php elseif($l['lifetime_sales'] > 10): ?>

@@ -10,7 +10,7 @@ require_once 'includes/header.php';
 
 <div class="glass form-container fade-in" style="max-width:480px; margin:4rem auto; padding:2.5rem;">
     <div style="text-align:center; margin-bottom:2rem;">
-        <div style="width:64px; height:64px; background:rgba(0,113,227,0.1); color:var(--primary); border-radius:18px; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem; font-size:1.5rem;">₵</div>
+        <div style="width:64px; height:64px; background:rgba(124,58,237,0.1); color:var(--primary); border-radius:18px; display:flex; align-items:center; justify-content:center; margin:0 auto 1rem; font-size:1.5rem;">₵</div>
         <h2 style="font-weight:800; letter-spacing:-0.03em;">Deposit Funds</h2>
         <p class="text-muted" style="font-size:0.9rem;">Add funds to your wallet using Paystack.</p>
     </div>
@@ -21,7 +21,7 @@ require_once 'includes/header.php';
             <input type="number" id="depositAmount" step="0.01" min="1" class="form-control" required placeholder="0.00" style="font-size:1.5rem; font-weight:700; padding:1rem; height:auto; text-align:center; border-radius:16px;">
         </div>
         
-        <button type="button" onclick="startDeposit()" class="btn btn-primary" style="width:100%; justify-content:center; padding:1rem; font-size:1.1rem; font-weight:700; border-radius:16px; box-shadow:0 10px 20px rgba(0,113,227,0.2);">
+        <button type="button" onclick="startDeposit()" class="btn btn-primary" style="width:100%; justify-content:center; padding:1rem; font-size:1.1rem; font-weight:700; border-radius:16px; box-shadow:0 10px 20px rgba(124,58,237,0.2);">
             Initialize Payment
         </button>
     </div>

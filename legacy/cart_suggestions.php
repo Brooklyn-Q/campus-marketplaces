@@ -14,7 +14,7 @@ if (!$items || !is_array($items)) {
 
 if (count($suggestions) > 0) {
     echo '<h3 class="mb-3" style="font-size:1.2rem; display:flex; align-items:center; gap:0.5rem; margin-top:2rem;">';
-    echo '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#ai-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="ai-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0071e3"/><stop offset="100%" stop-color="#34aaff"/></linearGradient></defs><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg>';
+    echo '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="url(#ai-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><defs><linearGradient id="ai-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient></defs><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path></svg>';
     echo 'Suggested Items Before Checkout';
     echo '</h3>';
     echo '<div class="product-grid" style="grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:1rem;">';

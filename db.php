@@ -702,7 +702,7 @@ function getBadgeHtml(PDO $pdo, string $tier): string {
     $bg = match($color) { 
         'gold' => 'linear-gradient(135deg, #ff9f0a 0%, #d4af37 100%)', 
         'silver' => 'linear-gradient(135deg, #8b939a 0%, #5d6d7e 100%)', 
-        'blue' => 'linear-gradient(135deg, #0071e3 0%, #0056b3 100%)',
+        'blue' => 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
         default => $color // Support hex codes in DB
     };
     

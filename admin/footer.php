@@ -6,7 +6,7 @@
                 &copy; <?= date('Y') ?> <span style="color: var(--text-main); font-weight: 700;">Campus Marketplace</span> Admin
             </div>
             <div style="display: flex; gap: 1.5rem; align-items: center;">
-                <span style="background: rgba(0, 113, 227, 0.1); color: #0071e3; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.75rem;">
+                <span style="background: rgba(124, 58, 237, 0.1); color: #7c3aed; padding: 4px 10px; border-radius: 6px; font-weight: 700; font-size: 0.75rem;">
                     v2.5.0-PRO
                 </span>
                 <span>System Status: <span style="color: #28a745;">● Online</span></span>

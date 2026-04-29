@@ -229,7 +229,7 @@ function getS(array $map, string $key, $def = ''): string {
 
 <?php
 $aTiers = getAccountTiers($pdo);
-$tb = $aTiers['basic'] ?? ['product_limit'=>2, 'images_per_product'=>1, 'badge'=>'#0071e3', 'duration'=>'forever', 'price'=>0, 'ads_boost'=>0];
+$tb = $aTiers['basic'] ?? ['product_limit'=>2, 'images_per_product'=>1, 'badge'=>'#7c3aed', 'duration'=>'forever', 'price'=>0, 'ads_boost'=>0];
 $tp = $aTiers['pro'] ?? ['product_limit'=>5, 'images_per_product'=>1, 'badge'=>'#8e8e93', 'duration'=>'2_weeks', 'price'=>10, 'ads_boost'=>0];
 $tm = $aTiers['premium'] ?? ['product_limit'=>15, 'images_per_product'=>3, 'badge'=>'#ff9f0a', 'duration'=>'weekly', 'price'=>20, 'ads_boost'=>1];
 ?>
@@ -239,8 +239,8 @@ $tm = $aTiers['premium'] ?? ['product_limit'=>15, 'images_per_product'=>3, 'badg
     <form method="POST">
         <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem; margin-bottom:1.5rem;">
             <!-- Basic -->
-            <div style="background:rgba(0,113,227,0.05); padding:1rem; border-radius:16px; border:1px solid rgba(0,113,227,0.1);">
-                <h5 style="color:#0071e3; margin-bottom:1rem; display:flex; justify-content:space-between;">Basic Tier <span style="font-size:0.7rem; opacity:0.7;">Forever Free</span></h5>
+            <div style="background:rgba(124,58,237,0.05); padding:1rem; border-radius:16px; border:1px solid rgba(124,58,237,0.1);">
+                <h5 style="color:#7c3aed; margin-bottom:1rem; display:flex; justify-content:space-between;">Basic Tier <span style="font-size:0.7rem; opacity:0.7;">Forever Free</span></h5>
                 <input type="hidden" name="basic_fee" value="0">
                 <input type="hidden" name="basic_duration" value="forever">
                 <div class="form-group mb-1">
@@ -570,7 +570,7 @@ $tm = $aTiers['premium'] ?? ['product_limit'=>15, 'images_per_product'=>3, 'badg
                             </div>
                         </td>
                         <td style="padding:0.75rem;">
-                            <a href="messages.php?view=chat&u1=<?= $o['buyer_id'] ?>&u2=<?= $o['seller_id'] ?>" class="btn btn-sm" style="font-size:0.7rem; background:rgba(0,113,227,0.1); color:#0071e3;">View Chat Log</a>
+                            <a href="messages.php?view=chat&u1=<?= $o['buyer_id'] ?>&u2=<?= $o['seller_id'] ?>" class="btn btn-sm" style="font-size:0.7rem; background:rgba(124,58,237,0.1); color:#7c3aed;">View Chat Log</a>
                         </td>
                     </tr>
                     <?php endforeach; ?>

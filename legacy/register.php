@@ -102,8 +102,8 @@ require_once 'includes/header.php';
     <div class="glass form-container fade-in" style="width:100%; max-width:680px; box-shadow:0 32px 80px rgba(0,0,0,0.12); border-radius:32px;">
         
         <div class="text-center" style="margin-bottom:2rem;">
-            <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:22px; background:linear-gradient(135deg, rgba(0,113,227,0.12), rgba(0,113,227,0.06)); margin-bottom:1.25rem; border:1px solid rgba(0,113,227,0.1);">
-                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0071e3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+            <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:22px; background:linear-gradient(135deg, rgba(124,58,237,0.12), rgba(124,58,237,0.06)); margin-bottom:1.25rem; border:1px solid rgba(124,58,237,0.1);">
+                <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
             </div>
             <h1 style="font-size:2rem; font-weight:800; letter-spacing:-0.03em; margin:0;">Create Account</h1>
             <p style="color:var(--text-muted); font-size:1.05rem; margin-top:0.4rem; font-weight:500;">Join your university marketplace today</p>
@@ -111,10 +111,10 @@ require_once 'includes/header.php';
 
         <!-- Mode Tabs -->
         <div style="display:flex; gap:0.5rem; margin-bottom:2.5rem; background:rgba(0,0,0,0.04); padding:6px; border-radius:18px; border:1px solid rgba(0,0,0,0.04);">
-            <a href="?mode=buyer" style="flex:1; border-radius:14px; padding:0.75rem; text-align:center; font-weight:700; font-size:0.9rem; transition:all 0.25s cubic-bezier(0.2, 0, 0, 1); text-decoration:none; <?= $mode==='buyer' ? 'background:#fff; color:#0071e3; box-shadow:0 4px 12px rgba(0,0,0,0.1);' : 'color:var(--text-muted);' ?>">
+            <a href="?mode=buyer" style="flex:1; border-radius:14px; padding:0.75rem; text-align:center; font-weight:700; font-size:0.9rem; transition:all 0.25s cubic-bezier(0.2, 0, 0, 1); text-decoration:none; <?= $mode==='buyer' ? 'background:#fff; color:#7c3aed; box-shadow:0 4px 12px rgba(0,0,0,0.1);' : 'color:var(--text-muted);' ?>">
                 🛒 Buyer
             </a>
-            <a href="?mode=seller" style="flex:1; border-radius:14px; padding:0.75rem; text-align:center; font-weight:700; font-size:0.9rem; transition:all 0.25s cubic-bezier(0.2, 0, 0, 1); text-decoration:none; <?= $mode==='seller' ? 'background:#fff; color:#0071e3; box-shadow:0 4px 12px rgba(0,0,0,0.1);' : 'color:var(--text-muted);' ?>">
+            <a href="?mode=seller" style="flex:1; border-radius:14px; padding:0.75rem; text-align:center; font-weight:700; font-size:0.9rem; transition:all 0.25s cubic-bezier(0.2, 0, 0, 1); text-decoration:none; <?= $mode==='seller' ? 'background:#fff; color:#7c3aed; box-shadow:0 4px 12px rgba(0,0,0,0.1);' : 'color:var(--text-muted);' ?>">
                 🏪 Seller
             </a>
         </div>
@@ -211,7 +211,7 @@ require_once 'includes/header.php';
                 </div>
             <?php endif; ?>
 
-            <div class="form-group" style="display:flex; gap:0.75rem; align-items:flex-start; margin:2rem 0; background:rgba(0,113,227,0.03); padding:1.25rem; border-radius:20px; border:1px solid rgba(0,113,227,0.08);">
+            <div class="form-group" style="display:flex; gap:0.75rem; align-items:flex-start; margin:2rem 0; background:rgba(124,58,237,0.03); padding:1.25rem; border-radius:20px; border:1px solid rgba(124,58,237,0.08);">
                 <input type="checkbox" name="terms" value="1" id="termsCheckbox" required disabled style="width:20px; height:20px; margin-top:3px; cursor:not-allowed;">
                 <label for="termsCheckbox" style="font-size:0.9rem; color:var(--text-main); line-height:1.5; font-weight:500; margin:0;">
                     I have read and agree to the <a href="javascript:void(0)" onclick="openTermsModal()" style="color:var(--primary); font-weight:800; text-decoration:underline;">Terms & Conditions</a>. (Please read first)

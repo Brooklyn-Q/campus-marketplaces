@@ -201,7 +201,7 @@ $categoryDist = $pdo->query("SELECT category, COUNT(*) as cnt FROM products WHER
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         const chartColors = {
-            revenue: { bg: 'rgba(0,113,227,0.15)', border: '#0071e3' },
+            revenue: { bg: 'rgba(124,58,237,0.15)', border: '#7c3aed' },
             users: { bg: 'rgba(52,199,89,0.15)', border: '#34c759' },
         };
         const gridColor = 'rgba(0,0,0,0.04)';
@@ -243,7 +243,7 @@ $categoryDist = $pdo->query("SELECT category, COUNT(*) as cnt FROM products WHER
 
         // Category Doughnut
         const catData = <?= json_encode($categoryDist) ?>;
-        const catColors = ['#0071e3', '#34c759', '#ff9500', '#af52de', '#ff3b30', '#5ac8fa', '#ffcc00', '#8e8e93'];
+        const catColors = ['#7c3aed', '#34c759', '#ff9500', '#af52de', '#ff3b30', '#5ac8fa', '#ffcc00', '#8e8e93'];
         new Chart(document.getElementById('categoryChart'), {
             type: 'doughnut',
             data: {

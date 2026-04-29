@@ -61,7 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['admin_reply'])) {
                     $isActive = ($selected_u1 == $c['u1'] && $selected_u2 == $c['u2']);
                 ?>
                     <a href="?u1=<?= $c['u1'] ?>&u2=<?= $c['u2'] ?>" 
-                       style="display:block; padding:1rem; border-radius:12px; border:1px solid <?= $isActive ? 'var(--primary)' : 'rgba(255,255,255,0.05)' ?>; background:<?= $isActive ? 'rgba(0,113,227,0.1)' : 'rgba(255,255,255,0.02)' ?>; margin-bottom:0.75rem; text-decoration:none; transition:all 0.2s;">
+                       style="display:block; padding:1rem; border-radius:12px; border:1px solid <?= $isActive ? 'var(--primary)' : 'rgba(255,255,255,0.05)' ?>; background:<?= $isActive ? 'rgba(124,58,237,0.1)' : 'rgba(255,255,255,0.02)' ?>; margin-bottom:0.75rem; text-decoration:none; transition:all 0.2s;">
                         <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
                             <strong style="color:<?= $isActive ? 'var(--primary)' : '#fff' ?>; font-size:0.9rem;">
                                 <?= htmlspecialchars($u1_info['username']) ?> ⬌ <?= htmlspecialchars($u2_info['username']) ?>

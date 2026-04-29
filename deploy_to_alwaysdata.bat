@@ -117,13 +117,35 @@ if "%SKIP_REMOTE%"=="1" (
     goto :success
 )
 
-:: Upload PHP bundle
+:: Upload PHP bundle (retry up to 3 times)
 echo Uploading app.zip...
-curl.exe --noproxy "*" --ssl-reqd -T "%APP_ZIP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass% || goto :error
+set "_retries=0"
+:upload_app
+curl.exe --noproxy "*" --ssl-reqd --ftp-pasv --retry 3 --retry-delay 5 --speed-limit 1 --speed-time 60 -T "%APP_ZIP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass%
+if errorlevel 1 (
+    set /a "_retries+=1"
+    if %_retries% lss 3 (
+        echo app.zip upload failed, retrying ^(%_retries%/3^)...
+        timeout /t 5 /nobreak >nul
+        goto :upload_app
+    )
+    goto :error
+)
 
-:: Upload React bundle
+:: Upload React bundle (retry up to 3 times)
 echo Uploading react.zip...
-curl.exe --noproxy "*" --ssl-reqd -T "%REACT_ZIP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass% || goto :error
+set "_retries=0"
+:upload_react
+curl.exe --noproxy "*" --ssl-reqd --ftp-pasv --retry 3 --retry-delay 5 --speed-limit 1 --speed-time 60 -T "%REACT_ZIP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass%
+if errorlevel 1 (
+    set /a "_retries+=1"
+    if %_retries% lss 3 (
+        echo react.zip upload failed, retrying ^(%_retries%/3^)...
+        timeout /t 5 /nobreak >nul
+        goto :upload_react
+    )
+    goto :error
+)
 
 :: Upload unzip script (for PHP extraction)
 echo Creating unzip.php...
@@ -133,7 +155,7 @@ if not exist "%UNZIP_PHP%" (
     goto :error
 )
 echo Uploading unzip.php...
-curl.exe --noproxy "*" --ssl-reqd -T "%UNZIP_PHP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass% || goto :error
+curl.exe --noproxy "*" --ssl-reqd --ftp-pasv --retry 3 --retry-delay 5 -T "%UNZIP_PHP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass% || goto :error
 
 :: Extract files on the server
 echo Extracting PHP files on the server...

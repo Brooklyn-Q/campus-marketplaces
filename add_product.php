@@ -129,7 +129,7 @@ require_once 'includes/header.php';
         </div>
     </div>
 
-    <div class="glass" style="padding:1rem; margin-bottom:1.5rem; border-left:4px solid var(--primary); background:rgba(0,113,227,0.05);">
+    <div class="glass" style="padding:1rem; margin-bottom:1.5rem; border-left:4px solid var(--primary); background:rgba(124,58,237,0.05);">
         <p style="font-size:0.85rem; font-weight:600;">Tier Benefits (<?= ucfirst($user['seller_tier'] ?: 'basic') ?>):</p>
         <ul style="font-size:0.8rem; margin:8px 0 0 16px; color:var(--text-muted);">
             <li>Max images per product: <strong><?= $maxImages ?></strong></li>

@@ -19,7 +19,7 @@ try {
         $pdo = null;
     } else {
         // PROFESSIONAL LIVE MODE ERROR SCREEN
-        die('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Maintenance | Campus Marketplace</title><style>body{background:#0a0f1e;color:#fff;font-family:system-ui, -apple-system, sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;overflow:hidden;text-align:center;} .glass{background:rgba(255,255,255,0.03);backdrop-filter:blur(20px);padding:3rem;border-radius:24px;border:1px solid rgba(255,255,255,0.1);max-width:400px;box-shadow:0 40px 100px rgba(0,0,0,0.4);} h1{font-size:3rem;margin:0;background:linear-gradient(135deg, #fff 0%, #666 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.05em;} p{color:rgba(255,255,255,0.6);line-height:1.6;margin-top:1rem;font-size:1.1rem;} .dot{height:8px;width:8px;background:#0071e3;border-radius:50%;display:inline-block;margin-right:8px;box-shadow:0 0 15px #0071e3;}</style></head><body><div class="glass"><h1>503</h1><p><span class="dot"></span>We are currently optimizing our servers. <br>The Campus Marketplace will be back online shortly.</p></div></body></html>');
+        die('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Maintenance | Campus Marketplace</title><style>body{background:#0a0f1e;color:#fff;font-family:system-ui, -apple-system, sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;overflow:hidden;text-align:center;} .glass{background:rgba(255,255,255,0.03);backdrop-filter:blur(20px);padding:3rem;border-radius:24px;border:1px solid rgba(255,255,255,0.1);max-width:400px;box-shadow:0 40px 100px rgba(0,0,0,0.4);} h1{font-size:3rem;margin:0;background:linear-gradient(135deg, #fff 0%, #666 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;letter-spacing:-0.05em;} p{color:rgba(255,255,255,0.6);line-height:1.6;margin-top:1rem;font-size:1.1rem;} .dot{height:8px;width:8px;background:#7c3aed;border-radius:50%;display:inline-block;margin-right:8px;box-shadow:0 0 15px #7c3aed;}</style></head><body><div class="glass"><h1>503</h1><p><span class="dot"></span>We are currently optimizing our servers. <br>The Campus Marketplace will be back online shortly.</p></div></body></html>');
     }
 }
 
@@ -206,7 +206,7 @@ function getBadgeHtml(PDO $pdo, string $tier): string {
     $bg = match($color) { 
         'gold' => 'linear-gradient(135deg, #ff9f0a 0%, #d4af37 100%)', 
         'silver' => 'linear-gradient(135deg, #8b939a 0%, #5d6d7e 100%)', 
-        'blue' => 'linear-gradient(135deg, #0071e3 0%, #0056b3 100%)',
+        'blue' => 'linear-gradient(135deg, #7c3aed 0%, #5b21b6 100%)',
         default => $color // Support hex codes in DB
     };
     

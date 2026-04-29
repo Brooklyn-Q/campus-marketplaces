@@ -57,8 +57,8 @@
                 <button onclick="closeTermsModal()" style="background:rgba(0,0,0,0.05); border:none; width:36px; height:36px; border-radius:50%; cursor:pointer; font-size:1.5rem; display:flex; align-items:center; justify-content:center; transition:0.2s;" onmouseover="this.style.background='rgba(0,0,0,0.1)'" onmouseout="this.style.background='rgba(0,0,0,0.05)'">&times;</button>
             </div>
             <!-- Progress Bar -->
-            <div style="width:100%; height:4px; background:rgba(0,113,227,0.1); position:relative; overflow:hidden;">
-                <div id="termsProgressBar" style="position:absolute; top:0; left:0; height:100%; width:0%; background:#0071e3; transition:width 0.1s;"></div>
+            <div style="width:100%; height:4px; background:rgba(124,58,237,0.1); position:relative; overflow:hidden;">
+                <div id="termsProgressBar" style="position:absolute; top:0; left:0; height:100%; width:0%; background:#7c3aed; transition:width 0.1s;"></div>
             </div>
             <div id="modalTermsContent" style="flex:1; overflow-y:auto; padding:2rem 2.5rem; font-size:0.95rem; line-height:1.7; color:var(--text-main);">
                 <h4 style="font-size:1.4rem; margin-bottom:1.5rem;">Campus Marketplace Platform</h4>
@@ -225,14 +225,14 @@
     <!-- CAMPUS MARKETPLACE AI ASSISTANT -->
     <div id="ai-assistant-widget" style="position:fixed; bottom:20px; right:20px; z-index:9999; font-family:'Inter', sans-serif;">
         <!-- Chat Head Button — Modern SVG icon -->
-        <button id="ai-chat-btn" onclick="toggleAIChat()" style="width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg, #0071e3, #34aaff); border:none; box-shadow:0 6px 20px rgba(0,113,227,0.4); color:white; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
+        <button id="ai-chat-btn" onclick="toggleAIChat()" style="width:56px; height:56px; border-radius:50%; background:linear-gradient(135deg, #7c3aed, #a78bfa); border:none; box-shadow:0 6px 20px rgba(124,58,237,0.4); color:white; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);" onmouseover="this.style.transform='scale(1.1)'" onmouseout="this.style.transform='scale(1)'">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
         </button>
 
         <!-- Chat Window -->
         <div id="ai-chat-window" style="display:none; position:absolute; bottom:72px; right:0; width:360px; max-width:90vw; height:460px; border-radius:20px; flex-direction:column; overflow:hidden; box-shadow:0 20px 48px rgba(0,0,0,0.2); border:1px solid var(--border); background:var(--card-bg); backdrop-filter:blur(24px); -webkit-backdrop-filter:blur(24px);">
             <!-- Header -->
-            <div style="background:#0071e3; padding:0.85rem 1rem; color:white; display:flex; justify-content:space-between; align-items:center;">
+            <div style="background:#7c3aed; padding:0.85rem 1rem; color:white; display:flex; justify-content:space-between; align-items:center;">
                 <div style="display:flex; align-items:center; gap:8px;">
                     <div style="width:32px; height:32px; background:rgba(255,255,255,0.2); border-radius:10px; display:flex; align-items:center; justify-content:center;">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
@@ -255,7 +255,7 @@
             <!-- Input -->
             <div style="padding:0.75rem; border-top:1px solid var(--border); display:flex; gap:8px; background:var(--card-bg);">
                 <input type="text" id="ai-input" placeholder="Ask a question..." style="flex:1; padding:0.7rem 1rem; border-radius:999px; border:1px solid var(--border); background:var(--bg); color:var(--text-main); font-size:0.85rem; outline:none;" onkeypress="if(event.key==='Enter') sendAIMessage()">
-                <button onclick="sendAIMessage()" style="background:#0071e3; color:white; border:none; padding:0 1rem; border-radius:999px; cursor:pointer; font-weight:600; font-size:0.84rem; transition:background 0.2s;" onmouseover="this.style.background='#0080f8'" onmouseout="this.style.background='#0071e3'">Send</button>
+                <button onclick="sendAIMessage()" style="background:#7c3aed; color:white; border:none; padding:0 1rem; border-radius:999px; cursor:pointer; font-weight:600; font-size:0.84rem; transition:background 0.2s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">Send</button>
             </div>
         </div>
     </div>
@@ -319,7 +319,7 @@
             if(sender === 'user') {
                 div.style.alignItems = 'flex-end';
                 div.style.alignSelf = 'flex-end';
-                div.innerHTML = `<div style="background:#0071e3; color:white; padding:0.7rem 1rem; border-radius:14px 14px 2px 14px; font-size:0.85rem; line-height:1.5;">${escapeHtml(text)}</div>`;
+                div.innerHTML = `<div style="background:#7c3aed; color:white; padding:0.7rem 1rem; border-radius:14px 14px 2px 14px; font-size:0.85rem; line-height:1.5;">${escapeHtml(text)}</div>`;
             } else {
                 div.style.alignItems = 'flex-start';
                 div.style.alignSelf = 'flex-start';

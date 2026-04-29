@@ -14,15 +14,15 @@ require_once 'includes/header.php';
 
 <style>
     .wishlist-card { background:rgba(255,255,255,0.8); backdrop-filter:blur(24px); border:1px solid rgba(0,0,0,0.08); border-radius:16px; overflow:hidden; transition:all 0.4s cubic-bezier(0.25, 0.8, 0.25, 1); cursor:pointer; box-shadow:0 4px 16px rgba(0,0,0,0.04); }
-    .wishlist-card:hover { border-color:rgba(0,113,227,0.3); transform:translateY(-6px); box-shadow:0 16px 40px rgba(0,0,0,0.08), 0 0 20px rgba(0,113,227,0.15); }
+    .wishlist-card:hover { border-color:rgba(124,58,237,0.3); transform:translateY(-6px); box-shadow:0 16px 40px rgba(0,0,0,0.08), 0 0 20px rgba(124,58,237,0.15); }
     .wishlist-card-img-wrap { overflow:hidden; }
     .wishlist-card img { width:100%; height:160px; object-fit:cover; transition:transform 0.6s cubic-bezier(0.25, 0.8, 0.25, 1); display:block; }
     .wishlist-card:hover img { transform:scale(1.08); }
     .wishlist-card-body { padding:1.25rem; }
     .wishlist-remove { background:rgba(255,59,48,0.1); border:1px solid rgba(255,59,48,0.2); color:#ff3b30; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:0.8rem; font-weight:600; transition:all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); width:100%; }
     .wishlist-remove:hover { background:rgba(255,59,48,0.2); transform:translateY(-2px); box-shadow:0 6px 16px rgba(255,59,48,0.15); }
-    .wishlist-add-cart { background:#0071e3; color:#fff; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:0.8rem; font-weight:600; width:100%; transition:all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
-    .wishlist-add-cart:hover { background:#0077ED; transform:translateY(-2px); box-shadow:0 6px 16px rgba(0,113,227,0.25); }
+    .wishlist-add-cart { background:#7c3aed; color:#fff; border:none; padding:8px 14px; border-radius:8px; cursor:pointer; font-size:0.8rem; font-weight:600; width:100%; transition:all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
+    .wishlist-add-cart:hover { background:#6d28d9; transform:translateY(-2px); box-shadow:0 6px 16px rgba(124,58,237,0.25); }
 </style>
 
 <script>

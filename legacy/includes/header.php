@@ -111,7 +111,7 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
                     .cat-dropdown-menu.cat-open { display:block !important; animation: catFadeIn 0.18s ease; }
                     @keyframes catFadeIn { from { opacity:0; transform:translateX(-50%) translateY(-8px); } to { opacity:1; transform:translateX(-50%) translateY(0); } }
                     .cat-item { display:flex; align-items:center; gap:8px; padding:10px 16px; color:var(--text-main); text-decoration:none; font-size:0.84rem; border-bottom:1px solid rgba(0,0,0,0.05); transition:all 0.2s; }
-                    .cat-item:hover { background:rgba(0,113,227,0.06); color:#0071e3; }
+                    .cat-item:hover { background:rgba(124,58,237,0.06); color:#7c3aed; }
                     .cat-item:last-child { border-bottom:none; }
                     :root.dark-mode .cat-item { border-bottom-color:rgba(255,255,255,0.06); }
                     :root.dark-mode .cat-item:hover { background:rgba(255,255,255,0.08); }
@@ -140,7 +140,7 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
                     <a href="<?= $baseUrl ?>logout.php" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='#ff3b30'; this.style.background='rgba(255,59,48,0.06)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Logout</a>
                 <?php else: ?>
                     <a href="<?= $baseUrl ?>login.php" style="color:var(--text-muted); font-weight:500; font-size:0.85rem; padding:0.4rem 0.75rem; border-radius:8px; transition:all 0.2s; text-decoration:none;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Login</a>
-                    <a href="<?= $baseUrl ?>register.php" style="background:#0071e3; color:#fff; font-weight:600; font-size:0.85rem; padding:0.45rem 1.1rem; border-radius:980px; text-decoration:none; transition:all 0.2s;" onmouseover="this.style.background='#0080f8'" onmouseout="this.style.background='#0071e3'">Sign Up</a>
+                    <a href="<?= $baseUrl ?>register.php" style="background:#7c3aed; color:#fff; font-weight:600; font-size:0.85rem; padding:0.45rem 1.1rem; border-radius:980px; text-decoration:none; transition:all 0.2s;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">Sign Up</a>
                 <?php endif; ?>
             </div>
 

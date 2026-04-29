@@ -159,7 +159,7 @@ $adminUnreadNotifications = getUnreadNotificationCount($pdo, $_SESSION['user_id'
 
         .nav-link-cta:hover,
         .nav-link-cta:focus {
-            background: #0080f8;
+            background: #6d28d9;
         }
 
         .stat-card-link {
@@ -176,7 +176,7 @@ $adminUnreadNotifications = getUnreadNotificationCount($pdo, $_SESSION['user_id'
         .stat-card-link:focus .stat-card {
             transform: translateY(-2px);
             box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
-            border-color: rgba(0, 113, 227, 0.22);
+            border-color: rgba(124, 58, 237, 0.22);
         }
 
         .dark-mode nav {

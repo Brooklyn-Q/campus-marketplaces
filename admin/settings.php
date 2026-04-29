@@ -325,7 +325,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </form>
 
         <div style="margin-top:0.9rem; text-align:right;">
-            <a href="../forgot_password.php" style="color:#0071e3; font-weight:700; text-decoration:none; font-size:0.92rem;">Forgot password?</a>
+            <a href="../forgot_password.php" style="color:#7c3aed; font-weight:700; text-decoration:none; font-size:0.92rem;">Forgot password?</a>
         </div>
 
         <?php if ($googleEnabled): ?>

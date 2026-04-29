@@ -152,7 +152,7 @@ if ($is_default_home) {
         <div class="container">
     <?php else: ?>
         <!-- Search Results Header (Apple Style) -->
-        <div style="padding:5rem 5% 3rem; background:linear-gradient(to bottom, rgba(0,113,227,0.06), transparent); border-bottom:1px solid rgba(0,0,0,0.05); text-align:center; margin-bottom:2rem;">
+        <div style="padding:5rem 5% 3rem; background:linear-gradient(to bottom, rgba(124,58,237,0.06), transparent); border-bottom:1px solid rgba(0,0,0,0.05); text-align:center; margin-bottom:2rem;">
             <h1 style="font-size:3.5rem; font-weight:800; color:var(--text-main); letter-spacing:-0.04em;">
                 <?php 
                     if ($search) echo 'Search: "'.htmlspecialchars($search).'"';
@@ -199,7 +199,7 @@ if ($is_default_home) {
                 <?php if($ad['image_url']): ?>
                     <img src="<?= htmlspecialchars($ad['image_url']) ?>" alt="<?= htmlspecialchars($ad['title']) ?>" class="ad-banner-img" loading="lazy" style="width:100%; height:100%; object-fit:cover; display:block;">
                 <?php else: ?>
-                    <div style="background:linear-gradient(135deg, #0071e3, #34aaff); color:#fff; padding:2.5rem; text-align:center; min-height:160px; display:flex; flex-direction:column; justify-content:center;">
+                    <div style="background:linear-gradient(135deg, #7c3aed, #a78bfa); color:#fff; padding:2.5rem; text-align:center; min-height:160px; display:flex; flex-direction:column; justify-content:center;">
                         <p style="font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; opacity:0.8; margin-bottom:0.5rem; font-weight:700;">Sponsored Content</p>
                         <p style="font-size:1.5rem; font-weight:800; letter-spacing:-0.02em;"><?= htmlspecialchars($ad['title']) ?></p>
                     </div>
@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const wordDiv = document.createElement('div');
                             wordDiv.textContent = word;
                             wordDiv.style.cssText = 'padding:10px 16px; cursor:pointer; font-weight:500; border-bottom:1px solid rgba(0,0,0,0.05); transition:background 0.2s;';
-                            wordDiv.onmouseover = () => wordDiv.style.background = 'rgba(0,113,227,0.06)';
+                            wordDiv.onmouseover = () => wordDiv.style.background = 'rgba(124,58,237,0.06)';
                             wordDiv.onmouseout = () => wordDiv.style.background = 'transparent';
                             wordDiv.onclick = () => {
                                 searchInput.value = word;
@@ -323,7 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <h3 class="mb-3" style="font-size:1.4rem; font-weight:800; display:flex; align-items:center; justify-content:space-between;">
             <span style="display:flex; align-items:center; gap:0.5rem;">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="url(#ai-grad)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <defs><linearGradient id="ai-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#0071e3"/><stop offset="100%" stop-color="#34aaff"/></linearGradient></defs>
+                    <defs><linearGradient id="ai-grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#a78bfa"/></linearGradient></defs>
                     <path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path>
                 </svg>
                 Recommendations

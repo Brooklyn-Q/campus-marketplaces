@@ -105,13 +105,13 @@ require_once 'includes/header.php';
                 const card = radio.closest('label')?.querySelector('div');
                 if (!card) return;
                 if (radio.checked) {
-                    card.style.borderColor = 'rgba(0,113,227,0.35)';
-                    card.style.boxShadow = '0 16px 32px rgba(0,113,227,0.12)';
-                    card.style.background = 'rgba(0,113,227,0.08)';
+                    card.style.borderColor = 'rgba(124,58,237,0.35)';
+                    card.style.boxShadow = '0 16px 32px rgba(124,58,237,0.12)';
+                    card.style.background = 'rgba(124,58,237,0.08)';
                 } else {
-                    card.style.borderColor = 'rgba(0,113,227,0.12)';
+                    card.style.borderColor = 'rgba(124,58,237,0.12)';
                     card.style.boxShadow = 'none';
-                    card.style.background = 'rgba(0,113,227,0.03)';
+                    card.style.background = 'rgba(124,58,237,0.03)';
                 }
             });
         };
