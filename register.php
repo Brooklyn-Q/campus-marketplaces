@@ -569,7 +569,7 @@ require_once 'includes/header.php';
             <div id="regTermsProgress" style="position:absolute; top:0; left:0; height:100%; width:0%; background:#7c3aed; transition:width 0.1s;"></div>
         </div>
         <div id="regTermsBody" onscroll="onRegTermsScroll(this)" style="flex:1; overflow-y:auto; padding:1.75rem 2rem; font-size:0.92rem; line-height:1.8; color:var(--text-main, #1a1a1a);">
-            <?php require_once 'includes/terms_content.php'; ?>
+            <?php require_once __DIR__ . '/includes/terms_content.php'; ?>
         </div>
         <div style="padding:1.25rem 1.75rem; border-top:1px solid rgba(0,0,0,0.08);">
             <button id="regTermsAcceptBtn" onclick="acceptRegTerms()" disabled style="width:100%; padding:0.9rem; background:#7c3aed; color:#fff; border:none; border-radius:12px; font-size:0.95rem; font-weight:700; cursor:not-allowed; opacity:0.45; transition:opacity 0.2s;">
