@@ -176,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             break;
         case 'accept_order':
             $oid = (int)($_POST['oid'] ?? $_GET['oid'] ?? 0);
-            $note = trim($_POST['delivery_note'] ?? '');
+            $note = htmlspecialchars(trim($_POST['delivery_note'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             if ($oid > 0) {
                 $note = $note ?: 'Seller has acknowledged your order and will update you shortly.';
                 $o = $pdo->prepare("SELECT o.*, p.title FROM orders o JOIN products p ON o.product_id=p.id WHERE o.id=? AND o.seller_id=?");
@@ -636,8 +636,116 @@ require_once 'includes/ai_recommendations.php';
 require_once 'includes/header.php';
 ?>
 <style>
+/* DASHBOARD ALIGNMENT FIXES */
+.stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.stat-card {
+    padding: 1.5rem 1rem;
+    text-align: center;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    min-height: 120px;
+    border-radius: 16px;
+}
+
+.stat-card .stat-val {
+    font-family: var(--font-heading, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    margin-bottom: 0.5rem;
+    color: var(--text-main);
+}
+
+.stat-card .stat-label {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.glass {
+    backdrop-filter: blur(12px);
+    background: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.grid-2-cols {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.grid-2-cols .glass {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 1.25rem;
+    text-align: left;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+    font-size: 0.8rem !important;
+    line-height: 1.4 !important;
+}
+
+@media (max-width: 768px) {
+    .stat-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.75rem;
+    }
+    
+    .stat-card {
+        padding: 1rem 0.75rem;
+        min-height: 100px;
+    }
+    
+    .stat-card .stat-val {
+        font-size: 1.5rem;
+    }
+    
+    .stat-card .stat-label {
+        font-size: 0.7rem;
+    }
+    
+    .grid-2-cols {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 480px) {
+    .stat-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* FULL-SCREEN DASHBOARD LAYOUT */
-   FULL-SCREEN DASHBOARD LAYOUT
+/* layout sizing overrides */
+.container { 
+    max-width: none !important; 
+    width: 96% !important; 
+    padding-left: 2rem !important; 
+    padding-right: 2rem !important; 
+}
 /* layout sizing overrides */
 .container { 
     max-width: none !important; 

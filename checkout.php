@@ -12,7 +12,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     $ids = array_filter(array_map('intval', $ids));
     if (!empty($ids)) {
         $buyer_id = (int)$_SESSION['user_id'];
-        $buyer_name = $_SESSION['username'];
+        $buyer_name = htmlspecialchars($_SESSION['username'] ?? '', ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
         
         $pdo->beginTransaction();
         try {

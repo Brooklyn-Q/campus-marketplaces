@@ -120,7 +120,7 @@ if (isset($_GET['action'])) {
             break;
         case 'accept_order':
             $oid = (int)($_GET['oid'] ?? 0);
-            $note = trim($_POST['delivery_note'] ?? '');
+            $note = htmlspecialchars(trim($_POST['delivery_note'] ?? ''), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
             if ($oid > 0 && $note) {
                 // Seller accepts
                 $pdo->prepare("UPDATE orders SET status='seller_seen', delivery_note=? WHERE id=? AND seller_id=?")->execute([$note, $oid, $user['id']]);

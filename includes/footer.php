@@ -598,9 +598,20 @@
             toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
             toast.style.cursor = linkUrl ? 'pointer' : 'default';
 
-            toast.innerHTML = '<div style="font-weight:800; margin-bottom:4px;">' + title + '</div>'
-                + '<div style="font-size:0.9rem; line-height:1.45; color:rgba(255,255,255,0.82);">' + message + '</div>'
-                + (actionText ? '<div style="margin-top:10px; font-size:0.8rem; color:#93c5fd; font-weight:700;">' + actionText + '</div>' : '');
+            const titleEl = document.createElement('div');
+            titleEl.style.cssText = 'font-weight:800; margin-bottom:4px;';
+            titleEl.textContent = title;
+            const bodyEl = document.createElement('div');
+            bodyEl.style.cssText = 'font-size:0.9rem; line-height:1.45; color:rgba(255,255,255,0.82);';
+            bodyEl.textContent = message;
+            toast.appendChild(titleEl);
+            toast.appendChild(bodyEl);
+            if (actionText) {
+                const actionEl = document.createElement('div');
+                actionEl.style.cssText = 'margin-top:10px; font-size:0.8rem; color:#93c5fd; font-weight:700;';
+                actionEl.textContent = actionText;
+                toast.appendChild(actionEl);
+            }
 
             if (linkUrl) {
                 toast.addEventListener('click', function () {
