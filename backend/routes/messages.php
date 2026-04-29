@@ -52,6 +52,20 @@ if ($method === 'GET' && $action === 'conversations') {
 
 // ── GET MESSAGES WITH USER ──
 elseif ($method === 'GET' && $targetUserId) {
+    // SECURITY: verify the authenticated user is actually a participant in this
+    // conversation before reading or mutating anything. Without this check any
+    // logged-in user could mark another user's messages as read by hitting
+    // GET /messages/<victim_id>.
+    $check = $pdo->prepare("
+        SELECT 1 FROM messages
+        WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
+        LIMIT 1
+    ");
+    $check->execute([$me, $targetUserId, $targetUserId, $me]);
+    if (!$check->fetch()) {
+        jsonResponse(['messages' => []]);
+    }
+
     // Mark messages as read
     $boolTrue = sqlBool(true, $pdo);
     $pdo->prepare("UPDATE messages SET is_read = $boolTrue, delivery_status = 'seen' WHERE sender_id = ? AND receiver_id = ?")
