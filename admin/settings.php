@@ -207,9 +207,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $err = "Too many failed login attempts. Please wait " . ATTEMPT_WINDOW . " minutes and try again.";
 
     } else {
-        // Step 2 — Fetch the user record (admin only, or adapt to your schema)
-        $stmt = $pdo->prepare("SELECT * FROM users WHERE username = ? LIMIT 1");
-        $stmt->execute([$username]);
+        // Step 2 — Fetch the user record (admin only); accept email OR username
+        $stmt = $pdo->prepare("SELECT * FROM users WHERE (LOWER(email) = LOWER(?) OR username = ?) AND role = 'admin' LIMIT 1");
+        $stmt->execute([$username, $username]);
         $user = $stmt->fetch();
 
         // Step 3 — Always run a password_verify() to prevent timing attacks.
@@ -309,8 +309,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?= csrf_field() ?>
 
             <div class="mb-2">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" autocomplete="username" required style="width:100%;">
+                <label for="username">Email or Username</label>
+                <input type="text" id="username" name="username" autocomplete="username" required style="width:100%;" placeholder="Enter email or username">
             </div>
 
             <div class="mb-3">
