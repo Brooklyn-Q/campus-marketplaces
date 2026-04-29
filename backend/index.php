@@ -155,6 +155,10 @@ try {
         // ── ADMIN ──
         case 'admin':
             $adminResource = $segments[1] ?? '';
+            // SECURITY: only allow plain alphanumeric + underscore names — no dots, slashes, or traversal
+            if ($adminResource && !preg_match('/^[a-zA-Z0-9_]+$/', $adminResource)) {
+                jsonError('Not found', 404);
+            }
             $adminFile = __DIR__ . '/routes/admin/' . $adminResource . '.php';
             if ($adminResource && file_exists($adminFile)) {
                 require $adminFile;
