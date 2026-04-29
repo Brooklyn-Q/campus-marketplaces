@@ -4,10 +4,22 @@
  * All requests are routed through this file via .htaccess
  */
 
-// Error handling
+// Error handling — always log, never display in production
 error_reporting(E_ALL);
-ini_set('display_errors', 1);
 ini_set('log_errors', 1);
+// Load env early so APP_ENV is available before anything else
+$_envFile = __DIR__ . '/../alwaysdata.env';
+if (!file_exists($_envFile)) $_envFile = __DIR__ . '/../.env';
+if (file_exists($_envFile)) {
+    foreach (file($_envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $_line) {
+        if (str_starts_with(trim($_line), '#') || !str_contains($_line, '=')) continue;
+        [$_k, $_v] = explode('=', $_line, 2);
+        if (getenv(trim($_k)) === false) putenv(trim($_k) . '=' . trim($_v));
+    }
+}
+$_isProduction = strtolower(getenv('APP_ENV') ?: 'production') === 'production';
+ini_set('display_errors', $_isProduction ? '0' : '1');
+unset($_envFile, $_line, $_k, $_v, $_isProduction);
 
 // Load environment + config
 require_once __DIR__ . '/config/database.php';
