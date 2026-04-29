@@ -11,6 +11,9 @@ $googleHint = match ($mode) {
     'admin' => 'Continue with Google as an approved admin account.',
     default => 'Continue with Google to sign in. If this is your first time, we will ask whether you want a buyer or seller account.',
 };
+$_login_ip = get_login_client_ip();
+purge_old_login_attempts($pdo);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $login_id = trim($_POST['login_id'] ?? '');
@@ -18,18 +21,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (empty($login_id) || empty($password)) {
         $error = "Please fill in all fields.";
+    } elseif (is_login_throttled($pdo, $_login_ip)) {
+        $error = "Too many failed login attempts. Please wait " . LOGIN_ATTEMPT_WINDOW . " minutes and try again.";
     } else {
         // Case-sensitive username check but insensitive email check
         $stmt = $pdo->prepare("SELECT * FROM users WHERE LOWER(email) = LOWER(?) OR username = ?");
         $stmt->execute([$login_id, $login_id]);
         $user = $stmt->fetch();
 
-        if ($user && password_verify($password, $user['password'])) {
+        // Always run password_verify (even on no-match) to prevent timing attacks
+        $hashToCheck = $user ? $user['password'] : LOGIN_DUMMY_HASH;
+        $passwordOk  = password_verify($password, $hashToCheck);
+
+        if ($user && $passwordOk) {
             // Check if account is suspended (robust boolean check for PG/MySQL)
             $isSuspended = filter_var($user['suspended'] ?? false, FILTER_VALIDATE_BOOLEAN);
             if ($isSuspended) {
                 $error = "⛔ Your account has been suspended. Contact admin for assistance.";
             } else {
+                clear_login_attempts($pdo, $_login_ip);
                 session_regenerate_id(true);
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
@@ -53,7 +63,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 redirect($isAdmin ? 'admin/' : 'dashboard.php');
             }
         } else {
-            $error = "Invalid email/username or password.";
+            record_login_failure($pdo, $_login_ip, $login_id);
+            $remaining = remaining_login_attempts($pdo, $_login_ip);
+            $error = $remaining > 0
+                ? "Invalid email/username or password. {$remaining} attempt(s) remaining."
+                : "Too many failed login attempts. Please wait " . LOGIN_ATTEMPT_WINDOW . " minutes and try again.";
         }
     }
 }

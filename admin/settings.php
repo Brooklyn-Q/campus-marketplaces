@@ -6,151 +6,25 @@ require_once '../includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
 
 // ---------------------------------------------------------------------------
-// Schema bootstrap — run once, safe to call on every request
+// Schema bootstrap + rate-limiting helpers are defined in db.php (shared).
+// Aliases kept here so the rest of this file's code doesn't need changing.
 // ---------------------------------------------------------------------------
-function ensure_login_attempts_schema(PDO $pdo): bool
-{
-    static $ready = null;
+ensure_login_attempts_table($pdo);
 
-    if ($ready !== null) {
-        return $ready;
-    }
-
-    try {
-        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
-            $pdo->exec("CREATE TABLE IF NOT EXISTS login_attempts (
-                id SERIAL PRIMARY KEY,
-                ip_address VARCHAR(45) NOT NULL,
-                username_tried VARCHAR(255) NOT NULL DEFAULT '',
-                attempt_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-            )");
-            $pdo->exec("CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_time ON login_attempts (ip_address, attempt_time)");
-        } else {
-            $pdo->exec("CREATE TABLE IF NOT EXISTS login_attempts (
-                id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-                ip_address     VARCHAR(45)  NOT NULL,
-                username_tried VARCHAR(255) NOT NULL DEFAULT '',
-                attempt_time   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                INDEX idx_ip_time (ip_address, attempt_time)
-            )");
-        }
-
-        $ready = true;
-    } catch (PDOException $e) {
-        error_log("login_attempts schema check failed: " . $e->getMessage());
-        $ready = false;
-    }
-
-    return $ready;
-}
-
-ensure_login_attempts_schema($pdo);
-
-// ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-const ATTEMPT_LIMIT = 5;
-const ATTEMPT_WINDOW = 15;   // minutes
-const DUMMY_HASH = '$2y$12$invalidsaltvaluethatisnevertrue000000000000000000000000'; // for timing parity
+const ATTEMPT_LIMIT  = LOGIN_ATTEMPT_LIMIT;
+const ATTEMPT_WINDOW = LOGIN_ATTEMPT_WINDOW;
+const DUMMY_HASH     = LOGIN_DUMMY_HASH;
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Resolve the real client IP address.
- *
- * Only trusts X-Forwarded-For when TRUST_PROXY is explicitly defined as true
- * in your environment config (e.g. when behind a known Cloudflare/nginx proxy).
- * Never blindly reads the header — an attacker can set it to anything.
- */
-function get_client_ip(): string
-{
-    if (
-        defined('TRUST_PROXY') && TRUST_PROXY === true
-        && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])
-    ) {
-        // The header may be a comma-separated list; take the leftmost (originating) IP
-        $forwarded = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
-        $ip = trim($forwarded[0]);
-        // Validate it looks like a real IP before trusting it
-        if (filter_var($ip, FILTER_VALIDATE_IP)) {
-            return $ip;
-        }
-    }
-    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-}
-
-/**
- * Returns true if this IP has hit ATTEMPT_LIMIT failures within ATTEMPT_WINDOW.
- */
-function is_ip_throttled(PDO $pdo, string $ip): bool
-{
-    if (!ensure_login_attempts_schema($pdo)) {
-        return false;
-    }
-
-    $intervalSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
-        ? "INTERVAL '" . ATTEMPT_WINDOW . " minutes'"
-        : "INTERVAL " . ATTEMPT_WINDOW . " MINUTE";
-
-    $stmt = $pdo->prepare(
-        "SELECT COUNT(*) FROM login_attempts
-         WHERE ip_address = ?
-           AND attempt_time > NOW() - $intervalSql"
-    );
-    $stmt->execute([$ip]);
-    return (int) $stmt->fetchColumn() >= ATTEMPT_LIMIT;
-}
-
-/**
- * Record a single failed attempt.
- */
-function record_failed_attempt(PDO $pdo, string $ip, string $username_tried): void
-{
-    if (!ensure_login_attempts_schema($pdo)) {
-        return;
-    }
-
-    $pdo->prepare(
-        "INSERT INTO login_attempts (ip_address, username_tried, attempt_time)
-         VALUES (?, ?, NOW())"
-    )->execute([$ip, $username_tried]);
-}
-
-/**
- * Clear all attempts for this IP on successful login.
- */
-function clear_attempts(PDO $pdo, string $ip): void
-{
-    if (!ensure_login_attempts_schema($pdo)) {
-        return;
-    }
-
-    $pdo->prepare(
-        "DELETE FROM login_attempts WHERE ip_address = ?"
-    )->execute([$ip]);
-}
-
-/**
- * Purge attempts older than the window (lightweight housekeeping on every login).
- * Prevents the table growing unboundedly without needing a cron job.
- */
-function purge_old_attempts(PDO $pdo): void
-{
-    if (!ensure_login_attempts_schema($pdo)) {
-        return;
-    }
-
-    $intervalSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
-        ? "INTERVAL '" . ATTEMPT_WINDOW . " minutes'"
-        : "INTERVAL " . ATTEMPT_WINDOW . " MINUTE";
-
-    $pdo->exec(
-        "DELETE FROM login_attempts
-         WHERE attempt_time < NOW() - $intervalSql"
-    );
-}
+// Thin wrappers so the login logic below keeps its original function names.
+function get_client_ip(): string        { return get_login_client_ip(); }
+function is_ip_throttled(PDO $p, string $ip): bool          { return is_login_throttled($p, $ip); }
+function record_failed_attempt(PDO $p, string $ip, string $u): void { record_login_failure($p, $ip, $u); }
+function clear_attempts(PDO $p, string $ip): void           { clear_login_attempts($p, $ip); }
+function purge_old_attempts(PDO $p): void                   { purge_old_login_attempts($p); }
 
 /**
  * Extended audit log that captures IP + User-Agent for high-stakes events.

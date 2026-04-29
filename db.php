@@ -918,6 +918,100 @@ function logPaymentVerification(PDO $pdo, int $userId, string $reference, string
 }
 
 // ────────────────────────────────────────────────────────────────────────
+// Shared login rate-limiting helpers (DB-backed, used by login.php + admin/settings.php)
+// ────────────────────────────────────────────────────────────────────────
+
+if (!defined('LOGIN_ATTEMPT_LIMIT')) {
+    define('LOGIN_ATTEMPT_LIMIT', 5);
+    define('LOGIN_ATTEMPT_WINDOW', 15); // minutes
+    define('LOGIN_DUMMY_HASH', '$2y$12$invalidsaltvaluethatisnevertrue000000000000000000000000');
+}
+
+function ensure_login_attempts_table(PDO $pdo): bool
+{
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    try {
+        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS login_attempts (
+                id SERIAL PRIMARY KEY,
+                ip_address VARCHAR(45) NOT NULL,
+                username_tried VARCHAR(255) NOT NULL DEFAULT '',
+                attempt_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )");
+            $pdo->exec("CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_time ON login_attempts (ip_address, attempt_time)");
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS login_attempts (
+                id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                ip_address VARCHAR(45) NOT NULL,
+                username_tried VARCHAR(255) NOT NULL DEFAULT '',
+                attempt_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_ip_time (ip_address, attempt_time)
+            ) ENGINE=InnoDB");
+        }
+        $ready = true;
+    } catch (PDOException $e) {
+        error_log('login_attempts schema check failed: ' . $e->getMessage());
+        $ready = false;
+    }
+    return $ready;
+}
+
+function get_login_client_ip(): string
+{
+    if (defined('TRUST_PROXY') && TRUST_PROXY === true && !empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+        $forwarded = explode(',', $_SERVER['HTTP_X_FORWARDED_FOR']);
+        $ip = trim($forwarded[0]);
+        if (filter_var($ip, FILTER_VALIDATE_IP)) return $ip;
+    }
+    return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+}
+
+function is_login_throttled(PDO $pdo, string $ip): bool
+{
+    if (!ensure_login_attempts_table($pdo)) return false;
+    $interval = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+        ? "INTERVAL '" . LOGIN_ATTEMPT_WINDOW . " minutes'"
+        : "INTERVAL " . LOGIN_ATTEMPT_WINDOW . " MINUTE";
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE ip_address = ? AND attempt_time > NOW() - $interval");
+    $stmt->execute([$ip]);
+    return (int) $stmt->fetchColumn() >= LOGIN_ATTEMPT_LIMIT;
+}
+
+function record_login_failure(PDO $pdo, string $ip, string $usernameTried): void
+{
+    if (!ensure_login_attempts_table($pdo)) return;
+    $pdo->prepare("INSERT INTO login_attempts (ip_address, username_tried, attempt_time) VALUES (?, ?, NOW())")
+        ->execute([$ip, $usernameTried]);
+}
+
+function clear_login_attempts(PDO $pdo, string $ip): void
+{
+    if (!ensure_login_attempts_table($pdo)) return;
+    $pdo->prepare("DELETE FROM login_attempts WHERE ip_address = ?")->execute([$ip]);
+}
+
+function purge_old_login_attempts(PDO $pdo): void
+{
+    if (!ensure_login_attempts_table($pdo)) return;
+    $interval = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+        ? "INTERVAL '" . LOGIN_ATTEMPT_WINDOW . " minutes'"
+        : "INTERVAL " . LOGIN_ATTEMPT_WINDOW . " MINUTE";
+    $pdo->exec("DELETE FROM login_attempts WHERE attempt_time < NOW() - $interval");
+}
+
+function remaining_login_attempts(PDO $pdo, string $ip): int
+{
+    if (!ensure_login_attempts_table($pdo)) return LOGIN_ATTEMPT_LIMIT;
+    $interval = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+        ? "INTERVAL '" . LOGIN_ATTEMPT_WINDOW . " minutes'"
+        : "INTERVAL " . LOGIN_ATTEMPT_WINDOW . " MINUTE";
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE ip_address = ? AND attempt_time > NOW() - $interval");
+    $stmt->execute([$ip]);
+    return max(0, LOGIN_ATTEMPT_LIMIT - (int) $stmt->fetchColumn());
+}
+
+// ────────────────────────────────────────────────────────────────────────
 
 // Update last_seen on each request
 if (isLoggedIn() && $pdo) {
