@@ -29,7 +29,9 @@ if ($credential === '') {
 $tokenInfo = fetchGoogleTokenInfo($credential);
 $clientId = trim((string) env('GOOGLE_CLIENT_ID', ''));
 
-if (!$tokenInfo || ($tokenInfo['aud'] ?? '') !== $clientId || empty($tokenInfo['email']) || ($tokenInfo['email_verified'] ?? 'false') !== 'true') {
+// email_verified is a boolean in the JWT payload (true), was a string 'true' from tokeninfo API
+$emailVerified = filter_var($tokenInfo['email_verified'] ?? false, FILTER_VALIDATE_BOOLEAN);
+if (!$tokenInfo || ($tokenInfo['aud'] ?? '') !== $clientId || empty($tokenInfo['email']) || !$emailVerified) {
     setFlashMessage('auth_error', 'Google sign-in could not be verified. Please try again.');
     redirect($redirectOnFailure);
 }

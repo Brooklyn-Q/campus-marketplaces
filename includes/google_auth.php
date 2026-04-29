@@ -1,39 +1,151 @@
 <?php
 require_once __DIR__ . '/db.php';
 
-function fetchGoogleTokenInfo(string $credential): ?array {
-    $url = 'https://oauth2.googleapis.com/tokeninfo?id_token=' . rawurlencode($credential);
+// ── Google JWT local verification ─────────────────────────────────────────────
+// Verifies a Google ID token (RS256 JWT) entirely locally using Google's
+// published JWK public keys. No round-trip to tokeninfo — faster, more
+// reliable, and not bypassable by network timing attacks.
+// Public keys are cached in the PHP session for up to 1 hour.
+// ─────────────────────────────────────────────────────────────────────────────
 
-    if (function_exists('curl_init')) {
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 15,
-            CURLOPT_SSL_VERIFYPEER => true,
-        ]);
-        $response = curl_exec($ch);
-        $httpCode = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
-        curl_close($ch);
-
-        if ($response !== false && $httpCode >= 200 && $httpCode < 300) {
-            $decoded = json_decode($response, true);
-            return is_array($decoded) ? $decoded : null;
-        }
+/**
+ * Fetch Google's JWK public keys, with session-level cache.
+ */
+function _fetchGooglePublicKeys(): ?array
+{
+    $cacheKey = '_google_jwk_cache';
+    $cached = $_SESSION[$cacheKey] ?? null;
+    if (is_array($cached) && !empty($cached['keys']) && (time() - (int)($cached['fetched_at'] ?? 0)) < 3600) {
+        return $cached['keys'];
     }
 
-    $context = stream_context_create([
-        'http' => [
-            'timeout' => 15,
-            'ignore_errors' => true,
-        ],
-    ]);
-    $response = @file_get_contents($url, false, $context);
-    if ($response === false) {
+    $jwkUrl = 'https://www.googleapis.com/oauth2/v3/certs';
+    $body = false;
+
+    if (function_exists('curl_init')) {
+        $ch = curl_init($jwkUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 10,
+            CURLOPT_SSL_VERIFYPEER => true,
+        ]);
+        $body = curl_exec($ch);
+        $code = (int) curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
+        curl_close($ch);
+        if ($code < 200 || $code >= 300) $body = false;
+    }
+
+    if ($body === false) {
+        $ctx  = stream_context_create(['http' => ['timeout' => 10]]);
+        $body = @file_get_contents($jwkUrl, false, $ctx);
+    }
+
+    if ($body === false) return null;
+
+    $data = json_decode($body, true);
+    if (!is_array($data) || empty($data['keys'])) return null;
+
+    // Index by kid for fast lookup
+    $keys = [];
+    foreach ($data['keys'] as $k) {
+        if (!empty($k['kid'])) $keys[$k['kid']] = $k;
+    }
+
+    $_SESSION[$cacheKey] = ['keys' => $keys, 'fetched_at' => time()];
+    return $keys;
+}
+
+/**
+ * Convert a JWK RSA public key entry into a PEM string PHP can use.
+ */
+function _jwkToPem(array $jwk): ?string
+{
+    if (($jwk['kty'] ?? '') !== 'RSA' || empty($jwk['n']) || empty($jwk['e'])) {
         return null;
     }
 
-    $decoded = json_decode($response, true);
-    return is_array($decoded) ? $decoded : null;
+    $decode = fn(string $b64) => base64_decode(strtr($b64, '-_', '+/'));
+
+    $modulus  = $decode($jwk['n']);
+    $exponent = $decode($jwk['e']);
+
+    // Build ASN.1 DER for RSAPublicKey { modulus INTEGER, publicExponent INTEGER }
+    $encodeLen = function(int $len): string {
+        if ($len < 128) return chr($len);
+        $bytes = '';
+        $tmp = $len;
+        while ($tmp > 0) { $bytes = chr($tmp & 0xFF) . $bytes; $tmp >>= 8; }
+        return chr(0x80 | strlen($bytes)) . $bytes;
+    };
+
+    $encodeInt = function(string $raw) use ($encodeLen): string {
+        // Prepend 0x00 if high bit set (avoid negative interpretation)
+        if (ord($raw[0]) > 0x7F) $raw = "\x00" . $raw;
+        return "\x02" . $encodeLen(strlen($raw)) . $raw;
+    };
+
+    $rsaSeq  = $encodeInt($modulus) . $encodeInt($exponent);
+    $rsaSeq  = "\x30" . $encodeLen(strlen($rsaSeq)) . $rsaSeq;
+
+    // Wrap in SubjectPublicKeyInfo with RSA OID
+    $oid     = "\x30\x0d\x06\x09\x2a\x86\x48\x86\xf7\x0d\x01\x01\x01\x05\x00";
+    $bitStr  = "\x03" . $encodeLen(strlen($rsaSeq) + 1) . "\x00" . $rsaSeq;
+    $spki    = "\x30" . $encodeLen(strlen($oid) + strlen($bitStr)) . $oid . $bitStr;
+
+    return "-----BEGIN PUBLIC KEY-----\n" . chunk_split(base64_encode($spki), 64) . "-----END PUBLIC KEY-----";
+}
+
+/**
+ * Decode and locally verify a Google ID token (RS256 JWT).
+ * Returns the payload array on success, null on any failure.
+ */
+function fetchGoogleTokenInfo(string $credential): ?array
+{
+    $parts = explode('.', $credential);
+    if (count($parts) !== 3) return null;
+
+    [$headerB64, $payloadB64, $sigB64] = $parts;
+
+    $header  = json_decode(base64_decode(strtr($headerB64,  '-_', '+/')), true);
+    $payload = json_decode(base64_decode(strtr($payloadB64, '-_', '+/')), true);
+
+    if (!is_array($header) || !is_array($payload)) return null;
+
+    // Must be RS256
+    if (($header['alg'] ?? '') !== 'RS256') return null;
+
+    $kid = $header['kid'] ?? '';
+    $keys = _fetchGooglePublicKeys();
+    if (!$keys) return null;
+
+    // Try exact kid match first, then fall back to trying all keys
+    $candidates = $kid && isset($keys[$kid]) ? [$keys[$kid]] : array_values($keys);
+
+    $signedData = $headerB64 . '.' . $payloadB64;
+    $signature  = base64_decode(strtr($sigB64, '-_', '+/'));
+    $verified   = false;
+
+    foreach ($candidates as $jwk) {
+        $pem = _jwkToPem($jwk);
+        if (!$pem) continue;
+        $pubKey = openssl_pkey_get_public($pem);
+        if (!$pubKey) continue;
+        if (openssl_verify($signedData, $signature, $pubKey, OPENSSL_ALGO_SHA256) === 1) {
+            $verified = true;
+            break;
+        }
+    }
+
+    if (!$verified) return null;
+
+    // Validate standard claims
+    $now = time();
+    if (empty($payload['exp']) || $payload['exp'] < $now)           return null; // expired
+    if (empty($payload['iat']) || $payload['iat'] > $now + 60)      return null; // issued in future
+    if (($payload['iss'] ?? '') !== 'https://accounts.google.com'
+        && ($payload['iss'] ?? '') !== 'accounts.google.com')        return null; // wrong issuer
+
+    return $payload;
 }
 
 function normalizeGoogleProfile(array $tokenInfo): array {
