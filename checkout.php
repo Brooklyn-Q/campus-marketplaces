@@ -4,36 +4,57 @@ if (!isLoggedIn()) {
     redirect('login.php?redirect=checkout.php');
 }
 
+$orderError = '';
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
     check_csrf();
     $ids = explode(',', $_POST['item_ids'] ?? '');
     $ids = array_filter(array_map('intval', $ids));
     if (!empty($ids)) {
-        $in = str_repeat('?,', count($ids) - 1) . '?';
-        $stmt = $pdo->prepare("SELECT id as pid, user_id as seller_id, price FROM products WHERE id IN ($in)");
-        $stmt->execute($ids);
-        $products = $stmt->fetchAll();
         $buyer_id = (int)$_SESSION['user_id'];
         $buyer_name = $_SESSION['username'];
         
         $pdo->beginTransaction();
         try {
+            $in = str_repeat('?,', count($ids) - 1) . '?';
+            $stmt = $pdo->prepare("SELECT id as pid, user_id as seller_id, title, price, quantity, status FROM products WHERE id IN ($in) FOR UPDATE");
+            $stmt->execute($ids);
+            $products = $stmt->fetchAll();
+
             foreach ($products as $p) {
                 if ($p['seller_id'] == $buyer_id) continue;
+                if (($p['status'] ?? '') !== 'approved') {
+                    throw new RuntimeException('One of the selected products is no longer available.');
+                }
+                if ((int)($p['quantity'] ?? 0) < 1) {
+                    throw new RuntimeException('One of the selected products is out of stock.');
+                }
+
+                $pdo->prepare("UPDATE products SET quantity = quantity - 1 WHERE id = ?")->execute([$p['pid']]);
+                $pdo->prepare("UPDATE products SET status='sold' WHERE id = ? AND quantity <= 0")->execute([$p['pid']]);
                 
-                $istmt = $pdo->prepare("INSERT INTO orders (buyer_id, seller_id, product_id, price) VALUES (?, ?, ?, ?)");
-                $istmt->execute([$buyer_id, $p['seller_id'], $p['pid'], $p['price']]);
-                $order_id = $pdo->lastInsertId();
+                if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+                    $istmt = $pdo->prepare("INSERT INTO orders (buyer_id, seller_id, product_id, price) VALUES (?, ?, ?, ?) RETURNING id");
+                    $istmt->execute([$buyer_id, $p['seller_id'], $p['pid'], $p['price']]);
+                    $order_id = (int)$istmt->fetchColumn();
+                } else {
+                    $istmt = $pdo->prepare("INSERT INTO orders (buyer_id, seller_id, product_id, price) VALUES (?, ?, ?, ?)");
+                    $istmt->execute([$buyer_id, $p['seller_id'], $p['pid'], $p['price']]);
+                    $order_id = (int)$pdo->lastInsertId();
+                }
                 
-                $msg = "This product has been ordered by " . $buyer_name;
-                $nstmt = $pdo->prepare("INSERT INTO notifications (user_id, type, message, reference_id) VALUES (?, 'order_received', ?, ?)");
-                $nstmt->execute([$p['seller_id'], $msg, $order_id]);
+                $msg = '"' . $p['title'] . '" has been ordered by ' . $buyer_name . '.';
+                createNotification($pdo, (int) $p['seller_id'], 'order_received', $msg, $order_id, [
+                    'title' => 'New order received',
+                    'link_url' => 'dashboard.php#seller_orders',
+                ]);
             }
             $pdo->commit();
             echo "<script>localStorage.removeItem('cm_cart'); alert('Orders placed successfully! The sellers have been notified.'); window.location.href='dashboard.php';</script>";
             exit;
         } catch (Exception $e) {
             $pdo->rollBack();
+            $orderError = $e->getMessage();
         }
     }
 }
@@ -74,6 +95,9 @@ require_once 'includes/header.php';
         echo '<div class="container fade-in" style="max-width:800px; padding:4vh 5%;">';
         echo '<h1 class="mb-3" style="font-size:2rem; font-weight:800;">Complete Your Purchase</h1>';
         echo '<div class="liquid-glass-card" style="padding:2rem;">';
+        if (!empty($orderError)) {
+            echo '<div class="alert alert-error" style="margin-bottom:1rem;">' . htmlspecialchars($orderError) . '</div>';
+        }
         echo '<p class="text-muted mb-3">To complete your purchase, please contact the sellers of the items directly to arrange payment and delivery.</p>';
         
         foreach($items as $i) {

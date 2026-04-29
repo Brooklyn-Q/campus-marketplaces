@@ -19,6 +19,7 @@
                 <h4 style="font-weight:700; margin-bottom:0.5rem; font-size:0.75rem; text-transform:uppercase; color:var(--text-muted);">Navigation</h4>
                 <ul style="list-style:none; padding:0; display:flex; flex-direction:column; gap:0.25rem;">
                     <li><a href="<?= $baseUrl ?>index.php" style="color:var(--text-main); text-decoration:none; font-size:0.75rem;">Home</a></li>
+                    <li><a href="<?= $baseUrl ?>about.php" style="color:var(--text-main); text-decoration:none; font-size:0.75rem;">About</a></li>
                     <li><a href="<?= $baseUrl ?>dashboard.php" style="color:var(--text-main); text-decoration:none; font-size:0.75rem;">Dashboard</a></li>
                     <li><a href="<?= $baseUrl ?>add_product.php" style="color:var(--text-main); text-decoration:none; font-size:0.75rem;">Sell</a></li>
                     <li><a href="javascript:void(0)" onclick="if(typeof openSideCart === 'function') openSideCart(); return false;" style="color:var(--text-main); text-decoration:none; font-size:0.75rem;">Cart</a></li>
@@ -38,8 +39,8 @@
             <div>
                 <h4 style="font-weight:700; margin-bottom:0.5rem; font-size:0.75rem; text-transform:uppercase; color:var(--text-muted);">Support</h4>
                 <ul style="list-style:none; padding:0; display:flex; flex-direction:column; gap:0.25rem;">
-                    <li><a href="<?= $baseUrl ?>index.php#how-it-works" style="color:var(--text-main); text-decoration:none; font-size:0.75rem;">How it works</a></li>
-                    <li><a href="#" style="color:var(--text-main); text-decoration:none; font-size:0.75rem;">Safety</a></li>
+                    <li><a href="<?= $baseUrl ?>about.php#how-it-works" style="color:var(--text-main); text-decoration:none; font-size:0.75rem;">How it works</a></li>
+                    <li><a href="<?= $baseUrl ?>about.php#safe-trading" style="color:var(--text-main); text-decoration:none; font-size:0.75rem;">Safety</a></li>
                     <li><a href="javascript:void(0)" onclick="openTermsModal()" style="color:var(--text-main); text-decoration:none; font-size:0.75rem;">Terms & Conditions</a></li>
                 </ul>
             </div>
@@ -555,5 +556,142 @@
         });
     })();
     </script>
+    <?php if (isLoggedIn()): ?>
+    <script>
+    (function () {
+        let lastNotificationId = 0;
+        let primed = false;
+        let toastContainer = null;
+
+        function ensureToastContainer() {
+            if (toastContainer) return toastContainer;
+            toastContainer = document.createElement('div');
+            toastContainer.style.position = 'fixed';
+            toastContainer.style.right = '18px';
+            toastContainer.style.bottom = '18px';
+            toastContainer.style.zIndex = '1000002';
+            toastContainer.style.display = 'flex';
+            toastContainer.style.flexDirection = 'column';
+            toastContainer.style.gap = '10px';
+            toastContainer.style.maxWidth = '340px';
+            document.body.appendChild(toastContainer);
+            return toastContainer;
+        }
+
+        function updateBadge(selector, count) {
+            document.querySelectorAll(selector).forEach(function (badge) {
+                badge.textContent = count;
+                badge.style.display = count > 0 ? 'flex' : 'none';
+            });
+        }
+
+        function showToast(title, message, linkUrl, actionText) {
+            const container = ensureToastContainer();
+            const toast = document.createElement('div');
+            toast.style.background = 'rgba(17,24,39,0.96)';
+            toast.style.color = '#fff';
+            toast.style.borderRadius = '18px';
+            toast.style.padding = '14px 16px';
+            toast.style.boxShadow = '0 18px 45px rgba(0,0,0,0.25)';
+            toast.style.border = '1px solid rgba(255,255,255,0.08)';
+            toast.style.backdropFilter = 'blur(18px)';
+            toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            toast.style.cursor = linkUrl ? 'pointer' : 'default';
+
+            toast.innerHTML = '<div style="font-weight:800; margin-bottom:4px;">' + title + '</div>'
+                + '<div style="font-size:0.9rem; line-height:1.45; color:rgba(255,255,255,0.82);">' + message + '</div>'
+                + (actionText ? '<div style="margin-top:10px; font-size:0.8rem; color:#93c5fd; font-weight:700;">' + actionText + '</div>' : '');
+
+            if (linkUrl) {
+                toast.addEventListener('click', function () {
+                    window.location.href = linkUrl;
+                });
+            }
+
+            container.appendChild(toast);
+            setTimeout(function () {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+            }, 5000);
+            setTimeout(function () {
+                toast.remove();
+            }, 5400);
+        }
+
+        function notifyBrowser(title, body, linkUrl) {
+            if (!('Notification' in window) || Notification.permission !== 'granted') return;
+            const notification = new Notification(title, { body: body, tag: 'campus-marketplace' });
+            notification.onclick = function () {
+                window.focus();
+                if (linkUrl) window.location.href = linkUrl;
+                notification.close();
+            };
+        }
+
+        function promptForBrowserAlerts() {
+            if (!('Notification' in window) || Notification.permission !== 'default') return;
+            if (localStorage.getItem('cm_notification_prompted') === '1') return;
+            localStorage.setItem('cm_notification_prompted', '1');
+            showToast('Enable browser alerts', 'Turn on browser notifications so new messages and order updates can reach you instantly while this tab is open or in the background.', '', 'Click this card to allow alerts');
+            const latestToast = ensureToastContainer().lastElementChild;
+            if (latestToast) {
+                latestToast.style.cursor = 'pointer';
+                latestToast.addEventListener('click', function () {
+                    Notification.requestPermission();
+                }, { once: true });
+            }
+        }
+
+        async function pollNotifications() {
+            try {
+                const response = await fetch('notifications_poll.php?last_id=' + encodeURIComponent(lastNotificationId), {
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!response.ok) return;
+
+                const data = await response.json();
+                if (!data || data.success !== true) return;
+
+                updateBadge('.msg-unread-badge', Number(data.unread_messages || 0));
+                updateBadge('.notif-unread-badge', Number(data.unread_notifications || 0));
+
+                const incoming = Array.isArray(data.notifications) ? data.notifications : [];
+
+                if (!primed) {
+                    incoming.forEach(function (item) {
+                        lastNotificationId = Math.max(lastNotificationId, Number(item.id || 0));
+                    });
+                    primed = true;
+                    return;
+                }
+
+                incoming.forEach(function (item) {
+                    const id = Number(item.id || 0);
+                    if (id > lastNotificationId) {
+                        lastNotificationId = id;
+                    }
+
+                    const title = item.title || 'Campus Marketplace';
+                    const message = item.message || '';
+                    const linkUrl = item.link_url || '';
+
+                    if (document.hidden) {
+                        notifyBrowser(title, message, linkUrl);
+                    } else {
+                        showToast(title, message, linkUrl, linkUrl ? 'Open now' : '');
+                    }
+                });
+            } catch (error) {
+                console.warn('Notification polling failed', error);
+            }
+        }
+
+        promptForBrowserAlerts();
+        pollNotifications();
+        setInterval(pollNotifications, 20000);
+    })();
+    </script>
+    <?php endif; ?>
 </body>
 </html>

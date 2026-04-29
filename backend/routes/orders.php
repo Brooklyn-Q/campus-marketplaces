@@ -136,10 +136,10 @@ elseif ($method === 'POST' && !$orderId) {
 
         $ordId = (int)$pdo->lastInsertId();
 
-        $pdo->prepare("
-            INSERT INTO notifications (user_id, type, message, reference_id)
-            VALUES (?, 'new_order', ?, ?)
-        ")->execute([$product['user_id'], "New order for \"{$product['title']}\"", $ordId]);
+        createNotification($pdo, (int) $product['user_id'], 'new_order', "New order for \"{$product['title']}\"", $ordId, [
+            'title' => 'New order received',
+            'link_url' => 'dashboard.php#seller_orders',
+        ]);
 
         $pdo->commit();
 
@@ -184,10 +184,10 @@ elseif ($method === 'PUT' && $orderId && $subAction === 'accept') {
             WHERE id = ?
         ")->execute([$note, $orderId]);
 
-        $pdo->prepare("
-            INSERT INTO notifications (user_id, type, message, reference_id)
-            VALUES (?, 'order_accepted', 'Seller has accepted your order', ?)
-        ")->execute([$order['buyer_id'], $orderId]);
+        createNotification($pdo, (int) $order['buyer_id'], 'order_accepted', 'Seller has accepted your order', $orderId, [
+            'title' => 'Order accepted',
+            'link_url' => 'dashboard.php#buyer_orders',
+        ]);
 
         $pdo->commit();
         jsonSuccess('Order accepted');
@@ -220,10 +220,10 @@ elseif ($method === 'PUT' && $orderId && $subAction === 'reject') {
 
         $pdo->prepare("DELETE FROM orders WHERE id = ?")->execute([$orderId]);
 
-        $pdo->prepare("
-            INSERT INTO notifications (user_id, type, message, reference_id)
-            VALUES (?, 'order_rejected', 'Seller rejected your order', ?)
-        ")->execute([$order['buyer_id'], $orderId]);
+        createNotification($pdo, (int) $order['buyer_id'], 'order_rejected', 'Seller rejected your order', $orderId, [
+            'title' => 'Order rejected',
+            'link_url' => 'dashboard.php#buyer_orders',
+        ]);
 
         $pdo->commit();
         jsonSuccess('Order rejected');
@@ -256,10 +256,10 @@ elseif ($method === 'PUT' && $orderId && $subAction === 'cancel') {
 
         $pdo->prepare("DELETE FROM orders WHERE id = ?")->execute([$orderId]);
 
-        $pdo->prepare("
-            INSERT INTO notifications (user_id, type, message, reference_id)
-            VALUES (?, 'order_cancelled', 'Buyer cancelled the order', ?)
-        ")->execute([$order['seller_id'], $orderId]);
+        createNotification($pdo, (int) $order['seller_id'], 'order_cancelled', 'Buyer cancelled the order', $orderId, [
+            'title' => 'Buyer cancelled an order',
+            'link_url' => 'dashboard.php#seller_orders',
+        ]);
 
         $pdo->commit();
         jsonSuccess('Order cancelled');
@@ -326,10 +326,10 @@ elseif ($method === 'PUT' && $orderId && $subAction === 'confirm-sold') {
             $insertSaleTransaction($pdo, $order, $orderId);
         }
 
-        $pdo->prepare("
-            INSERT INTO notifications (user_id, type, message, reference_id)
-            VALUES (?, 'seller_confirmed', 'Seller confirmed the sale', ?)
-        ")->execute([$order['buyer_id'], $orderId]);
+        createNotification($pdo, (int) $order['buyer_id'], 'seller_confirmed', 'Seller confirmed the sale', $orderId, [
+            'title' => 'Seller confirmed the sale',
+            'link_url' => 'dashboard.php#buyer_orders',
+        ]);
 
         $pdo->commit();
         jsonSuccess('Sale confirmed');
@@ -374,10 +374,10 @@ elseif ($method === 'PUT' && $orderId && $subAction === 'confirm-received') {
             $insertSaleTransaction($pdo, $order, $orderId);
         }
 
-        $pdo->prepare("
-            INSERT INTO notifications (user_id, type, message, reference_id)
-            VALUES (?, 'buyer_confirmed', 'Buyer confirmed receipt', ?)
-        ")->execute([$order['seller_id'], $orderId]);
+        createNotification($pdo, (int) $order['seller_id'], 'buyer_confirmed', 'Buyer confirmed receipt', $orderId, [
+            'title' => 'Buyer confirmed receipt',
+            'link_url' => 'dashboard.php#seller_orders',
+        ]);
 
         $pdo->commit();
         jsonSuccess('Receipt confirmed');
@@ -413,8 +413,10 @@ elseif ($method === 'POST' && $orderId && $subAction === 'dispute') {
     $pdo->prepare("UPDATE orders SET status = 'disputed', updated_at = CURRENT_TIMESTAMP WHERE id = ?")
         ->execute([$orderId]);
 
-    $pdo->prepare("INSERT INTO notifications (user_id, type, message, reference_id) VALUES (1, 'dispute', ?, ?)")
-        ->execute(["Dispute filed on order #$orderId", $orderId]);
+    createNotification($pdo, 1, 'dispute', "Dispute filed on order #$orderId", $orderId, [
+        'title' => 'New dispute filed',
+        'link_url' => 'admin/',
+    ]);
 
     jsonSuccess('Dispute filed. Admin will review.');
 }

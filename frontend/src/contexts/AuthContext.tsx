@@ -4,6 +4,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { auth as authApi, getToken, setToken, removeToken } from '../services/api';
+import { getLegacyLogoutUrl } from '../utils/legacyAuth';
 
 export interface User {
   id: number;
@@ -126,11 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
 
     if (typeof window !== 'undefined') {
-      if (window.location.hash) {
-        window.location.hash = '#/';
-      } else {
-        window.location.assign('./');
-      }
+      window.location.assign(getLegacyLogoutUrl());
     }
   };
 

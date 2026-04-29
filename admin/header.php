@@ -12,7 +12,8 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once '../includes/db.php';
 if (!isAdmin())
-    redirect('../index.php');
+    redirect('../');
+$adminUnreadNotifications = getUnreadNotificationCount($pdo, $_SESSION['user_id']);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -102,6 +103,14 @@ if (!isAdmin())
                 min-width: auto !important;
                 flex-shrink: 0 !important;
             }
+
+            .admin-brand {
+                font-size: 0.92rem !important;
+                max-width: 45vw;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
         }
 
         /* FIX #6: Dark mode override for mobile nav background */
@@ -152,6 +161,27 @@ if (!isAdmin())
         .nav-link-cta:focus {
             background: #0080f8;
         }
+
+        .stat-card-link {
+            color: inherit;
+            text-decoration: none;
+            display: block;
+        }
+
+        .stat-card-link .stat-card {
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+        }
+
+        .stat-card-link:hover .stat-card,
+        .stat-card-link:focus .stat-card {
+            transform: translateY(-2px);
+            box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
+            border-color: rgba(0, 113, 227, 0.22);
+        }
+
+        .dark-mode nav {
+            background: rgba(20, 20, 25, 0.88) !important;
+        }
     </style>
 </head>
 
@@ -161,7 +191,7 @@ if (!isAdmin())
         <div
             style="display:flex; align-items:center; justify-content:space-between; height:58px; max-width:none; margin:0 auto; width:100%;">
 
-            <a href="index.php"
+            <a href="index.php" class="admin-brand"
                 style="font-size:1.05rem; font-weight:800; color:var(--text-main); text-decoration:none; letter-spacing:-0.04em; display:flex; align-items:center; gap:6px; flex-shrink:0; transition:opacity 0.2s;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <polygon
@@ -180,11 +210,14 @@ if (!isAdmin())
                 <a href="users.php" class="nav-link" onclick="closeNav()">Users</a>
                 <a href="products.php" class="nav-link" onclick="closeNav()">Moderation</a>
                 <a href="messages.php" class="nav-link" onclick="closeNav()">Messages</a>
+                <a href="index.php" class="nav-link" onclick="closeNav()">Alerts <span id="admin-notif-badge" style="<?= $adminUnreadNotifications > 0 ? '' : 'display:none;' ?>; margin-left:6px; background:#ff3b30; color:#fff; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;"><?= (int) $adminUnreadNotifications ?></span></a>
                 <a href="audit.php" class="nav-link" onclick="closeNav()">Audit Log</a>
                 <a href="analytics.php" class="nav-link" onclick="closeNav()">📊 Analytics</a>
                 <a href="ads.php" class="nav-link" onclick="closeNav()">📢 Ads</a>
                 <a href="settings.php" class="nav-link" onclick="closeNav()">Settings</a>
-                <a href="../index.php" class="nav-link-cta" onclick="closeNav()">Exit to App</a>
+                <a href="../dashboard.php" class="nav-link" onclick="closeNav()">Seller Dashboard</a>
+                <a href="../" class="nav-link" onclick="closeNav()">Main App</a>
+                <a href="../logout.php" class="nav-link-cta" onclick="closeNav()">Sign Out</a>
             </div>
 
             <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">

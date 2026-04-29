@@ -1,30 +1,10 @@
 import React, { useEffect } from 'react';
-import { HashRouter, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { HashRouter, Navigate, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import Layout from './components/layout/Layout';
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
-import Product from './pages/Product';
-import Dashboard from './pages/Dashboard';
-import Chat from './pages/Chat';
-import AddProduct from './pages/AddProduct';
-import EditProfile from './pages/EditProfile';
-import AdminDashboard from './pages/AdminDashboard';
-import Leaderboard from './pages/Leaderboard';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider } from './contexts/ThemeContext';
-import AdminLayout from './components/layout/AdminLayout';
-import AdminAnalytics from './pages/admin/AdminAnalytics';
-import AdminUsers from './pages/admin/AdminUsers';
-import AdminAds from './pages/admin/AdminAds';
-
-function PageLoader() {
-  return (
-    <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>
-      Loading...
-    </div>
-  );
-}
+import { buildLegacyUrl } from './utils/legacyAuth';
+import Home from './pages/Home';
 
 function ScrollToTop() {
   const { pathname, search } = useLocation();
@@ -36,34 +16,35 @@ function ScrollToTop() {
   return null;
 }
 
-function RequireAuth({ children }: { children: React.ReactNode }) {
-  const { loading, isLoggedIn } = useAuth();
+function LegacyRedirect({
+  target,
+  message = 'Opening page...',
+}: {
+  target: string;
+  message?: string;
+}) {
+  useEffect(() => {
+    window.location.replace(buildLegacyUrl(target));
+  }, [target]);
 
-  if (loading) return <PageLoader />;
-  if (!isLoggedIn) return <Navigate to="/login" replace />;
-
-  return <>{children}</>;
+  return (
+    <div className="container" style={{ padding: '4rem 0', textAlign: 'center' }}>
+      <p style={{ marginBottom: '1rem' }}>{message}</p>
+      <a href={buildLegacyUrl(target)} className="btn btn-primary">
+        Continue
+      </a>
+    </div>
+  );
 }
 
-function RequireAdmin({ children }: { children: React.ReactNode }) {
-  const { loading, isLoggedIn, isAdmin } = useAuth();
-
-  if (loading) return <PageLoader />;
-  if (!isLoggedIn) return <Navigate to="/login" replace />;
-  if (!isAdmin) return <Navigate to="/dashboard" replace />;
-
-  return <>{children}</>;
+function LegacyProductRedirect() {
+  const { id } = useParams();
+  return <LegacyRedirect target={`/product.php?id=${id || ''}`} message="Opening product..." />;
 }
 
-function GuestOnly({ children }: { children: React.ReactNode }) {
-  const { loading, isLoggedIn, isAdmin } = useAuth();
-
-  if (loading) return <PageLoader />;
-  if (isLoggedIn) {
-    return <Navigate to={isAdmin ? "/admin" : "/dashboard"} replace />;
-  }
-
-  return <>{children}</>;
+function LegacyChatRedirect() {
+  const { search } = useLocation();
+  return <LegacyRedirect target={`/chat.php${search}`} message="Opening messages..." />;
 }
 
 function AppRoutes() {
@@ -71,26 +52,23 @@ function AppRoutes() {
     <HashRouter>
       <ScrollToTop />
       <Routes>
-        {/* Main Storefront Layout */}
         <Route element={<Layout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/leaderboard" element={<Leaderboard />} />
-          <Route path="/product/:id" element={<Product />} />
-          <Route path="/login" element={<GuestOnly><Login /></GuestOnly>} />
-          <Route path="/register" element={<GuestOnly><Register /></GuestOnly>} />
-          <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-          <Route path="/chat" element={<RequireAuth><Chat /></RequireAuth>} />
-          <Route path="/add-product" element={<RequireAuth><AddProduct /></RequireAuth>} />
-          <Route path="/edit-profile" element={<RequireAuth><EditProfile /></RequireAuth>} />
+          <Route path="/leaderboard" element={<LegacyRedirect target="/leaderboard.php" message="Opening leaderboard..." />} />
+          <Route path="/product/:id" element={<LegacyProductRedirect />} />
+          <Route path="/login" element={<LegacyRedirect target="/login.php" message="Opening login..." />} />
+          <Route path="/register" element={<LegacyRedirect target="/register.php" message="Opening registration..." />} />
+          <Route path="/dashboard" element={<LegacyRedirect target="/dashboard.php" message="Opening dashboard..." />} />
+          <Route path="/chat" element={<LegacyChatRedirect />} />
+          <Route path="/add-product" element={<LegacyRedirect target="/add_product.php" message="Opening product form..." />} />
+          <Route path="/edit-profile" element={<LegacyRedirect target="/edit_profile.php" message="Opening profile editor..." />} />
         </Route>
 
-        {/* Dedicated Admin Layout */}
-        <Route element={<RequireAdmin><AdminLayout /></RequireAdmin>}>
-           <Route path="/admin" element={<AdminDashboard />} />
-           <Route path="/admin/analytics" element={<AdminAnalytics />} />
-           <Route path="/admin/ads" element={<AdminAds />} />
-           <Route path="/admin/users" element={<AdminUsers />} />
-        </Route>
+        <Route path="/admin" element={<LegacyRedirect target="/admin/" message="Opening admin dashboard..." />} />
+        <Route path="/admin/analytics" element={<LegacyRedirect target="/admin/analytics.php" message="Opening analytics..." />} />
+        <Route path="/admin/ads" element={<LegacyRedirect target="/admin/ads.php" message="Opening ads manager..." />} />
+        <Route path="/admin/users" element={<LegacyRedirect target="/admin/users.php" message="Opening admin users..." />} />
+        <Route path="/admin/*" element={<LegacyRedirect target="/admin/" message="Opening admin dashboard..." />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

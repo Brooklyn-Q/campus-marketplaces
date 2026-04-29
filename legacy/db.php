@@ -77,16 +77,30 @@ $baseUrl = getBaseUrl();
 function getAssetUrl(string $path): string {
     global $baseUrl;
     static $asset_domains = null;
+    $path = trim(str_replace('\\', '/', $path));
     
     if ($asset_domains === null) {
         $domains_str = get_env_var('ASSET_DOMAINS', '');
         $asset_domains = $domains_str ? array_filter(array_map('trim', explode(',', $domains_str))) : [];
     }
+
+    // Normalize relative local paths stored in mixed formats such as
+    // ../uploads/foo.jpg, ./uploads/foo.jpg, /uploads/foo.jpg, or uploads\foo.jpg.
+    $path = preg_replace('#^(?:\./|\../)+#', '', $path);
     
     // If no asset domains are configured, return the local base URL joined with the path
     // Handle cases where templates force 'uploads/' prefix on Cloudinary absolute URLs
     if (strpos($path, 'uploads/http') === 0) {
         return substr($path, 8);
+    }
+
+    // Normalize duplicated local-upload prefixes, e.g. uploads/uploads/foo.jpg
+    while (strpos($path, 'uploads/uploads/') === 0) {
+        $path = substr($path, 8);
+    }
+
+    if (strpos($path, '/uploads/') === 0) {
+        $path = ltrim($path, '/');
     }
 
     if (empty($asset_domains)) {

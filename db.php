@@ -1,5 +1,20 @@
 <?php
-if (session_status() === PHP_SESSION_NONE) session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    $isHttps = (
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+    );
+    $sessionParams = session_get_cookie_params();
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => $sessionParams['domain'] ?? '',
+        'secure' => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+    session_start();
+}
 
 $host = env('DB_HOST', 'localhost');
 $dbname = env('DB_NAME', 'campus_marketplace');
@@ -19,7 +34,10 @@ try {
     
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     $pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
-    $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+    $pdo->setAttribute(PDO::ATTR_EMULATE_PREPARES, $db_type === 'pgsql');
+    if (($db_type === 'pgsql' || $db_port == '5432' || $db_port == '6543') && defined('PDO::PGSQL_ATTR_DISABLE_PREPARES')) {
+        $pdo->setAttribute(PDO::PGSQL_ATTR_DISABLE_PREPARES, true);
+    }
 
 } catch(PDOException $e) {
     if (strpos($e->getMessage(), 'Unknown database') !== false) {
@@ -87,11 +105,18 @@ function env(string $key, $default = '') {
     return $env[$key] ?? $default;
 }
 
+function get_env_var(string $key, $default = '') {
+    return env($key, $default);
+}
+
 // ── Helper Functions ──
 
 function sqlBool(bool $val, PDO $pdo): string {
-    return $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
-        ? ($val ? 'true' : 'false') 
+    global $db_type;
+    $isPgsql = ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql')
+               || ($db_type === 'pgsql');
+    return $isPgsql
+        ? ($val ? 'TRUE' : 'FALSE')
         : ($val ? '1' : '0');
 }
 
@@ -111,6 +136,24 @@ function isBuyer(): bool {
     return isset($_SESSION['role']) && $_SESSION['role'] === 'buyer';
 }
 
+function getPrimaryAdminId(PDO $pdo): int {
+    static $cachedAdminId = null;
+
+    if ($cachedAdminId !== null) {
+        return $cachedAdminId;
+    }
+
+    try {
+        $stmt = $pdo->query("SELECT id FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1");
+        $adminId = (int) ($stmt ? $stmt->fetchColumn() : 0);
+        $cachedAdminId = $adminId > 0 ? $adminId : 0;
+    } catch (PDOException $e) {
+        $cachedAdminId = 0;
+    }
+
+    return $cachedAdminId;
+}
+
 function getBaseUrl(): string {
     $script_path = $_SERVER['SCRIPT_NAME'] ?? '';
     $dir = dirname($script_path);
@@ -120,18 +163,47 @@ function getBaseUrl(): string {
 
 $baseUrl = getBaseUrl();
 
+function getSpaUrl(string $path = '/', array $params = []): string {
+    global $baseUrl;
+
+    $normalizedBase = rtrim($baseUrl, '/');
+    $normalizedPath = '/' . ltrim($path, '/');
+    $query = $params ? '?' . http_build_query($params) : '';
+
+    if ($normalizedPath === '/' && $query === '') {
+        return $normalizedBase === '' ? '/' : $normalizedBase . '/';
+    }
+
+    $base = $normalizedBase === '' ? '' : $normalizedBase;
+    return $base . '/#' . $normalizedPath . $query;
+}
+
 function getAssetUrl(string $path): string {
     global $baseUrl;
     static $asset_domains = null;
+    $path = trim(str_replace('\\', '/', $path));
     
     if ($asset_domains === null) {
         $domains_str = env('ASSET_DOMAINS', '');
         $asset_domains = $domains_str ? array_filter(array_map('trim', explode(',', $domains_str))) : [];
     }
+
+    // Normalize relative local paths stored in mixed formats such as
+    // ../uploads/foo.jpg, ./uploads/foo.jpg, /uploads/foo.jpg, or uploads\foo.jpg.
+    $path = preg_replace('#^(?:\./|\../)+#', '', $path);
     
     // Handle cases where templates force 'uploads/' prefix on Cloudinary absolute URLs
     if (strpos($path, 'uploads/http') === 0) {
         return substr($path, 8);
+    }
+
+    // Normalize duplicated local-upload prefixes, e.g. uploads/uploads/foo.jpg
+    while (strpos($path, 'uploads/uploads/') === 0) {
+        $path = substr($path, 8);
+    }
+
+    if (strpos($path, '/uploads/') === 0) {
+        $path = ltrim($path, '/');
     }
     
     // If no asset domains are configured, return the local base URL joined with the path
@@ -168,6 +240,372 @@ function redirect(string $url): void {
     exit();
 }
 
+function setFlashMessage(string $key, string $message): void {
+    $_SESSION['_flash'][$key] = $message;
+}
+
+function getFlashMessage(string $key): string {
+    $message = $_SESSION['_flash'][$key] ?? '';
+    unset($_SESSION['_flash'][$key]);
+    return (string) $message;
+}
+
+function getAppUrl(): string {
+    static $cached = null;
+
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $configured = rtrim((string) env('APP_URL', ''), '/');
+    if ($configured !== '') {
+        return $cached = $configured;
+    }
+
+    $isHttps = (
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+    );
+    $scheme = $isHttps ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+    global $baseUrl;
+    $suffix = rtrim($baseUrl, '/');
+
+    return $cached = $scheme . '://' . $host . $suffix;
+}
+
+function googleSignInEnabled(): bool {
+    return trim((string) env('GOOGLE_CLIENT_ID', '')) !== '';
+}
+
+function runSchemaStatement(PDO $pdo, string $sql): void {
+    try {
+        $pdo->exec($sql);
+    } catch (PDOException $e) {
+        error_log('Feature schema statement failed: ' . $e->getMessage());
+    }
+}
+
+function ensureFeatureSupportSchema(PDO $pdo): void {
+    static $ready = false;
+
+    if ($ready) {
+        return;
+    }
+
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+
+    if ($driver === 'pgsql') {
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(191)");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(32)");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_avatar TEXT");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier_expires_at TIMESTAMP NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN NOT NULL DEFAULT TRUE");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS browser_notifications BOOLEAN NOT NULL DEFAULT TRUE");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP NULL");
+        runSchemaStatement($pdo, "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users (google_id)");
+
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            selector VARCHAR(32) NOT NULL UNIQUE,
+            token_hash VARCHAR(255) NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            used_at TIMESTAMP NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        runSchemaStatement($pdo, "CREATE INDEX IF NOT EXISTS idx_password_resets_user_id ON password_reset_tokens (user_id)");
+        runSchemaStatement($pdo, "CREATE INDEX IF NOT EXISTS idx_password_resets_expires_at ON password_reset_tokens (expires_at)");
+
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS notifications (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            type VARCHAR(50) NOT NULL,
+            title VARCHAR(120) DEFAULT NULL,
+            message TEXT NOT NULL,
+            link_url VARCHAR(255) DEFAULT NULL,
+            reference_id INT DEFAULT NULL,
+            is_read BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        runSchemaStatement($pdo, "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS title VARCHAR(120) DEFAULT NULL");
+        runSchemaStatement($pdo, "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link_url VARCHAR(255) DEFAULT NULL");
+        runSchemaStatement($pdo, "CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications (user_id, created_at DESC)");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS security_logs (
+            id SERIAL PRIMARY KEY,
+            event_type VARCHAR(80) NOT NULL,
+            description TEXT NOT NULL,
+            user_id INT NULL REFERENCES users(id) ON DELETE SET NULL,
+            ip_address VARCHAR(64) DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        runSchemaStatement($pdo, "CREATE INDEX IF NOT EXISTS idx_security_logs_created_at ON security_logs (created_at DESC)");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS payment_verification_logs (
+            id SERIAL PRIMARY KEY,
+            user_id INT NULL REFERENCES users(id) ON DELETE SET NULL,
+            reference VARCHAR(255) NOT NULL,
+            status VARCHAR(32) NOT NULL,
+            error_message TEXT DEFAULT NULL,
+            ip_address VARCHAR(64) DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        runSchemaStatement($pdo, "CREATE INDEX IF NOT EXISTS idx_payment_verification_logs_reference ON payment_verification_logs (reference)");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS ad_placements (
+            id SERIAL PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            image_path TEXT DEFAULT '',
+            link_url TEXT DEFAULT '#',
+            placement VARCHAR(50) DEFAULT 'homepage',
+            is_active BOOLEAN DEFAULT TRUE,
+            impressions INT DEFAULT 0,
+            clicks INT DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_path TEXT DEFAULT ''");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS link_url TEXT DEFAULT '#'");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS placement VARCHAR(50) DEFAULT 'homepage'");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS impressions INT DEFAULT 0");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS clicks INT DEFAULT 0");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ALTER COLUMN image_path TYPE TEXT");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ALTER COLUMN link_url TYPE TEXT");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT ''");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ALTER COLUMN image_url TYPE TEXT");
+        runSchemaStatement($pdo, "UPDATE ad_placements SET image_path = COALESCE(NULLIF(image_path, ''), image_url, '')");
+    } else {
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id VARCHAR(191) NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(32) NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS google_avatar TEXT NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier_expires_at DATETIME NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications TINYINT(1) NOT NULL DEFAULT 1");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS browser_notifications TINYINT(1) NOT NULL DEFAULT 1");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at DATETIME NULL");
+        runSchemaStatement($pdo, "CREATE UNIQUE INDEX idx_users_google_id ON users (google_id)");
+
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            selector VARCHAR(32) NOT NULL UNIQUE,
+            token_hash VARCHAR(255) NOT NULL,
+            expires_at DATETIME NOT NULL,
+            used_at DATETIME NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_password_resets_user_id (user_id),
+            INDEX idx_password_resets_expires_at (expires_at)
+        ) ENGINE=InnoDB");
+
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS notifications (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            type VARCHAR(50) NOT NULL,
+            title VARCHAR(120) DEFAULT NULL,
+            message TEXT NOT NULL,
+            link_url VARCHAR(255) DEFAULT NULL,
+            reference_id INT DEFAULT NULL,
+            is_read TINYINT(1) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_notifications_user_created (user_id, created_at)
+        ) ENGINE=InnoDB");
+        runSchemaStatement($pdo, "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS title VARCHAR(120) DEFAULT NULL");
+        runSchemaStatement($pdo, "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link_url VARCHAR(255) DEFAULT NULL");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS security_logs (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            event_type VARCHAR(80) NOT NULL,
+            description TEXT NOT NULL,
+            user_id INT NULL,
+            ip_address VARCHAR(64) DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_security_logs_created_at (created_at)
+        ) ENGINE=InnoDB");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS payment_verification_logs (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NULL,
+            reference VARCHAR(255) NOT NULL,
+            status VARCHAR(32) NOT NULL,
+            error_message TEXT DEFAULT NULL,
+            ip_address VARCHAR(64) DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_payment_verification_logs_reference (reference)
+        ) ENGINE=InnoDB");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS ad_placements (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            image_path TEXT NULL,
+            link_url TEXT NULL,
+            placement VARCHAR(50) DEFAULT 'homepage',
+            is_active TINYINT(1) DEFAULT 1,
+            impressions INT DEFAULT 0,
+            clicks INT DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_path TEXT NULL");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS link_url TEXT NULL");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS placement VARCHAR(50) DEFAULT 'homepage'");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS is_active TINYINT(1) DEFAULT 1");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS impressions INT DEFAULT 0");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS clicks INT DEFAULT 0");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_url TEXT NULL");
+        runSchemaStatement($pdo, "UPDATE ad_placements SET image_path = COALESCE(NULLIF(image_path, ''), image_url, '')");
+    }
+
+    $ready = true;
+}
+
+if (isset($pdo) && $pdo instanceof PDO) {
+    ensureFeatureSupportSchema($pdo);
+}
+
+function notificationTitleFor(string $type): string {
+    return match ($type) {
+        'new_message' => 'New message',
+        'new_order', 'order_received' => 'New order',
+        'order_update', 'order_accepted', 'order_rejected', 'order_cancelled', 'seller_confirmed', 'buyer_confirmed' => 'Order update',
+        'admin_alert', 'dispute' => 'Admin alert',
+        'password_reset' => 'Password reset',
+        default => 'Campus Marketplace',
+    };
+}
+
+function notificationLinkFor(string $type, ?int $referenceId = null): string {
+    return match ($type) {
+        'new_message' => $referenceId ? 'chat.php?user=' . $referenceId : 'chat.php',
+        'new_order', 'order_received' => 'dashboard.php#seller_orders',
+        'order_update', 'order_accepted', 'order_rejected', 'order_cancelled', 'seller_confirmed', 'buyer_confirmed' => 'dashboard.php#buyer_orders',
+        'admin_alert', 'dispute' => 'admin/',
+        default => 'dashboard.php',
+    };
+}
+
+function sendMarketplaceEmail(string $to, string $subject, string $html, string $plainText = ''): bool {
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        return false;
+    }
+
+    $host = parse_url(getAppUrl(), PHP_URL_HOST) ?: 'campusmarketplace.local';
+    $fromAddress = (string) env('MAIL_FROM_ADDRESS', 'no-reply@' . $host);
+    $fromName = (string) env('MAIL_FROM_NAME', 'Campus Marketplace');
+
+    if ($plainText === '') {
+        $plainText = trim(preg_replace('/\s+/', ' ', strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>'], ["\n", "\n", "\n", "\n\n"], $html))));
+    }
+
+    $boundary = 'cm-' . bin2hex(random_bytes(12));
+    $headers = [];
+    $headers[] = 'MIME-Version: 1.0';
+    $headers[] = 'From: ' . $fromName . ' <' . $fromAddress . '>';
+    $headers[] = 'Reply-To: ' . $fromAddress;
+    $headers[] = 'Content-Type: multipart/alternative; boundary="' . $boundary . '"';
+
+    $body = "--{$boundary}\r\n";
+    $body .= "Content-Type: text/plain; charset=UTF-8\r\n\r\n";
+    $body .= $plainText . "\r\n";
+    $body .= "--{$boundary}\r\n";
+    $body .= "Content-Type: text/html; charset=UTF-8\r\n\r\n";
+    $body .= $html . "\r\n";
+    $body .= "--{$boundary}--";
+
+    return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, implode("\r\n", $headers));
+}
+
+function createNotification(PDO $pdo, int $userId, string $type, string $message, ?int $referenceId = null, array $options = []): void {
+    if ($userId <= 0) {
+        return;
+    }
+
+    ensureFeatureSupportSchema($pdo);
+
+    $title = $options['title'] ?? notificationTitleFor($type);
+    $linkUrl = $options['link_url'] ?? notificationLinkFor($type, $referenceId);
+
+    $stmt = $pdo->prepare("INSERT INTO notifications (user_id, type, title, message, link_url, reference_id) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$userId, $type, $title, $message, $linkUrl, $referenceId]);
+
+    $shouldEmail = array_key_exists('email', $options) ? (bool) $options['email'] : true;
+    if (!$shouldEmail) {
+        return;
+    }
+
+    $userStmt = $pdo->prepare("SELECT email, username, email_notifications FROM users WHERE id = ? LIMIT 1");
+    $userStmt->execute([$userId]);
+    $targetUser = $userStmt->fetch();
+
+    if (!$targetUser || empty($targetUser['email']) || !filter_var($targetUser['email'], FILTER_VALIDATE_EMAIL)) {
+        return;
+    }
+
+    if (isset($targetUser['email_notifications']) && !filter_var($targetUser['email_notifications'], FILTER_VALIDATE_BOOLEAN)) {
+        return;
+    }
+
+    $absoluteLink = rtrim(getAppUrl(), '/') . '/' . ltrim($linkUrl, '/');
+    $safeTitle = htmlspecialchars($title, ENT_QUOTES, 'UTF-8');
+    $safeMessage = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
+    $safeLink = htmlspecialchars($absoluteLink, ENT_QUOTES, 'UTF-8');
+
+    $html = "<div style=\"font-family:Arial,sans-serif;line-height:1.6;color:#111827\">
+        <h2 style=\"margin:0 0 12px;color:#0071e3\">{$safeTitle}</h2>
+        <p>Hello " . htmlspecialchars($targetUser['username'] ?? 'there', ENT_QUOTES, 'UTF-8') . ",</p>
+        <p>{$safeMessage}</p>
+        <p><a href=\"{$safeLink}\" style=\"display:inline-block;padding:10px 18px;background:#0071e3;color:#fff;text-decoration:none;border-radius:999px;font-weight:700\">Open Campus Marketplace</a></p>
+        <p style=\"font-size:12px;color:#6b7280\">You are receiving this because activity happened on your Campus Marketplace account.</p>
+    </div>";
+
+    sendMarketplaceEmail($targetUser['email'], $title . ' | Campus Marketplace', $html);
+}
+
+function createMessageNotification(PDO $pdo, int $receiverId, int $senderId, string $messagePreview = ''): void {
+    $sender = getUser($pdo, $senderId);
+    $senderName = $sender['username'] ?? 'Someone';
+    $preview = $messagePreview !== '' ? mb_strimwidth($messagePreview, 0, 90, '…') : 'Open the chat to read it.';
+    createNotification(
+        $pdo,
+        $receiverId,
+        'new_message',
+        $senderName . ' sent you a message: ' . $preview,
+        $senderId,
+        [
+            'title' => 'New message from ' . $senderName,
+            'link_url' => 'chat.php?user=' . $senderId,
+        ]
+    );
+}
+
+function issuePasswordResetToken(PDO $pdo, int $userId): array {
+    ensureFeatureSupportSchema($pdo);
+
+    $selector = bin2hex(random_bytes(8));
+    $token = bin2hex(random_bytes(32));
+    $tokenHash = hash('sha256', $token);
+    $expiresAt = date('Y-m-d H:i:s', time() + 3600);
+
+    $pdo->prepare("DELETE FROM password_reset_tokens WHERE user_id = ? OR expires_at < ?")
+        ->execute([$userId, date('Y-m-d H:i:s')]);
+
+    $stmt = $pdo->prepare("INSERT INTO password_reset_tokens (user_id, selector, token_hash, expires_at) VALUES (?, ?, ?, ?)");
+    $stmt->execute([$userId, $selector, $tokenHash, $expiresAt]);
+
+    return ['selector' => $selector, 'token' => $token, 'expires_at' => $expiresAt];
+}
+
+function findPasswordResetToken(PDO $pdo, string $selector): ?array {
+    ensureFeatureSupportSchema($pdo);
+
+    $stmt = $pdo->prepare("SELECT * FROM password_reset_tokens WHERE selector = ? LIMIT 1");
+    $stmt->execute([$selector]);
+    $row = $stmt->fetch();
+
+    return $row ?: null;
+}
+
+function consumePasswordResetToken(PDO $pdo, string $selector): void {
+    $pdo->prepare("UPDATE password_reset_tokens SET used_at = ? WHERE selector = ?")
+        ->execute([date('Y-m-d H:i:s'), $selector]);
+}
+
+if ($pdo instanceof PDO) {
+    ensureFeatureSupportSchema($pdo);
+}
+
 function generateReferralCode(int $length = 8): string {
     return strtoupper(substr(bin2hex(random_bytes($length)), 0, $length));
 }
@@ -189,6 +627,18 @@ function getUnreadCount(PDO $pdo, int $userId): int {
     return (int)$stmt->fetchColumn();
 }
 
+function getUnreadMessageCount(PDO $pdo, int $userId): int {
+    return getUnreadCount($pdo, $userId);
+}
+
+function getUnreadNotificationCount(PDO $pdo, int $userId): int {
+    ensureFeatureSupportSchema($pdo);
+    $bool = sqlBool(false, $pdo);
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM notifications WHERE user_id = ? AND is_read = $bool");
+    $stmt->execute([$userId]);
+    return (int) $stmt->fetchColumn();
+}
+
 function updateLastSeen(PDO $pdo, int $userId): void {
     try {
         $pdo->prepare("UPDATE users SET last_seen = ? WHERE id = ?")->execute([date('Y-m-d H:i:s'), $userId]);
@@ -202,8 +652,22 @@ function updateLastSeen(PDO $pdo, int $userId): void {
 }
 
 function auditLog(PDO $pdo, int $adminId, string $action, string $targetType = '', int $targetId = 0): void {
-    $pdo->prepare("INSERT INTO audit_log (admin_id, action, target_type, target_id) VALUES (?,?,?,?)")
-        ->execute([$adminId, $action, $targetType, $targetId]);
+    if ($adminId <= 0) {
+        error_log("auditLog skipped for unauthenticated event: " . $action);
+        return;
+    }
+
+    try {
+        $pdo->prepare("INSERT INTO audit_log (admin_id, action, target_type, target_id) VALUES (?,?,?,?)")
+            ->execute([$adminId, $action, $targetType, $targetId]);
+    } catch (PDOException $e) {
+        $sqlState = (string) ($e->errorInfo[0] ?? $e->getCode());
+        if ($sqlState === '23503' || $sqlState === '23000') {
+            error_log("auditLog skipped due to missing admin reference #{$adminId}: " . $e->getMessage());
+            return;
+        }
+        throw $e;
+    }
 }
 
 function getProductImages(PDO $pdo, int $productId): array {

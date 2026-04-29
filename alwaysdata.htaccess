@@ -3,11 +3,17 @@
 
 # ===== DISABLE DIRECTORY LISTING =====
 Options -Indexes
+DirectoryIndex public/index.html index.php
 
 # ===== PROTECT SENSITIVE FILES =====
 <FilesMatch "\.(env|env\.local|composer\.json|composer\.lock|gitignore)$">
-    Order allow,deny
-    Deny from all
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
 # ===== API ROUTING =====
@@ -23,6 +29,9 @@ Options -Indexes
     # Route /api/* to backend/index.php
     RewriteRule ^api/(.*)$ backend/index.php?route=$1 [L,QSA]
 
+    # Fix for React base path (GitHub pages compatibility)
+    RewriteRule ^campus-marketplaces/(.*)$ public/$1 [L,QSA]
+
     # Default fallback for SPA routes (skip static assets and known paths)
     RewriteCond %{REQUEST_URI} !\.(css|js|map|ico|png|jpg|jpeg|webp|gif|svg|mp4|woff|woff2|ttf|eot)$ [NC]
     RewriteCond %{REQUEST_URI} !^/admin/ [NC]
@@ -30,7 +39,8 @@ Options -Indexes
     RewriteCond %{REQUEST_URI} !^/uploads/ [NC]
     RewriteCond %{REQUEST_URI} !^/backend/ [NC]
     RewriteCond %{REQUEST_URI} !^/includes/ [NC]
-    RewriteRule ^(.*)$ index.php [L,QSA]
+    RewriteCond %{REQUEST_URI} !^/public/ [NC]
+    RewriteRule ^(.*)$ public/index.html [L,QSA]
 </IfModule>
 
 # ===== UTF-8 ENCODING =====

@@ -13,9 +13,16 @@ if (!$product) redirect('index.php');
 // Define $isOwner BEFORE any usage
 $isOwner = isLoggedIn() && $_SESSION['user_id'] == $product['seller_id'];
 
+$canReview = false;
+if (isLoggedIn() && !$isOwner) {
+    $reviewAccessStmt = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE product_id = ? AND buyer_id = ? AND status = 'completed'");
+    $reviewAccessStmt->execute([$pid, $_SESSION['user_id']]);
+    $canReview = ((int)$reviewAccessStmt->fetchColumn() > 0);
+}
+
 // 1. FORCED REVIEW BARRIER: Rule 10
 if (isLoggedIn() && hasUnreviewedOrders($pdo, $_SESSION['user_id'])) {
-    if (!$isOwner) {
+    if (!$isOwner && !$canReview) {
         $_SESSION['flash'] = "🔒 REVIEW REQUIRED: You must submit a review for your previously completed order before viewing more products.";
         header("Location: dashboard.php#buyer_orders");
         exit;
@@ -36,15 +43,24 @@ $reviewCount = $pdo->prepare("SELECT COUNT(*) FROM reviews WHERE product_id = ?"
 
 // Handle review submission
 $reviewMsg = '';
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review']) && isLoggedIn() && !$isOwner) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review']) && $canReview) {
+    check_csrf();
     $r_rating = max(1, min(5, (int)($_POST['rating'] ?? 5)));
     $r_comment = trim($_POST['comment'] ?? '');
     try {
-        $pdo->prepare("INSERT INTO reviews (product_id, user_id, rating, comment) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE rating = VALUES(rating), comment = VALUES(comment)")
-            ->execute([$pid, $_SESSION['user_id'], $r_rating, $r_comment]);
+        $updateReview = $pdo->prepare("UPDATE reviews SET rating = ?, comment = ?, created_at = NOW() WHERE product_id = ? AND user_id = ?");
+        $updateReview->execute([$r_rating, $r_comment, $pid, $_SESSION['user_id']]);
+
+        if ($updateReview->rowCount() === 0) {
+            $pdo->prepare("INSERT INTO reviews (product_id, user_id, rating, comment) VALUES (?,?,?,?)")
+                ->execute([$pid, $_SESSION['user_id'], $r_rating, $r_comment]);
+        }
         $reviewMsg = "Review submitted!";
         $rating = getAvgRating($pdo, $pid);
-    } catch(Exception $e) { $reviewMsg = "Could not save review."; }
+    } catch(Exception $e) {
+        error_log('legacy/product.php review save failed: ' . $e->getMessage());
+        $reviewMsg = "Could not save review.";
+    }
 }
 
 // Handle purchase

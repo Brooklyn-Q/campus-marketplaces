@@ -173,6 +173,30 @@ function actionBtn(
     </form>
     HTML;
 }
+
+function adminAvatarFallbackUri(string $username): string {
+    $initial = strtoupper(substr(trim($username), 0, 1) ?: 'U');
+    $svg = '<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">'
+        . '<rect width="96" height="96" rx="48" fill="#1f2937"/>'
+        . '<text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" '
+        . 'font-family="Arial, sans-serif" font-size="40" font-weight="700" fill="#ffffff">'
+        . htmlspecialchars($initial, ENT_QUOTES, 'UTF-8')
+        . '</text></svg>';
+    return 'data:image/svg+xml;charset=UTF-8,' . rawurlencode($svg);
+}
+
+function adminResolvedAvatarUrl(array $user): string {
+    $avatarUrl = trim((string) ($user['profile_pic'] ?? ''));
+    if ($avatarUrl === '' && !empty($user['google_avatar'])) {
+        $avatarUrl = trim((string) $user['google_avatar']);
+    }
+
+    if ($avatarUrl !== '') {
+        return getAssetUrl('uploads/' . $avatarUrl);
+    }
+
+    return adminAvatarFallbackUri((string) ($user['username'] ?? 'U'));
+}
 ?>
 
 <h2 class="mb-2">User Management</h2>
@@ -211,17 +235,18 @@ function actionBtn(
                 $uid = (int) $u['id'];
                 $is_suspended = !empty($u['suspended']);
                 $is_self = $uid === (int) $_SESSION['user_id']; // OPT 2: strict int comparison
+                $avatarSrc = adminResolvedAvatarUrl($u);
+                $avatarFallback = adminAvatarFallbackUri((string) $u['username']);
                 ?>
                 <tr>
                     <td><?= $uid ?></td>
                     <td class="flex gap-1" style="align-items:center;">
                         <?php $tierClass = 'profile-pic-' . ($u['role'] === 'seller' ? ($u['seller_tier'] ?: 'basic') : 'basic'); ?>
-                        <?php if ($u['profile_pic']): ?>
-                            <img src="../uploads/<?= htmlspecialchars($u['profile_pic']) ?>"
-                                class="profile-pic-previewable <?= $tierClass ?>"
-                                style="width:28px;height:28px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid transparent;"
-                                alt="<?= htmlspecialchars($u['username']) ?>">
-                        <?php endif; ?>
+                        <img src="<?= htmlspecialchars($avatarSrc, ENT_QUOTES, 'UTF-8') ?>"
+                            class="profile-pic-previewable <?= $tierClass ?>"
+                            style="width:28px;height:28px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid transparent;"
+                            onerror="this.onerror=null;this.src='<?= htmlspecialchars($avatarFallback, ENT_QUOTES, 'UTF-8') ?>';"
+                            alt="<?= htmlspecialchars($u['username']) ?>">
                         <?= htmlspecialchars($u['username']) ?>
                     </td>
                     <td><?= htmlspecialchars($u['email']) ?></td>

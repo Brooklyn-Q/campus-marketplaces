@@ -3,22 +3,6 @@ $page_title = 'Ad Manager';
 require_once 'header.php';
 require_once '../includes/storage_helper.php';
 
-// Create ads table
-try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS ad_placements (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        title VARCHAR(255) NOT NULL,
-        image_path VARCHAR(2048) DEFAULT '',
-        link_url VARCHAR(2048) DEFAULT '#',
-        placement ENUM('homepage','category','product') DEFAULT 'homepage',
-        is_active TINYINT(1) DEFAULT 1,
-        impressions INT DEFAULT 0,
-        clicks INT DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB");
-} catch (Exception $e) {
-}
-
 // Handle actions
 $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {

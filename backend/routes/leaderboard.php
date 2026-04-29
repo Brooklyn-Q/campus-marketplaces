@@ -34,4 +34,4 @@ foreach ($leaders as &$l) {
     }
 }
 
-jsonResponse(['leaders' => $leaders]);
+jsonResponse(['leaders' => $leaders, 'leaderboard' => $leaders]);

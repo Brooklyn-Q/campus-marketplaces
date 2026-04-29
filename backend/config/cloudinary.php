@@ -56,6 +56,8 @@ function uploadToCloudinary(array $file, string $folder = 'marketplace'): ?strin
 }
 
 function uploadLocally(array $file, string $folder): ?string {
+    $disableSupabase = filter_var(env('DISABLE_SUPABASE_STORAGE', '0'), FILTER_VALIDATE_BOOLEAN);
+
     // Try Supabase Storage first (persistent across Render redeployments)
     $projectRef = env('SUPABASE_PROJECT_REF', '');
     // Prefer service_role key for server-side uploads (bypasses RLS)
@@ -63,7 +65,7 @@ function uploadLocally(array $file, string $folder): ?string {
     $anonKey     = env('SUPABASE_ANON_KEY', '');
     $authKey     = $serviceKey ?: $anonKey;
 
-    if ($projectRef && $authKey) {
+    if (!$disableSupabase && $projectRef && $authKey) {
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $allowed = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'mp4', 'webm'];
         if (!in_array($ext, $allowed)) {
@@ -107,7 +109,7 @@ function uploadLocally(array $file, string $folder): ?string {
                 }
             }
         }
-    } else {
+    } elseif (!$disableSupabase) {
         error_log("Supabase upload skipped: missing SUPABASE_PROJECT_REF or key (ref='$projectRef')");
     }
 

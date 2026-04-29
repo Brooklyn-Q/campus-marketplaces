@@ -147,8 +147,10 @@ case 'vacations':
         $req->execute([$modId]);
         $vr = $req->fetch();
         if ($vr) {
-            $boolTrue = sqlBool(true, $pdo);
-            $pdo->prepare("UPDATE users SET vacation_mode = $boolTrue WHERE id = ?")->execute([$vr['seller_id']]);
+            $stmt = $pdo->prepare("UPDATE users SET vacation_mode = ? WHERE id = ?");
+            $stmt->bindValue(1, true, PDO::PARAM_BOOL);
+            $stmt->bindValue(2, $vr['seller_id'], PDO::PARAM_INT);
+            $stmt->execute();
             $pdo->prepare("UPDATE vacation_requests SET status = 'approved' WHERE id = ?")->execute([$modId]);
             auditLog($pdo, $auth['user_id'], "Approved vacation for seller #" . $vr['seller_id'], 'vacation', $modId);
         }

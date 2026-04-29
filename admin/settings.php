@@ -7,17 +7,43 @@ require_once 'header.php';
 // ---------------------------------------------------------------------------
 // Schema bootstrap — run once, safe to call on every request
 // ---------------------------------------------------------------------------
-try {
-    $pdo->exec("CREATE TABLE IF NOT EXISTS login_attempts (
-        id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        ip_address     VARCHAR(45)  NOT NULL,
-        username_tried VARCHAR(255) NOT NULL DEFAULT '',
-        attempt_time   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        INDEX idx_ip_time (ip_address, attempt_time)
-    )");
-} catch (PDOException $e) {
-    error_log("login_attempts schema check failed: " . $e->getMessage());
+function ensure_login_attempts_schema(PDO $pdo): bool
+{
+    static $ready = null;
+
+    if ($ready !== null) {
+        return $ready;
+    }
+
+    try {
+        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS login_attempts (
+                id SERIAL PRIMARY KEY,
+                ip_address VARCHAR(45) NOT NULL,
+                username_tried VARCHAR(255) NOT NULL DEFAULT '',
+                attempt_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )");
+            $pdo->exec("CREATE INDEX IF NOT EXISTS idx_login_attempts_ip_time ON login_attempts (ip_address, attempt_time)");
+        } else {
+            $pdo->exec("CREATE TABLE IF NOT EXISTS login_attempts (
+                id             INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+                ip_address     VARCHAR(45)  NOT NULL,
+                username_tried VARCHAR(255) NOT NULL DEFAULT '',
+                attempt_time   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                INDEX idx_ip_time (ip_address, attempt_time)
+            )");
+        }
+
+        $ready = true;
+    } catch (PDOException $e) {
+        error_log("login_attempts schema check failed: " . $e->getMessage());
+        $ready = false;
+    }
+
+    return $ready;
 }
+
+ensure_login_attempts_schema($pdo);
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -59,6 +85,10 @@ function get_client_ip(): string
  */
 function is_ip_throttled(PDO $pdo, string $ip): bool
 {
+    if (!ensure_login_attempts_schema($pdo)) {
+        return false;
+    }
+
     $intervalSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
         ? "INTERVAL '" . ATTEMPT_WINDOW . " minutes'"
         : "INTERVAL " . ATTEMPT_WINDOW . " MINUTE";
@@ -77,6 +107,10 @@ function is_ip_throttled(PDO $pdo, string $ip): bool
  */
 function record_failed_attempt(PDO $pdo, string $ip, string $username_tried): void
 {
+    if (!ensure_login_attempts_schema($pdo)) {
+        return;
+    }
+
     $pdo->prepare(
         "INSERT INTO login_attempts (ip_address, username_tried, attempt_time)
          VALUES (?, ?, NOW())"
@@ -88,6 +122,10 @@ function record_failed_attempt(PDO $pdo, string $ip, string $username_tried): vo
  */
 function clear_attempts(PDO $pdo, string $ip): void
 {
+    if (!ensure_login_attempts_schema($pdo)) {
+        return;
+    }
+
     $pdo->prepare(
         "DELETE FROM login_attempts WHERE ip_address = ?"
     )->execute([$ip]);
@@ -99,6 +137,10 @@ function clear_attempts(PDO $pdo, string $ip): void
  */
 function purge_old_attempts(PDO $pdo): void
 {
+    if (!ensure_login_attempts_schema($pdo)) {
+        return;
+    }
+
     $intervalSql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
         ? "INTERVAL '" . ATTEMPT_WINDOW . " minutes'"
         : "INTERVAL " . ATTEMPT_WINDOW . " MINUTE";
@@ -142,6 +184,7 @@ function auditLogWithContext(
 // ---------------------------------------------------------------------------
 $err = '';
 $ip = get_client_ip();
+$googleEnabled = googleSignInEnabled();
 
 // Lightweight housekeeping — trim stale rows without a dedicated cron
 purge_old_attempts($pdo);
@@ -194,7 +237,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $user['id']
             );
 
-            $redirect = isAdmin() ? 'index.php' : '../index.php';
+            $redirect = isAdmin() ? 'index.php' : '../';
             header("Location: $redirect");
             exit;
 
@@ -207,13 +250,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ? "INTERVAL '" . ATTEMPT_WINDOW . " minutes'"
                 : "INTERVAL " . ATTEMPT_WINDOW . " MINUTE";
 
-            $stmt2 = $pdo->prepare(
-                "SELECT COUNT(*) FROM login_attempts
-                 WHERE ip_address = ?
-                   AND attempt_time > NOW() - $intervalSql"
-            );
-            $stmt2->execute([$ip]);
-            $attempts_so_far = (int) $stmt2->fetchColumn();
+            $attempts_so_far = 0;
+            if (ensure_login_attempts_schema($pdo)) {
+                $stmt2 = $pdo->prepare(
+                    "SELECT COUNT(*) FROM login_attempts
+                     WHERE ip_address = ?
+                       AND attempt_time > NOW() - $intervalSql"
+                );
+                $stmt2->execute([$ip]);
+                $attempts_so_far = (int) $stmt2->fetchColumn();
+            }
             $remaining = max(0, ATTEMPT_LIMIT - $attempts_so_far);
 
             auditLogWithContext(
@@ -277,6 +323,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 Login
             </button>
         </form>
+
+        <div style="margin-top:0.9rem; text-align:right;">
+            <a href="../forgot_password.php" style="color:#0071e3; font-weight:700; text-decoration:none; font-size:0.92rem;">Forgot password?</a>
+        </div>
+
+        <?php if ($googleEnabled): ?>
+            <div style="display:flex; align-items:center; gap:12px; margin:1.5rem 0;">
+                <div style="height:1px; background:rgba(0,0,0,0.08); flex:1;"></div>
+                <span style="font-size:0.82rem; color:#6b7280; font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">or</span>
+                <div style="height:1px; background:rgba(0,0,0,0.08); flex:1;"></div>
+            </div>
+            <div id="googleAdminLoginButton" style="display:flex; justify-content:center;"></div>
+            <form id="googleAdminLoginForm" method="POST" action="../google_signin.php" style="display:none;">
+                <input type="hidden" name="credential" id="googleAdminLoginCredential">
+                <input type="hidden" name="mode" value="admin">
+            </form>
+            <p style="font-size:0.82rem; color:#6b7280; text-align:center; margin-top:0.85rem;">
+                Continue with Google for approved admin accounts.
+            </p>
+            <script src="https://accounts.google.com/gsi/client" async defer></script>
+            <script>
+                function handleGoogleAdminLogin(response) {
+                    const input = document.getElementById('googleAdminLoginCredential');
+                    if (!response || !response.credential || !input) return;
+                    input.value = response.credential;
+                    document.getElementById('googleAdminLoginForm').submit();
+                }
+                window.addEventListener('load', function () {
+                    if (!window.google || !google.accounts || !document.getElementById('googleAdminLoginButton')) return;
+                    google.accounts.id.initialize({
+                        client_id: <?= json_encode(env('GOOGLE_CLIENT_ID', '')) ?>,
+                        callback: handleGoogleAdminLogin
+                    });
+                    google.accounts.id.renderButton(
+                        document.getElementById('googleAdminLoginButton'),
+                        { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: 320 }
+                    );
+                });
+            </script>
+        <?php endif; ?>
     </div>
 
 </body>

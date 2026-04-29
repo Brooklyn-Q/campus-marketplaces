@@ -31,7 +31,7 @@ $stmt->execute([
 $history_users = $stmt->fetchAll() ?: [];
 
 if ($chat_user_id) {
-    $stmt = $pdo->prepare("SELECT id, username, profile_pic, last_seen FROM users WHERE id = ?");
+    $stmt = $pdo->prepare("SELECT id, username, profile_pic, last_seen, role, seller_tier FROM users WHERE id = ?");
     $stmt->execute([$chat_user_id]);
     $chat_user = $stmt->fetch();
 
@@ -43,7 +43,14 @@ if ($chat_user_id) {
 
     // Add to sidebar if new conversation
     if ($chat_user && !in_array($chat_user['id'], array_column($history_users, 'id'))) {
-        array_unshift($history_users, array_merge($chat_user, ['last_msg' => null, 'last_msg_type' => null, 'last_attachment' => null, 'unread' => 0]));
+        array_unshift($history_users, array_merge($chat_user, [
+            'role' => $chat_user['role'] ?? 'buyer',
+            'seller_tier' => $chat_user['seller_tier'] ?? 'basic',
+            'last_msg' => null,
+            'last_msg_type' => null,
+            'last_attachment' => null,
+            'unread' => 0
+        ]));
     }
 }
 
@@ -55,6 +62,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'send_fast' && $_SERVER['REQUE
     if ($receiver > 0 && $msg) {
         $stmt = $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, message) VALUES (?, ?, ?)");
         $stmt->execute([$me, $receiver, $msg]);
+        createMessageNotification($pdo, $receiver, $me, $msg);
         redirect('dashboard.php?msg=' . urlencode('Message sent to Administrator!'));
     }
 }
@@ -71,7 +79,11 @@ require_once 'includes/header.php';
         <?php foreach($history_users as $u): ?>
             <?php $isOnline = $u['last_seen'] && (time() - strtotime($u['last_seen'])) < 300; ?>
             <a href="chat.php?user=<?= $u['id'] ?>" class="chat-user-item <?= $chat_user_id == $u['id'] ? 'active' : '' ?>">
-                <?php $tierClass = 'profile-pic-' . ($u['role'] === 'seller' ? ($u['seller_tier'] ?: 'basic') : 'basic'); ?>
+                <?php
+                    $userRole = $u['role'] ?? 'buyer';
+                    $userTier = $u['seller_tier'] ?? 'basic';
+                    $tierClass = 'profile-pic-' . ($userRole === 'seller' ? ($userTier ?: 'basic') : 'basic');
+                ?>
                 <?php if($u['profile_pic']): ?>
                     <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($u['profile_pic'])) ?>" class="profile-pic-previewable <?= $tierClass ?>" style="width:36px;height:36px;border-radius:50%;object-fit:cover;cursor:pointer;border:2px solid transparent;">
                 <?php else: ?>

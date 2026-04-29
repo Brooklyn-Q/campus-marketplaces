@@ -20,6 +20,7 @@ if ($method === 'GET' && !$action) {
     foreach ($ads as &$ad) {
         $ad['image_url'] = $ad['image_path'] ?? '';
     }
+    unset($ad);
 
     // Track impressions
     foreach ($ads as $ad) {

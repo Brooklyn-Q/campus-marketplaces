@@ -5,15 +5,30 @@ import { assetUrl } from './utils/assetUrl';
 
 const cycleWords = ['Buy', 'Sell', 'Rent', 'Advertise'];
 
-const APP_BASE = (import.meta as any).env.BASE_URL || '/';
-const LEGACY_BASE = (window as any).MARKETPLACE_BASE_URL || APP_BASE;
+const LEGACY_BASE = (window as any).MARKETPLACE_BASE_URL || '/';
 const usesSpaRouting = typeof document !== 'undefined' && !!document.getElementById('root');
+
+function getAppBasePath() {
+  if (typeof window === 'undefined') {
+    return '';
+  }
+
+  return window.location.pathname.startsWith('/marketplace/') ? '/marketplace' : '';
+}
+
+function getSpaBaseUrl() {
+  if (typeof window === 'undefined') {
+    return '/';
+  }
+
+  const basePath = getAppBasePath();
+  return `${window.location.origin}${basePath ? `${basePath}/` : '/'}`;
+}
 
 function buildHomeUrl(params: Record<string, string>) {
   const query = new URLSearchParams(params).toString();
   if (usesSpaRouting) {
-    // HashRouter: navigate within the SPA using hash routes
-    return `${APP_BASE}#/${query ? `?${query}` : ''}`;
+    return `${getSpaBaseUrl()}#/${query ? `?${query}` : ''}`;
   }
   const basePath = `${LEGACY_BASE}index.php`;
   return `${basePath}${query ? `?${query}` : ''}`;

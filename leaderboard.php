@@ -6,10 +6,15 @@ require_once 'includes/header.php';
 // Priority 1: Items sold in the last 24 hours
 // Priority 2: Lifetime Sales Count
 // Priority 3: Active approved listings
+$driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+$salesTodaySql = $driver === 'pgsql'
+    ? "CURRENT_TIMESTAMP - INTERVAL '1 day'"
+    : "NOW() - INTERVAL 1 DAY";
+
 $stmt = $pdo->query("
     SELECT u.id, u.username, u.profile_pic, u.department, u.seller_tier, u.verified,
            (SELECT COUNT(*) FROM products WHERE user_id = u.id AND status='approved') as active_listings,
-           (SELECT COUNT(*) FROM transactions WHERE user_id = u.id AND type='sale' AND created_at >= NOW() - INTERVAL 1 DAY) as sales_today,
+           (SELECT COUNT(*) FROM transactions WHERE user_id = u.id AND type='sale' AND created_at >= $salesTodaySql) as sales_today,
            (SELECT COUNT(*) FROM transactions WHERE user_id = u.id AND type='sale') as lifetime_sales,
            COALESCE((SELECT SUM(amount) FROM transactions WHERE user_id = u.id AND type='sale'), 0) as total_earnings
     FROM users u

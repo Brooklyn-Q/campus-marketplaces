@@ -4,6 +4,11 @@ if (!isLoggedIn()) redirect('login.php');
 
 $user = getUser($pdo, $_SESSION['user_id']);
 if (!$user) { session_destroy(); redirect('login.php'); }
+$supportAdminId = getPrimaryAdminId($pdo);
+try {
+    $boolTrue = sqlBool(true, $pdo);
+    $pdo->prepare("UPDATE notifications SET is_read = {$boolTrue} WHERE user_id = ?")->execute([$user['id']]);
+} catch (PDOException $e) {}
 
 // Handle actions
 $msg = '';
@@ -49,8 +54,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             break;
         case 'toggle_vacation':
             if ($user['vacation_mode']) {
-                $pdo->prepare("UPDATE users SET vacation_mode=0 WHERE id=?")->execute([$user['id']]);
-                $user['vacation_mode'] = 0;
+                $stmt = $pdo->prepare("UPDATE users SET vacation_mode=? WHERE id=?");
+                $stmt->bindValue(1, false, PDO::PARAM_BOOL);
+                $stmt->bindValue(2, $user['id'], PDO::PARAM_INT);
+                $stmt->execute();
+                $user['vacation_mode'] = false;
                 $msg = "Welcome back! Your listings are visible again.";
             } else {
                 try {
@@ -62,7 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     )");
                 } catch(PDOException $e) {}
                 $pdo->prepare("INSERT INTO vacation_requests (seller_id, status) VALUES (?, 'pending')")->execute([$user['id']]);
-                $msg = "🏝️ Vacation request submitted for Admin approval. Your listings will be hidden once approved.";
+                $msg = "Vacation request submitted for admin approval. Your listings will be hidden once approved.";
             }
             break;
 
@@ -77,7 +85,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $stmt->execute([$user['id']]);
                     $u = $stmt->fetch();
 
-                    if (!$u || $u['balance'] < $boostPrice) throw new Exception("Insufficient funds (₵$boostPrice required) to boost.");
+                    if (!$u || $u['balance'] < $boostPrice) throw new Exception("Insufficient funds (GHS $boostPrice required) to boost.");
 
                     if ($boostPrice > 0) {
                         $pdo->prepare("UPDATE users SET balance = balance - ? WHERE id = ?")->execute([$boostPrice, $user['id']]);
@@ -91,7 +99,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     $pdo->prepare("INSERT INTO transactions (user_id,type,amount,status,reference,description) VALUES (?,'boost',?,?,?,?)")->execute([$user['id'], $boostPrice, 'completed', generateRef('BST'), "Boosted Product #$pid" . ($isPremium ? " (Free Premium Benefit)" : "")]);
 
                     $pdo->commit();
-                    $msg = $isPremium ? "⚡ Product Successfully Boosted (Free Premium Benefit)!" : "⚡ Product Successfully Boosted for 24 hours!";
+                    $msg = $isPremium ? "Product successfully boosted (free Premium benefit)." : "Product successfully boosted for 24 hours.";
                 } catch (Exception $e) {
                     $pdo->rollBack();
                     $msg = "Error: " . $e->getMessage();
@@ -100,12 +108,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             break;
 
         case 'request_premium':
-            $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, message) VALUES (?, 1, ?)")->execute([$user['id'], "Hello Admin! I am requesting a Platinum/Premium Badge upgrade for my seller account. I agree to pay the premium fee."]);
-            $msg = "⭐ Premium request sent to Administrator!";
+            if ($supportAdminId > 0) {
+                $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, message) VALUES (?, ?, ?)")
+                    ->execute([$user['id'], $supportAdminId, "Hello Admin! I am requesting a Platinum/Premium Badge upgrade for my seller account. I agree to pay the premium fee."]);
+                createMessageNotification($pdo, $supportAdminId, (int) $user['id'], 'Premium badge upgrade request');
+                $msg = "Premium request sent to the administrator.";
+            } else {
+                $msg = "No administrator account is available right now.";
+            }
             break;
         case 'request_pro':
-            $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, message) VALUES (?, 1, ?)")->execute([$user['id'], "Hello Admin! I am requesting a Pro Badge upgrade for my seller account. I agree to pay the pro fee."]);
-            $msg = "🥈 Pro request sent to Administrator!";
+            if ($supportAdminId > 0) {
+                $pdo->prepare("INSERT INTO messages (sender_id, receiver_id, message) VALUES (?, ?, ?)")
+                    ->execute([$user['id'], $supportAdminId, "Hello Admin! I am requesting a Pro Badge upgrade for my seller account. I agree to pay the pro fee."]);
+                createMessageNotification($pdo, $supportAdminId, (int) $user['id'], 'Pro badge upgrade request');
+                $msg = "Pro request sent to the administrator.";
+            } else {
+                $msg = "No administrator account is available right now.";
+            }
             break;
         case 'cancel_tier':
             // Check for existing pending request to avoid duplicates
@@ -114,9 +134,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             if($check->fetchColumn() == 0) {
                 $pdo->prepare("INSERT INTO profile_edit_requests (user_id, field_name, old_value, new_value) VALUES (?, 'seller_tier', ?, 'basic')")
                     ->execute([$user['id'], $user['seller_tier']]);
-                $msg = "🛑 Tier cancellation request submitted for admin approval.";
+                $msg = "Tier cancellation request submitted for admin approval.";
             } else {
-                $msg = "⚠️ You already have a pending cancellation request.";
+                $msg = "You already have a pending cancellation request.";
             }
             break;
 
@@ -148,62 +168,162 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                     }
                     $pdo->prepare("INSERT INTO discount_requests (product_id, seller_id, original_price, discount_percent, discounted_price) VALUES (?,?,?,?,?)")
                         ->execute([$pid, $user['id'], $prod_data['price'], $discount_pct, $discounted]);
-                    $msg = "📨 Discount request ({$discount_pct}% off \"{$prod_data['title']}\") submitted for admin approval!";
+                    $msg = "Discount request ({$discount_pct}% off \"{$prod_data['title']}\") submitted for admin approval.";
                 }
             } else {
-                $msg = "⚠️ Enter a valid discount (1-90%).";
+                $msg = "Enter a valid discount (1-90%).";
             }
             break;
         case 'accept_order':
-            $oid = (int)($_GET['oid'] ?? 0);
+            $oid = (int)($_POST['oid'] ?? $_GET['oid'] ?? 0);
             $note = trim($_POST['delivery_note'] ?? '');
-            if ($oid > 0 && $note) {
-                // Seller accepts
-                $pdo->prepare("UPDATE orders SET status='seller_seen', delivery_note=? WHERE id=? AND seller_id=?")->execute([$note, $oid, $user['id']]);
-                // Notify Buyer
-                $o = $pdo->prepare("SELECT buyer_id, p.title FROM orders o JOIN products p ON o.product_id=p.id WHERE o.id=?"); $o->execute([$oid]); $ord = $o->fetch();
-                if ($ord) {
-                    $pdo->prepare("INSERT INTO notifications (user_id, type, message, reference_id) VALUES (?, 'order_update', ?, ?)")
-                        ->execute([$ord['buyer_id'], "Order seen by seller. Delivery update: " . $note, $oid]);
+            if ($oid > 0) {
+                $note = $note ?: 'Seller has acknowledged your order and will update you shortly.';
+                $o = $pdo->prepare("SELECT o.*, p.title FROM orders o JOIN products p ON o.product_id=p.id WHERE o.id=? AND o.seller_id=?");
+                $o->execute([$oid, $user['id']]);
+                $ord = $o->fetch(PDO::FETCH_ASSOC);
+                if (!$ord) {
+                    $msg = "Order not found.";
+                    break;
                 }
-                $msg = "Order accepted and buyer notified.";
+                if (($ord['status'] ?? '') !== 'ordered') {
+                    $msg = "This order has already been acknowledged.";
+                    break;
+                }
+
+                $pdo->prepare("UPDATE orders SET status='seller_seen', delivery_note=? WHERE id=? AND seller_id=?")
+                    ->execute([$note, $oid, $user['id']]);
+                createNotification($pdo, (int) $ord['buyer_id'], 'order_update', "Seller acknowledged your order: " . $note, $oid, [
+                    'title' => 'Seller acknowledged your order',
+                    'link_url' => 'dashboard.php#buyer_orders',
+                ]);
+                $msg = "Order acknowledged. Buyer has been notified.";
+            }
+            break;
+        case 'reject_order':
+            $oid = (int)($_POST['oid'] ?? $_GET['oid'] ?? 0);
+            if ($oid > 0) {
+                $o = $pdo->prepare("SELECT * FROM orders WHERE id=? AND seller_id=?");
+                $o->execute([$oid, $user['id']]);
+                $ord = $o->fetch(PDO::FETCH_ASSOC);
+                if (!$ord) {
+                    $msg = "Order not found.";
+                    break;
+                }
+                if (!in_array($ord['status'] ?? '', ['ordered', 'seller_seen'], true)) {
+                    $msg = "This order can no longer be rejected.";
+                    break;
+                }
+
+                $pdo->beginTransaction();
+                try {
+                    $pdo->prepare("DELETE FROM orders WHERE id=? AND seller_id=?")->execute([$oid, $user['id']]);
+                    dashboardRestoreOrderStock($pdo, $ord);
+                    createNotification($pdo, (int) $ord['buyer_id'], 'order_update', "Seller declined your order.", $oid, [
+                        'title' => 'Order declined',
+                        'link_url' => 'dashboard.php#buyer_orders',
+                    ]);
+                    $pdo->commit();
+                    $msg = "Order declined and stock restored.";
+                } catch (Exception $e) {
+                    if ($pdo->inTransaction()) {
+                        $pdo->rollBack();
+                    }
+                    $msg = "Failed to reject order.";
+                }
             }
             break;
         case 'deliver_order':
-            $oid = (int)($_GET['oid'] ?? 0);
+            $oid = (int)($_POST['oid'] ?? $_GET['oid'] ?? 0);
             if ($oid > 0) {
+                $orderStmt = $pdo->prepare("SELECT * FROM orders WHERE id=? AND seller_id=?");
+                $orderStmt->execute([$oid, $user['id']]);
+                $ordData = $orderStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$ordData) {
+                    $msg = "Order not found.";
+                    break;
+                }
+                if (($ordData['status'] ?? '') === 'ordered') {
+                    $msg = "Please acknowledge the order first before confirming item sold.";
+                    break;
+                }
+                if (($ordData['status'] ?? '') !== 'seller_seen' && ($ordData['status'] ?? '') !== 'delivered') {
+                    $msg = "This order cannot be marked as sold right now.";
+                    break;
+                }
+                if (!empty($ordData['seller_confirmed'])) {
+                    $msg = "Item sold has already been confirmed for this order.";
+                    break;
+                }
                 $boolT = sqlBool(true, $pdo);
                 $status_sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
                     ? "CASE WHEN buyer_confirmed = $boolT THEN 'completed' ELSE 'delivered' END"
                     : "IF(buyer_confirmed = 1, 'completed', 'delivered')";
                 $pdo->prepare("UPDATE orders SET seller_confirmed=$boolT, status=$status_sql WHERE id=? AND seller_id=?")->execute([$oid, $user['id']]);
+                if (!empty($ordData['buyer_confirmed'])) {
+                    dashboardCreateSaleTransaction($pdo, $ordData, $oid);
+                }
                 // Notify admin/buyer
                 $o = $pdo->prepare("SELECT buyer_id, p.id as pid FROM orders o JOIN products p ON o.product_id=p.id WHERE o.id=?"); $o->execute([$oid]); $ord = $o->fetch();
                 if ($ord) {
-                    $pdo->prepare("INSERT INTO notifications (user_id, type, message, reference_id) VALUES (?, 'order_update', ?, ?)")->execute([$ord['buyer_id'], "Seller confirmed Item Sold. Please confirm when received.", $oid]);
-                    $pdo->prepare("INSERT INTO notifications (user_id, type, message, reference_id) VALUES (?, 'admin_alert', ?, ?)")->execute([1, "Seller confirmed order #$oid as Item Sold.", $oid]);
+                    createNotification($pdo, (int) $ord['buyer_id'], 'order_update', "Seller confirmed Item Sold. Please confirm when received.", $oid, [
+                        'title' => 'Seller confirmed item sold',
+                        'link_url' => 'dashboard.php#buyer_orders',
+                    ]);
+                    if ($supportAdminId > 0) {
+                        createNotification($pdo, $supportAdminId, 'admin_alert', "Seller confirmed order #$oid as Item Sold.", $oid, [
+                            'title' => 'Seller confirmed an order',
+                            'link_url' => 'admin/',
+                        ]);
+                    }
                 }
                 $msg = "Item Sold confirmed successfully.";
             }
             break;
         case 'receive_order':
-            $oid = (int)($_GET['oid'] ?? 0);
+            $oid = (int)($_POST['oid'] ?? $_GET['oid'] ?? 0);
             if ($oid > 0) {
+                $orderStmt = $pdo->prepare("SELECT * FROM orders WHERE id=? AND buyer_id=?");
+                $orderStmt->execute([$oid, $user['id']]);
+                $ordData = $orderStmt->fetch(PDO::FETCH_ASSOC);
+                if (!$ordData) {
+                    $msg = "Order not found.";
+                    break;
+                }
+                if (($ordData['status'] ?? '') !== 'delivered' || empty($ordData['seller_confirmed'])) {
+                    $msg = "The seller must confirm item sold before you can confirm receipt.";
+                    break;
+                }
+                if (!empty($ordData['buyer_confirmed'])) {
+                    $msg = "Receipt already confirmed for this order.";
+                    break;
+                }
                 $boolT = sqlBool(true, $pdo);
                 $status_sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
                     ? "CASE WHEN seller_confirmed = $boolT THEN 'completed' ELSE 'delivered' END"
                     : "IF(seller_confirmed = 1, 'completed', 'delivered')";
                 $pdo->prepare("UPDATE orders SET buyer_confirmed=$boolT, status=$status_sql WHERE id=? AND buyer_id=?")->execute([$oid, $user['id']]);
+                if (!empty($ordData['seller_confirmed'])) {
+                    dashboardCreateSaleTransaction($pdo, $ordData, $oid);
+                }
                 $o = $pdo->prepare("SELECT seller_id, p.id as pid FROM orders o JOIN products p ON o.product_id=p.id WHERE o.id=?"); $o->execute([$oid]); $ord = $o->fetch();
                 if ($ord) {
-                    $pdo->prepare("INSERT INTO notifications (user_id, type, message, reference_id) VALUES (?, 'order_update', ?, ?)")->execute([$ord['seller_id'], "Buyer confirmed Item Received. Transaction complete.", $oid]);
-                    $pdo->prepare("INSERT INTO notifications (user_id, type, message, reference_id) VALUES (?, 'admin_alert', ?, ?)")->execute([1, "Buyer confirmed receipt of order #$oid. Transaction complete.", $oid]);
+                    createNotification($pdo, (int) $ord['seller_id'], 'order_update', "Buyer confirmed Item Received. Transaction complete.", $oid, [
+                        'title' => 'Buyer confirmed receipt',
+                        'link_url' => 'dashboard.php#seller_orders',
+                    ]);
+                    if ($supportAdminId > 0) {
+                        createNotification($pdo, $supportAdminId, 'admin_alert', "Buyer confirmed receipt of order #$oid. Transaction complete.", $oid, [
+                            'title' => 'Buyer confirmed an order',
+                            'link_url' => 'admin/',
+                        ]);
+                    }
                 }
                 $msg = "Item Received confirmed. Transaction complete.";
             }
             break;
         case 'submit_dispute':
-            $oid = (int)($_GET['oid'] ?? 0);
+            $oid = (int)($_POST['oid'] ?? $_GET['oid'] ?? 0);
             $reason = trim($_POST['reason'] ?? '');
             if($oid > 0 && $reason) {
                 $o = $pdo->prepare("SELECT seller_id FROM orders WHERE id=? AND buyer_id=?");
@@ -212,7 +332,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 if($ord) {
                     $pdo->prepare("INSERT INTO disputes (order_id, complainant_id, target_id, reason) VALUES (?,?,?,?)")
                         ->execute([$oid, $user['id'], $ord['seller_id'], $reason]);
-                    $msg = "🚨 Dispute reported successfully. Admin will review this shortly.";
+                    $msg = "Dispute reported successfully. Admin will review this shortly.";
                 }
             }
             break;
@@ -273,7 +393,7 @@ $stmt = $pdo->prepare("SELECT a.*, u.username as admin_name FROM announcements a
 $stmt->execute();
 $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
-// ═══ REAL ANALYTICS DATA ═══
+// REAL ANALYTICS DATA
 
 // --- BUYER ANALYTICS ---
 $buyerItemsBought = 0; $buyerTotalSpent = 0; $buyerRecentPurchases = []; $buyerFavCategories = [];
@@ -347,6 +467,156 @@ if (empty($chart_data)) {
     }
 }
 
+function dashboardTierVisual(string $tierName): array {
+    $tierName = strtolower(trim($tierName));
+
+    $visual = match ($tierName) {
+        'premium' => [
+            'accent' => '#ff9f0a',
+            'background' => 'linear-gradient(180deg, rgba(255,159,10,0.96), rgba(255,159,10,0.78))',
+            'border' => 'rgba(255,210,120,0.45)',
+            'button_text' => '#111111',
+            'text' => '#111111',
+            'label' => 'rgba(17,17,17,0.74)',
+            'soft' => 'rgba(255,248,235,0.24)',
+            'shadow' => 'rgba(255,159,10,0.28)',
+        ],
+        'pro' => [
+            'accent' => '#8e8e93',
+            'background' => 'linear-gradient(180deg, rgba(10,10,14,0.9), rgba(10,10,14,0.68))',
+            'border' => 'rgba(142,142,147,0.24)',
+            'button_text' => '#ffffff',
+            'text' => '#ffffff',
+            'label' => 'rgba(255,255,255,0.72)',
+            'soft' => 'rgba(142,142,147,0.16)',
+            'shadow' => 'rgba(142,142,147,0.18)',
+        ],
+        default => [
+            'accent' => '#0071e3',
+            'background' => 'linear-gradient(180deg, rgba(10,10,14,0.9), rgba(10,10,14,0.68))',
+            'border' => 'rgba(0,113,227,0.24)',
+            'button_text' => '#ffffff',
+            'text' => '#ffffff',
+            'label' => 'rgba(255,255,255,0.72)',
+            'soft' => 'rgba(0,113,227,0.16)',
+            'shadow' => 'rgba(0,113,227,0.18)',
+        ],
+    };
+
+    $visual['color'] = $visual['accent'];
+    $visual['panel'] = $visual['background'];
+    $visual['subtleText'] = $visual['label'];
+
+    return $visual;
+}
+
+function dashboardTierDurationLabel($duration): string {
+    $duration = strtolower(trim((string)$duration));
+
+    if ($duration === '' || $duration === '0' || $duration === 'forever') {
+        return 'lifetime';
+    }
+    if ($duration === 'weekly') {
+        return 'week';
+    }
+    if (preg_match('/^(\d+)_weeks?$/', $duration, $matches)) {
+        return $matches[1] . ' week' . ((int)$matches[1] === 1 ? '' : 's');
+    }
+    if (preg_match('/^(\d+)_months?$/', $duration, $matches)) {
+        return $matches[1] . ' month' . ((int)$matches[1] === 1 ? '' : 's');
+    }
+    if (ctype_digit($duration)) {
+        return $duration . ' month' . ((int)$duration === 1 ? '' : 's');
+    }
+
+    return $duration;
+}
+
+function dashboardTierFeatures(array $tier): array {
+    $features = [
+        (int)($tier['product_limit'] ?? 0) . ' active listings',
+        (int)($tier['images_per_product'] ?? 0) . ' images per product',
+        !empty($tier['ads_boost']) ? 'Ads boost enabled' : 'Standard listing rank',
+    ];
+
+    if (!empty($tier['priority'])) {
+        $features[] = ucfirst((string)$tier['priority']) . ' search priority';
+    }
+
+    if (($tier['tier_name'] ?? 'basic') !== 'basic') {
+        $features[] = 'Verified seller badge styling';
+    }
+
+    $benefits = json_decode((string)($tier['benefits'] ?? '[]'), true);
+    if (is_array($benefits)) {
+        foreach ($benefits as $benefit) {
+            if (is_string($benefit) && trim($benefit) !== '') {
+                $features[] = trim($benefit);
+            }
+        }
+    }
+
+    return $features;
+}
+
+function dashboardSortTiers(array $tiers): array {
+    $order = ['basic' => 0, 'premium' => 1, 'pro' => 2];
+    usort($tiers, function (array $left, array $right) use ($order): int {
+        return ($order[$left['tier_name']] ?? 99) <=> ($order[$right['tier_name']] ?? 99);
+    });
+    return $tiers;
+}
+
+function dashboardOrderQuantity(array $order): int {
+    return max(1, (int)($order['quantity'] ?? 1));
+}
+
+function dashboardRestoreOrderStock(PDO $pdo, array $order): void {
+    $qty = dashboardOrderQuantity($order);
+    $pdo->prepare("
+        UPDATE products
+        SET quantity = quantity + ?,
+            status = CASE WHEN status = 'sold' THEN 'approved' ELSE status END
+        WHERE id = ?
+    ")->execute([$qty, $order['product_id']]);
+}
+
+function dashboardSaleDescription(int $orderId): string {
+    return "Sale of order #$orderId";
+}
+
+function dashboardCreateSaleTransaction(PDO $pdo, array $order, int $orderId): void {
+    $sellerId = (int)($order['seller_id'] ?? 0);
+    if ($sellerId <= 0) {
+        return;
+    }
+
+    $check = $pdo->prepare("
+        SELECT id
+        FROM transactions
+        WHERE user_id = ?
+          AND type = 'sale'
+          AND status = 'completed'
+          AND description = ?
+        LIMIT 1
+    ");
+    $check->execute([$sellerId, dashboardSaleDescription($orderId)]);
+
+    if ($check->fetchColumn()) {
+        return;
+    }
+
+    $pdo->prepare("
+        INSERT INTO transactions (user_id, type, amount, status, reference, description)
+        VALUES (?, 'sale', ?, 'completed', ?, ?)
+    ")->execute([
+        $sellerId,
+        (float)($order['price'] ?? 0),
+        generateRef('SAL'),
+        dashboardSaleDescription($orderId),
+    ]);
+}
+
 // --- FETCH ORDERS ---
 $buyer_orders = [];
 $seller_orders = [];
@@ -366,9 +636,9 @@ require_once 'includes/ai_recommendations.php';
 require_once 'includes/header.php';
 ?>
 <style>
-/* ═══════════════════════════════════════
+/* FULL-SCREEN DASHBOARD LAYOUT */
    FULL-SCREEN DASHBOARD LAYOUT
-   ═══════════════════════════════════════ */
+/* layout sizing overrides */
 .container { 
     max-width: none !important; 
     width: 96% !important; 
@@ -376,9 +646,9 @@ require_once 'includes/header.php';
     padding-right: 2rem !important; 
 }
 
-/* ═══════════════════════════════════════
+/* SELLER DASHBOARD LAYOUT FIXES */
    SELLER DASHBOARD LAYOUT FIXES
-   ═══════════════════════════════════════ */
+/* seller product/list layout */
 .product-row {
     display: flex;
     align-items: center;
@@ -419,7 +689,7 @@ require_once 'includes/header.php';
     }
 }
 
-/* Tooltip stabilization — Anchor to the button's relative box */
+/* Tooltip stabilization - anchor to the button relative box */
 .boost-tooltip {
     position: relative;
     display: inline-block;
@@ -501,7 +771,7 @@ require_once 'includes/header.php';
     }
 }
 
-/* ── PROFILE PIC CENTERING FIX ── */
+/* PROFILE PIC CENTERING FIX */
 .profile-pic-lg {
     width: 110px;
     height: 110px;
@@ -514,7 +784,7 @@ require_once 'includes/header.php';
     transition: transform 0.3s;
 }
 
-/* ── TOAST NOTIFICATION ── */
+/* TOAST NOTIFICATION */
 .toast-notify {
     position: fixed;
     bottom: 30px;
@@ -550,7 +820,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
 <div class="announcements-area mb-3">
     <?php foreach($announcements as $ann): ?>
         <div class="alert alert-<?= $ann['type'] ?> fade-in" style="margin-bottom:0.5rem; display:flex; align-items:center; gap:10px;">
-            <span style="font-size:1.2rem;">📢</span>
+            <span style="font-size:1.2rem;">&#128226;</span>
             <div style="flex:1;">
                 <strong>Global Update:</strong> <?= nl2br(htmlspecialchars($ann['message'])) ?>
                 <small style="display:block; font-size:0.7rem; opacity:0.7;"><?= date('M d, H:i', strtotime($ann['created_at'])) ?> by Admin</small>
@@ -561,7 +831,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
 <?php endif; ?>
 
 <?php if($user['vacation_mode']): ?>
-<div class="alert alert-warning">🏝️ <strong>Vacation Mode ON</strong> — Your listings are hidden from buyers.
+<div class="alert alert-warning"><strong>Vacation Mode ON</strong> &mdash; Your listings are hidden from buyers.
     <form method="POST" style="display:inline;">
         <input type="hidden" name="action" value="toggle_vacation">
         <?= csrf_field() ?>
@@ -588,18 +858,24 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                 <?php if($user['role'] === 'seller'): ?>
                     <?= getBadgeHtml($pdo, $user['seller_tier'] ?: 'basic') ?>
                 <?php elseif($user['role'] === 'admin'): ?>
-                    <span class="badge badge-gold">👑 Admin</span>
+                    <span class="badge badge-gold">Admin</span>
                 <?php else: ?>
-                    <span class="badge badge-blue">🛒 Buyer</span>
+                    <span class="badge badge-blue">Buyer</span>
                 <?php endif; ?>
 
-                <?php if($user['verified']): ?><span class="badge badge-approved" style="margin-left:4px;">✓ Verified</span><?php endif; ?>
+                <?php if($user['verified']): ?><span class="badge badge-approved" style="margin-left:4px;">&#10003; Verified</span><?php endif; ?>
             </div>
             
-            <?php if(!empty($user['faculty'])): ?><p class="text-muted" style="font-size:0.78rem; margin-top:0.3rem;">🎓 <?= htmlspecialchars($user['faculty']) ?></p><?php endif; ?>
-            <?php if($user['department']): ?><p class="text-muted" style="font-size:0.85rem;"><?= htmlspecialchars($user['department']) ?> · L<?= htmlspecialchars($user['level']) ?></p><?php endif; ?>
-            <?php if($user['hall']): ?><p class="text-muted" style="font-size:0.8rem;">🏠 <?= htmlspecialchars($user['hall']) ?></p><?php endif; ?>
-            <?php if($user['phone']): ?><p class="text-muted" style="font-size:0.8rem;">📱 <?= htmlspecialchars($user['phone']) ?></p><?php endif; ?>
+            <?php if(!empty($user['faculty'])): ?><p class="text-muted" style="font-size:0.78rem; margin-top:0.3rem;">Faculty: <?= htmlspecialchars((string)$user['faculty']) ?></p><?php endif; ?>
+            <?php if(!empty($user['department']) || !empty($user['level'])): ?>
+                <p class="text-muted" style="font-size:0.85rem;">
+                    <?php if(!empty($user['department'])): ?><?= htmlspecialchars((string)$user['department']) ?><?php endif; ?>
+                    <?php if(!empty($user['department']) && !empty($user['level'])): ?> &middot; <?php endif; ?>
+                    <?php if(!empty($user['level'])): ?>L<?= htmlspecialchars((string)$user['level']) ?><?php endif; ?>
+                </p>
+            <?php endif; ?>
+            <?php if(!empty($user['hall'])): ?><p class="text-muted" style="font-size:0.8rem;">Hall: <?= htmlspecialchars((string)$user['hall']) ?></p><?php endif; ?>
+            <?php if(!empty($user['phone'])): ?><p class="text-muted" style="font-size:0.8rem;">Phone: <?= htmlspecialchars((string)$user['phone']) ?></p><?php endif; ?>
             
             <!-- Social Links -->
             <div class="flex gap-1 mt-2" style="justify-content:center;">
@@ -613,10 +889,10 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                     <form method="POST" style="display:flex; flex-direction:column; gap:0.5rem;">
                         <input type="hidden" name="action" value="toggle_vacation">
                         <?= csrf_field() ?>
-                        <button type="submit" class="btn btn-outline btn-sm" style="justify-content:center;"><?= $user['vacation_mode'] ? '☀️ End Vacation' : '🏝️ Vacation Mode' ?></button>
+                        <button type="submit" class="btn btn-outline btn-sm" style="justify-content:center;"><?= $user['vacation_mode'] ? 'End Vacation' : 'Vacation Mode' ?></button>
                     </form>
                     <?php if($user['seller_tier'] !== 'premium'): ?>
-                        <button type="button" class="btn btn-gold btn-sm" style="justify-content:center;" onclick="toggleUpgradeModal(true);">🚀 Upgrade Account</button>
+                        <button type="button" class="btn btn-gold btn-sm" style="justify-content:center;" onclick="toggleUpgradeModal(true);">Upgrade Account</button>
                     <?php endif; ?>
                 <?php endif; ?>
             </div>
@@ -629,62 +905,134 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                 width: 100%;
             }
             .upgrade-card-grid {
-                display: grid;
-                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-                gap: 1.5rem;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                align-items: stretch;
+                gap: 0.7rem;
                 width: 100%;
             }
+            .upgrade-card-grid::-webkit-scrollbar { display: none; }
             .upgrade-modal-content {
                 width: 100%;
-                max-width: 1000px;
-                padding: 2.5rem;
+                max-width: 740px;
+                padding: 1.25rem 0.8rem;
                 border-radius: 32px;
                 position: relative;
-                background: var(--bg);
-                backdrop-filter: blur(25px);
-                -webkit-backdrop-filter: blur(25px);
-                border: 1px solid var(--border);
+                background: transparent;
                 color: var(--text-main);
-                box-shadow: var(--shadow-lg);
-            }
-            .dark-mode .upgrade-modal-content {
-                background: rgba(20,20,20,0.85);
-                border-color: rgba(255,255,255,0.1);
+                border: none;
+                box-shadow: none;
             }
             .tier-card {
-                padding: 2rem;
-                border-radius: 28px;
-                transition: all 0.3s ease;
+                flex: 0 0 190px;
+                width: min(100%, 210px);
+                min-height: 290px;
+                padding: 0.95rem 0.9rem;
+                border-radius: 22px;
+                transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
                 display: flex;
                 flex-direction: column;
-                background: rgba(0,0,0,0.02);
-                border: 1px solid var(--border);
                 position: relative;
+                overflow: hidden;
             }
-            .dark-mode .tier-card {
-                background: rgba(255,255,255,0.05);
+            .tier-card:hover {
+                transform: translateY(-3px) scale(1.015);
             }
-            .tier-card.popular {
-                background: rgba(0,113,227,0.04);
-                border-color: rgba(0,113,227,0.3);
+            .tier-card.featured {
+                transform: translateY(-4px) scale(1.01);
             }
-            .dark-mode .tier-card.popular {
-                background: rgba(0,113,227,0.15);
+            .tier-card.featured:hover {
+                transform: translateY(-6px) scale(1.02);
+            }
+            .tier-floating-badge {
+                position: absolute;
+                top: -18px;
+                left: 50%;
+                transform: translateX(-50%);
+                border-radius: 999px;
+                padding: 0.45rem 1rem;
+                font-size: 0.7rem;
+                font-weight: 900;
+                letter-spacing: 0.18em;
+                text-transform: uppercase;
+                white-space: nowrap;
+            }
+            .tier-status-pill {
+                position: absolute;
+                top: 16px;
+                right: 16px;
+                border-radius: 999px;
+                padding: 0.4rem 0.8rem;
+                font-size: 0.68rem;
+                font-weight: 800;
+                letter-spacing: 0.14em;
+                text-transform: uppercase;
+            }
+            .tier-price-row {
+                display: flex;
+                align-items: flex-end;
+                gap: 0.45rem;
+                margin-bottom: 1rem;
+            }
+            .tier-feature-list {
+                list-style: none;
+                padding: 0;
+                margin: 0 0 1.1rem;
+                display: flex;
+                flex-direction: column;
+                gap: 0.65rem;
+                flex-grow: 1;
+            }
+            .tier-feature-item {
+                display: flex;
+                align-items: flex-start;
+                gap: 0.65rem;
+                font-size: 0.8rem;
+                font-weight: 500;
+                line-height: 1.45;
+            }
+            .tier-feature-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 22px;
+                height: 22px;
+                border-radius: 999px;
+                flex-shrink: 0;
+                margin-top: 1px;
+                font-size: 0.82rem;
+                font-weight: 900;
             }
             @media (max-width: 640px) {
                 .upgrade-modal-content {
-                    padding: 2rem 1rem 5rem;
+                    padding: 1rem 0.7rem 1.2rem;
                     border-radius: 32px 32px 0 0;
                     margin-top: auto;
-                    height: 90vh;
+                    max-height: 90vh;
                     overflow-y: auto;
                 }
                 .upgrade-card-grid {
-                    grid-template-columns: 1fr;
-                    gap: 1rem;
+                    flex-direction: column;
+                    flex-wrap: nowrap;
+                    justify-content: flex-start;
+                    align-items: stretch;
+                    overflow-x: visible;
+                    overflow-y: visible;
+                    padding: 0 0 1rem;
                 }
-                .tier-title { font-size: 1.35rem !important; }
-                .tier-price { font-size: 2.2rem !important; }
+                .tier-card {
+                    flex: 1 1 auto;
+                    width: 100%;
+                    min-height: 0;
+                    padding: 0.9rem 0.85rem;
+                }
+                .tier-card:hover,
+                .tier-card.featured,
+                .tier-card.featured:hover { transform: none; }
+                .tier-title { font-size: 0.98rem !important; }
+                .tier-price { font-size: 1.5rem !important; }
+                .tier-feature-item { font-size: 0.76rem; }
                 .product-grid { 
                     grid-template-columns: 1fr !important; 
                     gap: 1rem !important;
@@ -710,8 +1058,27 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         <!-- Upgrade Modal -->
         <div id="upgradeModal" class="modal-overlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:9999999; align-items:center; justify-content:center; backdrop-filter:blur(15px); overflow-y:auto; -webkit-overflow-scrolling: touch;">
             <?php
-            $stmt = $pdo->query("SELECT * FROM account_tiers ORDER BY price ASC");
-            $tiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $tiers = dashboardSortTiers(array_values(getAccountTiers($pdo)));
+            $tierPricingConfig = [];
+            foreach ($tiers as &$tier) {
+                $tier['visual'] = array_replace([
+                    'accent' => '#0071e3',
+                    'background' => 'linear-gradient(180deg, rgba(10,10,14,0.9), rgba(10,10,14,0.68))',
+                    'border' => 'rgba(0,113,227,0.24)',
+                    'button_text' => '#ffffff',
+                    'text' => '#ffffff',
+                    'label' => 'rgba(255,255,255,0.72)',
+                    'soft' => 'rgba(0,113,227,0.16)',
+                    'shadow' => 'rgba(0,113,227,0.18)',
+                ], dashboardTierVisual((string)($tier['tier_name'] ?? 'basic')));
+                $tier['duration_label'] = (string) dashboardTierDurationLabel($tier['duration'] ?? '');
+                $tier['feature_list'] = array_values(array_filter(dashboardTierFeatures($tier), static fn($feature) => is_string($feature) && trim($feature) !== ''));
+                $tierPricingConfig[(string)($tier['tier_name'] ?? 'basic')] = [
+                    'price' => (float)($tier['price'] ?? 0),
+                    'duration_label' => $tier['duration_label'],
+                ];
+            }
+            unset($tier);
             ?>
             <div class="glass upgrade-modal-content fade-in">
                  <button type="button" onclick="toggleUpgradeModal(false);" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.1); border:none; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:var(--text-main); cursor:pointer; z-index:10;">&times;</button>
@@ -723,46 +1090,87 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                  
                  <div class="upgrade-card-grid">
                     <?php foreach ($tiers as $tier): ?>
-                        <?php 
-                            $active = ($user['seller_tier'] ?: 'basic') === $tier['tier_name']; 
-                            $is_popular = $tier['tier_name'] === 'pro';
+                        <?php
+                            $active = ($user['seller_tier'] ?: 'basic') === $tier['tier_name'];
+                            $isFeatured = $tier['tier_name'] === 'premium';
+                            $visual = $tier['visual'];
+                            $price = (float)($tier['price'] ?? 0);
+                            $buttonStyle = $price > 0
+                                ? "width:100%; border-radius:16px; padding:1rem 1.2rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; background:{$visual['accent']}; color:{$visual['button_text']}; border:none; box-shadow:0 18px 36px {$visual['shadow']};"
+                                : "width:100%; border-radius:16px; padding:1rem 1.2rem; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; background:transparent; color:{$visual['accent']}; border:1px solid {$visual['border']};";
                         ?>
-                        <div class="tier-card <?= $is_popular ? 'popular' : '' ?>" style="<?= $active ? 'border-color:var(--primary);' : '' ?>">
-                            <?php if($active): ?><span class="badge badge-blue" style="position:absolute; top:20px; right:20px;">Active Plan</span><?php endif; ?>
-                            <?php if($is_popular && !$active): ?><span class="badge badge-gold" style="position:absolute; top:20px; right:20px;">Best Value</span><?php endif; ?>
+                        <div class="tier-card <?= $isFeatured ? 'featured' : '' ?>" style="background:<?= htmlspecialchars($visual['background']) ?>; border:1px solid <?= htmlspecialchars($active ? $visual['accent'] : $visual['border']) ?>; box-shadow:0 24px 48px <?= htmlspecialchars($visual['shadow']) ?>;">
+                            <?php if($isFeatured && !$active): ?>
+                                <span class="tier-floating-badge" style="background:<?= htmlspecialchars($visual['accent']) ?>; color:<?= htmlspecialchars($visual['button_text']) ?>;">Best Deal</span>
+                            <?php endif; ?>
+                            <?php if($active): ?>
+                                <span class="tier-status-pill" style="background:<?= htmlspecialchars($visual['soft']) ?>; color:<?= htmlspecialchars($visual['accent']) ?>; border:1px solid <?= htmlspecialchars($visual['border']) ?>;">Active Plan</span>
+                            <?php elseif($isFeatured): ?>
+                                <span class="tier-status-pill" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.22);">Featured</span>
+                            <?php endif; ?>
                             
-                            <h3 class="tier-title" style="text-transform:capitalize; margin-bottom:0.4rem; font-weight:800; font-size:1.5rem;"><?= htmlspecialchars($tier['tier_name']) ?></h3>
-                            <div class="tier-price" style="font-size:2.8rem; font-weight:900; margin-bottom:1.5rem; color:var(--primary); letter-spacing:-0.05em;">
-                                ₵<?= number_format($tier['price'], 0) ?>
+                            <div style="margin-bottom:1.25rem;">
+                                <p style="margin:0 0 0.65rem; color:<?= htmlspecialchars($visual['label']) ?>; font-size:0.78rem; font-weight:900; letter-spacing:0.18em; text-transform:uppercase;">
+                                    <?= htmlspecialchars(ucfirst($tier['tier_name'])) ?> Seller Plan
+                                </p>
+                                <h3 class="tier-title" style="text-transform:capitalize; margin-bottom:0; font-weight:850; font-size:1.25rem; color:<?= htmlspecialchars($visual['text']) ?>;"><?= htmlspecialchars($tier['tier_name']) ?></h3>
+                            </div>
+                            <div class="tier-price-row">
+                                <span class="tier-price" style="font-size:2rem; font-weight:900; line-height:1; letter-spacing:-0.05em; color:<?= htmlspecialchars($visual['accent']) ?>;">
+                                    <?= $price > 0 ? '&#8373;' . number_format($price, $price == floor($price) ? 0 : 2) : 'Free' ?>
+                                </span>
+                                <?php if($price > 0): ?>
+                                    <span style="font-size:0.96rem; color:<?= htmlspecialchars($visual['label']) ?>; font-weight:700; padding-bottom:0.3rem;">/ <?= htmlspecialchars($tier['duration_label']) ?></span>
+                                <?php endif; ?>
+                            </div>
+                            <p style="margin:0 0 1.45rem; color:<?= htmlspecialchars($visual['label']) ?>; font-size:0.92rem; line-height:1.5;">
+                                <?= $price > 0 ? 'Built for sellers who want more reach, stronger trust, and better storefront visibility.' : 'A clean starting point for new sellers getting set up on campus.' ?>
+                            </p>
+                            <?php if(false): ?>
+                            <div class="tier-price-row">
+                                GHS <?= number_format($tier['price'], 0) ?>
                                 <p style="font-size:0.9rem; margin-top:0.3rem; margin-bottom:0; color:var(--text-muted); font-weight:600; letter-spacing:normal;">
                                     Valid for <?= htmlspecialchars($tier['duration']) ?> month<?= $tier['duration'] == 1 ? '' : 's' ?>
                                 </p>
                             </div>
+                            <?php endif; ?>
                             
+                            <ul class="tier-feature-list">
+                                <?php foreach($tier['feature_list'] as $feature): ?>
+                                <li class="tier-feature-item" style="color:<?= htmlspecialchars($visual['text']) ?>;">
+                                    <span class="tier-feature-icon" style="background:<?= htmlspecialchars($visual['soft']) ?>; color:<?= htmlspecialchars($visual['accent']) ?>;">&#10003;</span>
+                                    <span><?= htmlspecialchars($feature) ?></span>
+                                </li>
+                                <?php endforeach; ?>
+                            </ul>
+                            <?php if(false): ?>
                             <ul style="list-style:none; padding:0; margin-bottom:1.5rem; flex-grow:1;">
                                 <?php
                                 $d_bens = json_decode($tier['benefits'] ?? '[]', true) ?: [];
                                 foreach($d_bens as $b): 
                                 ?>
                                 <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500;">
-                                    <span style="color:var(--primary); font-weight:800;">✓</span> <?= htmlspecialchars($b) ?>
+                                    <span style="color:var(--primary); font-weight:800;">&#10003;</span> <?= htmlspecialchars($b) ?>
                                 </li>
                                 <?php endforeach; ?>
                             </ul>
+                            <?php endif; ?>
                             
                             <?php if(!$active): ?>
-                                <?php if($tier['price'] > 0): ?>
-                                    <button type="button" onclick="payWithPaystack('<?= $tier['tier_name'] ?>', <?= $tier['price'] ?>)" class="btn <?= $is_popular ? 'btn-primary' : 'btn-outline' ?>" style="width:100%; border-radius:14px; padding:1.2rem; font-weight:800; text-transform:uppercase; letter-spacing:0.5px;box-shadow:0 10px 20px rgba(0,113,227,0.1);">Upgrade to <?= ucfirst($tier['tier_name']) ?></button>
+                                <?php if($price > 0): ?>
+                                    <button type="button" onclick="payWithPaystack('<?= htmlspecialchars($tier['tier_name']) ?>')" class="btn" style="<?= $buttonStyle ?>">
+                                        Upgrade to <?= htmlspecialchars(ucfirst($tier['tier_name'])) ?>
+                                    </button>
                                 <?php else: ?>
                                     <form method="POST" style="width:100%;">
                                         <input type="hidden" name="action" value="request_<?= htmlspecialchars($tier['tier_name']) ?>">
                                         <?= csrf_field() ?>
-                                        <button type="submit" class="btn <?= $is_popular ? 'btn-primary' : 'btn-outline' ?>" style="width:100%; text-align:center; border-radius:14px; padding:1.2rem; font-weight:800;">Get Started Free</button>
+                                        <button type="submit" class="btn" style="<?= $buttonStyle ?>">Get Started Free</button>
                                     </form>
                                 <?php endif; ?>
                             <?php else: ?>
                                 <div style="display:flex; flex-direction:column; gap:0.5rem;">
-                                    <div style="width:100%; text-align:center; background:rgba(0,113,227,0.08); padding:1rem; border-radius:14px; font-weight:800; color:var(--primary); border:2px solid var(--primary);">Active Plan</div>
+                                    <div style="width:100%; text-align:center; background:<?= htmlspecialchars($visual['soft']) ?>; padding:1rem; border-radius:16px; font-weight:800; color:<?= htmlspecialchars($visual['accent']) ?>; border:1px solid <?= htmlspecialchars($visual['border']) ?>;">Active Plan</div>
                                     <?php if($tier['tier_name'] !== 'basic'): ?>
                                         <form method="POST" style="width:100%;">
                                             <input type="hidden" name="action" value="cancel_tier">
@@ -782,7 +1190,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         <!-- Wallet -->
         <div class="glass fade-in" style="padding:1.5rem; margin-bottom:1.5rem; margin-top:1.5rem;">
             <p class="text-muted" style="font-size:0.8rem;">Wallet Balance</p>
-            <h2 style="color:var(--success); font-size:2rem; font-weight:800;">₵<?= number_format($user['balance'], 2) ?></h2>
+            <h2 style="color:var(--success); font-size:2rem; font-weight:800;">GHS <?= number_format($user['balance'], 2) ?></h2>
         </div>
 
         <!-- Recent Transactions -->
@@ -799,7 +1207,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                             <p style="font-size:0.7rem; color:var(--text-muted);"><?= date('M d', strtotime($tx['created_at'])) ?></p>
                         </div>
                         <span style="color:<?= $is_credit ? 'var(--mint)' : 'var(--danger)' ?>; font-weight:700; font-size:0.85rem;">
-                            <?= $is_credit ? '+' : '-' ?>₵<?= number_format($tx['amount'], 2) ?>
+                            <?= $is_credit ? '+' : '-' ?>GHS <?= number_format($tx['amount'], 2) ?>
                         </span>
                     </div>
                 <?php endforeach; ?>
@@ -812,17 +1220,17 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         </div>
 
         <!-- Contact Admin -->
-        <?php if($user['id'] != 1): ?>
+        <?php if(!isAdmin() && $supportAdminId > 0): ?>
         <div class="glass fade-in" style="padding:1.5rem; margin-top:1.5rem;">
-            <h4 class="mb-2">📞 Contact Admin</h4>
+            <h4 class="mb-2">Contact Admin</h4>
             <p class="text-muted" style="font-size:0.8rem; margin-bottom:1rem;">Need clarification? Chat directly with the platform administrator.</p>
             <form method="POST" action="chat.php?action=send_fast" class="flex-column gap-1">
                 <?= csrf_field() ?>
-                <input type="hidden" name="receiver_id" value="1">
+                <input type="hidden" name="receiver_id" value="<?= (int) $supportAdminId ?>">
                 <textarea name="message" placeholder="Type your question here..." class="form-control" style="font-size:0.85rem; min-height:80px; padding:0.75rem; border-radius:12px;" required></textarea>
                 <button class="btn btn-primary btn-sm" style="width:100%; border-radius:10px;">Send Message</button>
             </form>
-            <a href="chat.php?user=1" class="btn btn-outline btn-sm mt-1" style="width:100%; justify-content:center; border-radius:10px;">Open Chat History</a>
+            <a href="chat.php?user=<?= (int) $supportAdminId ?>" class="btn btn-outline btn-sm mt-1" style="width:100%; justify-content:center; border-radius:10px;">Open Chat History</a>
         </div>
         <?php endif; ?>
     </div>
@@ -836,7 +1244,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
             <a href="#products_section" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--primary);"><?= $totalProducts ?></div><div class="stat-label">Total Products</div></div></a>
             <a href="#products_section" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--success);"><?= $totalApproved ?></div><div class="stat-label">Active Listings</div></div></a>
             <a href="#products_section" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--mint);"><?= $sellerTotalSold ?></div><div class="stat-label">Items Sold</div></div></a>
-            <a href="#transactions_section" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--gold);">₵<?= number_format($sellerRevenue, 2) ?></div><div class="stat-label">Total Revenue</div></div></a>
+            <a href="#transactions_section" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--gold);">GHS <?= number_format($sellerRevenue, 2) ?></div><div class="stat-label">Total Revenue</div></div></a>
             <a href="#products_section" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--warning);"><?= $totalPending ?></div><div class="stat-label">Pending Approval</div></div></a>
             <a href="#analytics_section" class="stat-card-link"><div class="glass stat-card"><div class="stat-val"><?= $viewsTotal ?></div><div class="stat-label">Total Views</div></div></a>
         </div>
@@ -846,16 +1254,16 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
             <?php if($sellerLowStock > 0): ?>
             <div class="glass" style="padding:1.25rem; border-left:4px solid #ff9500;">
                 <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
-                    <span style="font-size:1.3rem;">⚠️</span>
+                    <span style="font-size:1.3rem;">Warning</span>
                     <h4 style="font-size:0.9rem; margin:0;">Low Stock Alert</h4>
                 </div>
                 <p style="font-size:2rem; font-weight:800; color:#ff9500;"><?= $sellerLowStock ?></p>
-                <p class="text-muted" style="font-size:0.78rem;">products with ≤5 units</p>
+                <p class="text-muted" style="font-size:0.78rem;">products with 5 or fewer units</p>
             </div>
             <?php else: ?>
             <div class="glass" style="padding:1.25rem; border-left:4px solid var(--success);">
                 <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
-                    <span style="font-size:1.3rem;">✅</span>
+                    <span style="font-size:1.3rem;">OK</span>
                     <h4 style="font-size:0.9rem; margin:0;">Stock Status</h4>
                 </div>
                 <p style="font-size:0.85rem; color:var(--success); font-weight:600;">All products well stocked</p>
@@ -864,12 +1272,12 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
 
             <div class="glass" style="padding:1.25rem; border-left:4px solid var(--primary);">
                 <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:0.3rem;">
-                    <span style="font-size:1.3rem;">🏆</span>
+                    <span style="font-size:1.3rem;">Top</span>
                     <h4 style="font-size:0.9rem; margin:0;">Top Product</h4>
                 </div>
                 <?php if($sellerTopProduct): ?>
                     <p style="font-size:0.95rem; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($sellerTopProduct['title']) ?></p>
-                    <p class="text-muted" style="font-size:0.78rem;">👁 <?= $sellerTopProduct['views'] ?> views · Stock: <?= $sellerTopProduct['quantity'] ?></p>
+                    <p class="text-muted" style="font-size:0.78rem;">Views: <?= $sellerTopProduct['views'] ?> &middot; Stock: <?= $sellerTopProduct['quantity'] ?></p>
                 <?php else: ?>
                     <p class="text-muted" style="font-size:0.85rem;">No products yet</p>
                 <?php endif; ?>
@@ -878,7 +1286,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
 
         <!-- Weekly Revenue + Views Chart -->
         <div id="analytics_section" class="glass fade-in" style="padding:1.5rem; margin-bottom:1.5rem;">
-            <h4 class="mb-2">📊 Weekly Performance</h4>
+            <h4 class="mb-2">Weekly Performance</h4>
             <canvas id="analyticsChart" height="100"></canvas>
         </div>
         <script>
@@ -891,7 +1299,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                         labels: <?= json_encode(array_column($chart_data, 'label')) ?>,
                         datasets: [
                             {
-                                label: 'Revenue (₵)',
+                                label: 'Revenue (GHS)',
                                 data: <?= json_encode(array_column($chart_data, 'sales')) ?>,
                                 backgroundColor: 'rgba(0,113,227,0.4)',
                                 borderColor: '#0071e3',
@@ -932,7 +1340,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         <!-- BUYER STATS -->
         <div class="stat-grid mb-3 fade-in">
             <a href="#buyer_recent_purchases" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--primary);"><?= $buyerItemsBought ?></div><div class="stat-label">Items Bought</div></div></a>
-            <a href="#buyer_recent_purchases" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--gold);">₵<?= number_format($buyerTotalSpent, 2) ?></div><div class="stat-label">Total Spent</div></div></a>
+            <a href="#buyer_recent_purchases" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--gold);">GHS <?= number_format($buyerTotalSpent, 2) ?></div><div class="stat-label">Total Spent</div></div></a>
             <a href="#buyer_recent_purchases" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--success);"><?= count($buyerRecentPurchases) ?></div><div class="stat-label">Recent Orders</div></div></a>
             <a href="javascript:void(0)" onclick="if(typeof openSideCart === 'function') openSideCart();" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--mint);" id="dash-cart-count">0</div><div class="stat-label">Cart Items</div></div></a>
         </div>
@@ -954,14 +1362,14 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem;" class="fade-in grid-2-cols">
             <!-- Recent Purchases -->
             <div id="buyer_recent_purchases" class="glass" style="padding:1.25rem;">
-                <h4 style="font-size:0.95rem; margin-bottom:0.75rem;">🛍️ Recent Purchases</h4>
+                <h4 style="font-size:0.95rem; margin-bottom:0.75rem;">Recent Purchases</h4>
                 <?php if(count($buyerRecentPurchases) > 0): ?>
                     <?php foreach($buyerRecentPurchases as $bp): ?>
                     <div style="display:flex; align-items:center; gap:0.75rem; padding:0.5rem 0; border-bottom:1px solid var(--border);">
                         <?php if(!empty($bp['img'])): ?>
                             <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($bp['img'])) ?>" style="width:36px;height:36px;object-fit:cover;border-radius:6px;" alt="">
                         <?php else: ?>
-                            <div style="width:36px;height:36px;background:rgba(0,0,0,0.1);border-radius:6px;display:flex;align-items:center;justify-content:center;">📦</div>
+                            <div style="width:36px;height:36px;background:rgba(0,0,0,0.1);border-radius:6px;display:flex;align-items:center;justify-content:center;">IMG</div>
                         <?php endif; ?>
                         <div style="flex:1; overflow:hidden;">
                             <p style="font-size:0.82rem; font-weight:600; white-space:nowrap; text-overflow:ellipsis; overflow:hidden;"><?= htmlspecialchars($bp['title'] ?? 'Product') ?></p>
@@ -976,7 +1384,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
 
             <!-- Favorite Categories -->
             <div class="glass" style="padding:1.25rem;">
-                <h4 style="font-size:0.95rem; margin-bottom:0.75rem;">❤️ Favorite Categories</h4>
+                <h4 style="font-size:0.95rem; margin-bottom:0.75rem;">Favorite Categories</h4>
                 <?php if(count($buyerFavCategories) > 0): ?>
                     <?php foreach($buyerFavCategories as $fc): ?>
                     <div style="display:flex; justify-content:space-between; align-items:center; padding:0.4rem 0; border-bottom:1px solid var(--border);">
@@ -998,7 +1406,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                 <div class="products_section_summary" style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
                         <div style="display:flex; align-items:center; gap:12px; margin-bottom:0.5rem;">
-                            <span style="font-size:1.8rem;">📦</span>
+                            <span style="font-size:1.8rem;">Inventory</span>
                             <h3 style="margin:0; font-size:1.5rem; font-weight:800;">My Inventory</h3>
                         </div>
                         <p class="text-muted" style="font-size:0.9rem;">You have <strong><?= count($products) ?></strong> products listed on the marketplace.</p>
@@ -1007,7 +1415,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                             <?php if(canAddProduct($pdo, $user['id'])): ?>
                                 <a href="add_product.php" class="btn btn-outline" style="padding:0.75rem 1.5rem; border-radius:12px; font-weight:700;">+ New Product</a>
                             <?php endif; ?>
-                            <button class="btn btn-outline" onclick="copyProductLink()" style="padding:0.75rem 1.5rem; border-radius:12px; font-weight:700; color:var(--primary); border-color:var(--primary);">🔗 Share My Shop</button>
+                            <button class="btn btn-outline" onclick="copyProductLink()" style="padding:0.75rem 1.5rem; border-radius:12px; font-weight:700; color:var(--primary); border-color:var(--primary);">Share My Shop</button>
                         </div>
                     </div>
                     
@@ -1063,7 +1471,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                                 <div class="product-body" style="padding:1.25rem; flex-grow:1; display:flex; flex-direction:column;">
                                     <h4 style="font-size:1.05rem; font-weight:700; margin-bottom:0.4rem;"><?= htmlspecialchars($p['title']) ?></h4>
                                     <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem;">
-                                        <p style="font-size:1.25rem; font-weight:800; color:var(--primary); margin:0;">₵<?= number_format($p['price'], 2) ?></p>
+                                        <p style="font-size:1.25rem; font-weight:800; color:var(--primary); margin:0;">GHS <?= number_format($p['price'], 2) ?></p>
                                         <span class="text-muted" style="font-size:0.75rem; font-weight:600;">Qty: <?= $p['quantity'] ?></span>
                                     </div>
 
@@ -1081,13 +1489,13 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                                                 <?= csrf_field() ?>
                                                 <button type="submit" class="btn btn-outline btn-sm" style="font-size:0.75rem; padding:0.6rem; justify-content:center;">Pause</button>
                                             </form>
-                                            <a href="generate_flyer.php?id=<?= $p['id'] ?>" target="_blank" class="btn btn-primary btn-sm" style="grid-column: span 2; font-size:0.8rem; padding:0.6rem; justify-content:center; border-radius:12px;">📸 Flyer / Promo</a>
+                                            <a href="generate_flyer.php?id=<?= $p['id'] ?>" target="_blank" class="btn btn-primary btn-sm" style="grid-column: span 2; font-size:0.8rem; padding:0.6rem; justify-content:center; border-radius:12px;">Flyer / Promo</a>
                                             <?php if(!$p['boosted_until'] || strtotime($p['boosted_until']) < time()): ?>
                                                 <form method="POST" style="display:contents;">
                                                     <input type="hidden" name="action" value="boost">
                                                     <input type="hidden" name="pid" value="<?= $p['id'] ?>">
                                                     <?= csrf_field() ?>
-                                                    <button type="submit" class="btn btn-gold btn-sm" style="grid-column: span 2; font-size:0.8rem; padding:0.6rem; justify-content:center; border-radius:12px;" onclick="return confirm('Boost for 24h?')">⚡ Boost Item</button>
+                                                    <button type="submit" class="btn btn-gold btn-sm" style="grid-column: span 2; font-size:0.8rem; padding:0.6rem; justify-content:center; border-radius:12px;" onclick="return confirm('Boost for 24h?')">Boost Item</button>
                                                 </form>
                                             <?php endif; ?>
                                         <?php elseif($p['status'] === 'paused'): ?>
@@ -1132,7 +1540,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                 // --- ADVANCED CLIPBOARD FALLBACK ---
                 if (navigator.clipboard && window.isSecureContext) {
                     navigator.clipboard.writeText(url).then(() => {
-                        showDashToast('✅ Shop link copied! Share it on WhatsApp.');
+                        showDashToast('Shop link copied! Share it on WhatsApp.');
                     }).catch(err => fallbackCopy(url));
                 } else {
                     fallbackCopy(url);
@@ -1148,7 +1556,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                 textArea.select();
                 try {
                     document.execCommand('copy');
-                    showDashToast('✅ Shop link copied! Share it on WhatsApp.');
+                    showDashToast('Shop link copied! Share it on WhatsApp.');
                 } catch (err) {
                     alert('Could not copy link. Manually copy: ' + text);
                 }
@@ -1160,28 +1568,49 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         <!-- ORDERS VIEW (SELLER) -->
         <?php if($user['role'] === 'seller' || $user['role'] === 'admin'): ?>
         <div id="seller_orders" class="glass fade-in" style="margin-bottom:2rem; padding:2rem;">
-            <h3 class="mb-3">📦 Order Management</h3>
+            <h3 class="mb-3">Order Management</h3>
             <?php if(count($seller_orders) > 0): ?>
                 <div class="flex-column gap-1">
                     <?php foreach($seller_orders as $ord): ?>
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:1rem; border-radius:12px;">
                         <div class="flex-between mb-1">
                             <strong>#ORDER-<?= $ord['id'] ?> &bull; <?= htmlspecialchars($ord['product_title']) ?></strong>
-                            <span class="badge" style="background:#0071e3;color:#fff;">₵<?= number_format($ord['product_price'], 2) ?></span>
+                            <span class="badge" style="background:#0071e3;color:#fff;">GHS <?= number_format($ord['product_price'], 2) ?></span>
                         </div>
                         <p class="text-muted" style="font-size:0.85rem;">Buyer: <strong><?= htmlspecialchars($ord['buyer_name']) ?></strong> &bull; Date: <?= date('M d, Y H:i', strtotime($ord['created_at'])) ?></p>
                         
                         <div style="margin-top:0.75rem;">
                             <?php if($ord['status'] === 'ordered'): ?>
                                 <span class="badge badge-pending mb-1">Status: Pending</span>
-                                <a href="?action=deliver_order&oid=<?= $ord['id'] ?>" class="btn btn-success btn-sm mt-1" onclick="return confirm('Confirm Item Sold?');">Confirm Item Sold</a>
-                                <a href="chat.php?user=<?= $ord['buyer_id'] ?>" class="btn btn-outline btn-sm mt-1">💬 Message Buyer</a>
+                                <form method="POST" class="flex-column gap-1" style="margin-top:0.75rem;">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="action" value="accept_order">
+                                    <input type="hidden" name="oid" value="<?= $ord['id'] ?>">
+                                    <input type="text" name="delivery_note" class="form-control" placeholder="Optional note for the buyer" style="font-size:0.85rem;">
+                                    <div class="flex gap-1" style="flex-wrap:wrap;">
+                                        <button type="submit" class="btn btn-primary btn-sm mt-1">Acknowledge Order</button>
+                                        <button type="submit" name="action" value="reject_order" class="btn btn-outline btn-sm mt-1" onclick="return confirm('Decline this order?');">Decline Order</button>
+                                    </div>
+                                </form>
+                                <a href="chat.php?user=<?= $ord['buyer_id'] ?>" class="btn btn-outline btn-sm mt-1">Message Buyer</a>
+                            <?php elseif($ord['status'] === 'seller_seen'): ?>
+                                <span class="badge badge-approved mb-1">Status: Order Acknowledged</span>
+                                <?php if(!empty($ord['delivery_note'])): ?>
+                                    <p class="text-muted" style="font-size:0.8rem; margin:0.6rem 0;">Note to buyer: <?= htmlspecialchars($ord['delivery_note']) ?></p>
+                                <?php endif; ?>
+                                <form method="POST" style="display:inline-flex;">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="action" value="deliver_order">
+                                    <input type="hidden" name="oid" value="<?= $ord['id'] ?>">
+                                    <button type="submit" class="btn btn-success btn-sm mt-1" onclick="return confirm('Confirm item sold now?');">Confirm Item Sold</button>
+                                </form>
+                                <a href="chat.php?user=<?= $ord['buyer_id'] ?>" class="btn btn-outline btn-sm mt-1">Message Buyer</a>
                             <?php elseif($ord['status'] === 'delivered'): ?>
-                                <span class="badge badge-approved">Status: Sold (Seller Confirmed)</span>
-                                <a href="chat.php?user=<?= $ord['buyer_id'] ?>" class="btn btn-outline btn-sm mt-1">💬 Message Buyer</a>
+                                <span class="badge badge-approved">Status: Sold (Awaiting Buyer Confirmation)</span>
+                                <a href="chat.php?user=<?= $ord['buyer_id'] ?>" class="btn btn-outline btn-sm mt-1">Message Buyer</a>
                             <?php elseif($ord['status'] === 'completed'): ?>
-                                <span class="badge" style="background:var(--success); color:#fff;">✓ Status: Completed</span>
-                                <a href="chat.php?user=<?= $ord['buyer_id'] ?>" class="btn btn-outline btn-sm mt-1">💬 Chat History</a>
+                                <span class="badge" style="background:var(--success); color:#fff;">Status: Completed</span>
+                                <a href="chat.php?user=<?= $ord['buyer_id'] ?>" class="btn btn-outline btn-sm mt-1">Chat History</a>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -1197,9 +1626,9 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         <?php if($user['role'] === 'buyer' || $user['role'] === 'admin'): ?>
         <div id="buyer_orders" class="glass fade-in mt-3" style="padding:2rem;">
             <div class="flex-between mb-3">
-                <h3 style="margin:0;">🛍️ My Orders</h3>
+                <h3 style="margin:0;">My Orders</h3>
                 <?php if(hasUnreviewedOrders($pdo, $user['id'])): ?>
-                    <span class="badge badge-rejected" style="padding:6px 12px; font-weight:800;">🔒 ACTION REQUIRED: Leave Reviews</span>
+                    <span class="badge badge-rejected" style="padding:6px 12px; font-weight:800;">ACTION REQUIRED: Leave Reviews</span>
                 <?php endif; ?>
             </div>
             <?php if(count($buyer_orders) > 0): ?>
@@ -1208,26 +1637,40 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                     <div style="background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:1rem; border-radius:12px;">
                         <div class="flex-between mb-1">
                             <strong><?= htmlspecialchars($ord['product_title']) ?></strong>
-                            <span class="badge" style="background:#0071e3;color:#fff;">₵<?= number_format($ord['product_price'], 2) ?></span>
+                            <span class="badge" style="background:#0071e3;color:#fff;">GHS <?= number_format($ord['product_price'], 2) ?></span>
                         </div>
                         <p class="text-muted" style="font-size:0.85rem;">Seller: <strong><?= htmlspecialchars($ord['seller_name']) ?></strong> &bull; <?= date('M d, Y H:i', strtotime($ord['created_at'])) ?></p>
                         
                         <div style="margin-top:0.75rem;">
                             <?php if($ord['status'] === 'ordered'): ?>
                                 <span class="badge badge-pending">Status: Pending (Awaiting Seller)</span>
-                                <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-primary btn-sm mt-1">💬 Message Seller</a>
+                                <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-primary btn-sm mt-1">Message Seller</a>
+                            <?php elseif($ord['status'] === 'seller_seen'): ?>
+                                <span class="badge badge-approved mb-1">Status: Seller Acknowledged Your Order</span><br>
+                                <?php if(!empty($ord['delivery_note'])): ?>
+                                    <p class="text-muted" style="font-size:0.8rem; margin:0.6rem 0;">Seller note: <?= htmlspecialchars($ord['delivery_note']) ?></p>
+                                <?php endif; ?>
+                                <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-outline btn-sm mt-1">Message Seller</a>
                             <?php elseif($ord['status'] === 'delivered'): ?>
                                 <span class="badge badge-approved mb-1">Status: Sold (Seller Confirmed)</span><br>
-                                <a href="?action=receive_order&oid=<?= $ord['id'] ?>" class="btn btn-success btn-sm mt-1" onclick="return confirm('Confirm Item Received?');">Confirm Item Received</a>
-                                <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-outline btn-sm mt-1">💬 Message Seller</a>
+                                <form method="POST" style="display:inline-flex;">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="action" value="receive_order">
+                                    <input type="hidden" name="oid" value="<?= $ord['id'] ?>">
+                                    <button type="submit" class="btn btn-success btn-sm mt-1" onclick="return confirm('Confirm Item Received?');">Confirm Item Received</button>
+                                </form>
+                                <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-outline btn-sm mt-1">Message Seller</a>
                             <?php elseif($ord['status'] === 'completed'): ?>
-                                <span class="badge" style="background:var(--success); color:#fff;">✓ Status: Completed</span>
-                                <a href="product.php?id=<?= $ord['product_id'] ?>#review" class="btn btn-outline btn-sm" style="margin-left:0.5rem;">Submit Review</a>
-                                <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-outline btn-sm">💬 Chat History</a>
+                                <span class="badge" style="background:var(--success); color:#fff;">Status: Completed</span>
+                                <a href="product.php?id=<?= $ord['product_id'] ?>&review_required=1#review" class="btn btn-outline btn-sm" style="margin-left:0.5rem;">Submit Review</a>
+                                <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-outline btn-sm">Chat History</a>
                                 <a href="#" onclick="document.getElementById('dispute_form_<?= $ord['id'] ?>').style.display='block'; return false;" class="text-muted" style="font-size:0.75rem; margin-left:1rem; text-decoration:underline;">Report Issue</a>
                                 <div id="dispute_form_<?= $ord['id'] ?>" style="display:none; margin-top:1rem; padding:1rem; background:rgba(255,59,48,0.05); border-radius:12px; border:1px solid rgba(255,59,48,0.1);">
                                     <p style="font-size:0.8rem; font-weight:700; color:var(--danger); margin-bottom:0.5rem;">Report Dispute to Admin</p>
                                     <form method="POST" action="?action=submit_dispute&oid=<?= $ord['id'] ?>" class="flex-column gap-1">
+                                        <input type="hidden" name="action" value="submit_dispute">
+                                        <input type="hidden" name="oid" value="<?= $ord['id'] ?>">
+                                        <?= csrf_field() ?>
                                         <textarea name="reason" placeholder="Explain the issue..." class="form-control" style="font-size:0.8rem; min-height:60px;"></textarea>
                                         <div class="flex gap-1" style="margin-top:0.5rem;">
                                             <button class="btn btn-danger btn-sm">Report</button>
@@ -1245,14 +1688,13 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
             <?php endif; ?>
         </div>
         <?php endif; ?>
-
     </div>
 </div>
 
 <!-- ADDED: Buyer Cart / Order Summary Section -->
 <?php if($user['role'] === 'buyer'): ?>
 <div class="glass fade-in mt-3" style="padding:2rem;">
-    <h3 class="mb-2">🛒 My Cart</h3>
+    <h3 class="mb-2">My Cart</h3>
     
     <div id="dash-cart-items" style="display:flex; flex-direction:column; gap:1rem;"></div>
     
@@ -1264,14 +1706,14 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:1rem;">
             <div>
                 <p style="font-size:0.9rem; color:var(--text-muted);">Total</p>
-                <p id="dash-cart-total" style="font-size:1.8rem; font-weight:800; color:var(--primary);">₵0.00</p>
+                <p id="dash-cart-total" style="font-size:1.8rem; font-weight:800; color:var(--primary);">GHS 0.00</p>
             </div>
             <div style="display:flex; gap:0.75rem;">
                 <button class="btn btn-outline btn-sm" onclick="cmCart.clear(); renderDashCart();">Clear Cart</button>
             </div>
         </div>
         <div class="notice-box-inline mt-2">
-            <strong><span style="font-size:1.1rem; vertical-align:middle; margin-right:5px;">⚠️</span> IMPORTANT</strong>
+            <strong><span style="font-size:1.1rem; vertical-align:middle; margin-right:5px;">Note</span> IMPORTANT</strong>
             <span style="color:var(--light);">This order is configured for <b>IN-PERSON PAYMENT</b>. Please pay the seller directly upon collection.</span>
         </div>
         <button class="btn btn-checkout-lg mt-2" style="width:100%;" onclick="window.location.href='checkout.php?ids=' + cmCart.get().map(i => i.id).join(',');">Proceed to Checkout</button>
@@ -1302,18 +1744,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 <img src="${item.image || ''}" alt="${item.name}" onerror="this.style.background='rgba(0,0,0,0.3)'; this.alt='No Image';" style="width:50px;height:50px;object-fit:cover;border-radius:8px;">
                 <div>
                     <p style="font-weight:600; margin-bottom:4px; font-size:0.9rem;">${item.name}</p>
-                    <p style="color:var(--primary); font-weight:700; font-size:0.95rem;">₵${(item.price * item.qty).toFixed(2)}</p>
+                    <p style="color:var(--primary); font-weight:700; font-size:0.95rem;">GHS ${(item.price * item.qty).toFixed(2)}</p>
                 </div>
                 <div style="display:flex; align-items:center; gap:0.5rem;">
-                    <button class="btn btn-outline btn-sm" style="padding:2px 8px;" onclick="cmCart.updateQty(${item.id}, ${item.qty - 1}); renderDashCart();">−</button>
+                    <button class="btn btn-outline btn-sm" style="padding:2px 8px;" onclick="cmCart.updateQty(${item.id}, ${item.qty - 1}); renderDashCart();">-</button>
                     <span style="font-weight:600;font-size:0.9rem;">${item.qty}</span>
                     <button class="btn btn-outline btn-sm" style="padding:2px 8px;" onclick="cmCart.updateQty(${item.id}, ${item.qty + 1}); renderDashCart();">+</button>
-                    <button class="btn btn-outline btn-sm" style="padding:2px 8px; color:#ef4444; border-color:rgba(239,68,68,0.3);" onclick="cmCart.remove(${item.id}); renderDashCart();">✕</button>
+                    <button class="btn btn-outline btn-sm" style="padding:2px 8px; color:#ef4444; border-color:rgba(239,68,68,0.3);" onclick="cmCart.remove(${item.id}); renderDashCart();">x</button>
                 </div>
             </div>
         `).join('');
         
-        document.getElementById('dash-cart-total').textContent = '₵' + cmCart.total().toFixed(2);
+        document.getElementById('dash-cart-total').textContent = 'GHS ' + cmCart.total().toFixed(2);
     };
     renderDashCart();
 });
@@ -1345,7 +1787,7 @@ function submitDiscount(pid) {
     const input = document.getElementById('disc-' + pid);
     const val = parseInt(input?.value) || 0;
     if (val < 1 || val > 90) {
-        showDashToast('⚠️ Enter a valid discount between 1% and 90%');
+        showDashToast('Enter a valid discount between 1% and 90%');
         input?.focus();
         return;
     }
@@ -1363,18 +1805,55 @@ function showDashToast(msg) {
 
 <script src="https://js.paystack.co/v1/inline.js"></script>
 <script>
-function payWithPaystack(tier, amount) {
-    const handler = PaystackPop.setup({
-        key: '<?= get_env_var("PAYSTACK_PUBLIC_KEY") ?>',
-        email: '<?= $user["email"] ?>',
-        amount: amount * 100, // in kobo/pesewas
+const tierPricingConfig = <?= json_encode($tierPricingConfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?>;
+const paystackCsrfToken = <?= json_encode($_SESSION['csrf_token'] ?? '') ?>;
+const paystackPublicKey = <?= json_encode((string) get_env_var('PAYSTACK_PUBLIC_KEY', '')) ?>;
+const paystackCustomerEmail = <?= json_encode((string)($user['email'] ?? '')) ?>;
+const paystackUserId = <?= json_encode((string)($user['id'] ?? '')) ?>;
+let activeUpgradeTier = null;
+
+function payWithPaystack(tier) {
+    const tierConfig = tierPricingConfig[tier];
+    if (!tierConfig) {
+        alert('Tier configuration could not be found. Please refresh and try again.');
+        return;
+    }
+
+    const amount = Number(tierConfig.price || 0);
+    if (!Number.isFinite(amount) || amount <= 0) {
+        alert('This plan does not require payment.');
+        return;
+    }
+    if (!paystackPublicKey) {
+        alert('Paystack is not configured yet. Please contact support.');
+        return;
+    }
+    if (!paystackCustomerEmail) {
+        alert('Your account email is missing. Please update your profile before upgrading.');
+        return;
+    }
+    if (typeof window.PaystackPop === 'undefined') {
+        alert('The Paystack checkout script did not load. Please refresh and try again.');
+        return;
+    }
+
+    activeUpgradeTier = tier;
+    const handler = window.PaystackPop.setup({
+        key: paystackPublicKey,
+        email: paystackCustomerEmail,
+        amount: Math.round(amount * 100),
         currency: 'GHS',
-        metadata: { tier: tier, user_id: '<?= $user["id"] ?>' },
+        label: tierConfig.duration_label ? `${tier.toUpperCase()} - ${tierConfig.duration_label}` : tier.toUpperCase(),
+        metadata: {
+            tier: tier,
+            user_id: paystackUserId,
+            dashboard_flow: 'legacy-upgrade'
+        },
         callback: function(response) {
-            // Verify Transaction on Backend
             verifyPayment(response.reference, tier);
         },
         onClose: function() {
+            activeUpgradeTier = null;
             alert('Transaction was not completed.');
         }
     });
@@ -1386,16 +1865,20 @@ async function verifyPayment(reference, tier) {
         const res = await fetch('api/paystack_verify.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ reference: reference, tier: tier })
+            credentials: 'same-origin',
+            body: JSON.stringify({ reference: reference, tier: tier, csrf_token: paystackCsrfToken })
         });
         const data = await res.json();
         if(data.status === 'success') {
+            activeUpgradeTier = null;
             alert(data.message);
             window.location.reload();
         } else {
+            activeUpgradeTier = null;
             alert('Error: ' + data.message);
         }
     } catch(e) {
+        activeUpgradeTier = null;
         alert('CRITICAL PAYMENT ERROR: Could not verify transaction.');
     }
 }

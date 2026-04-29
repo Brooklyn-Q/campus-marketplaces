@@ -5,6 +5,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ai, settings } from '../../services/api';
+import PricingSimple from '../ui/pricing-blocks';
+import { buildLegacyUrl } from '../../utils/legacyAuth';
+import { useAuth } from '../../contexts/AuthContext';
 
 function TermsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [scrolledToBottom, setScrolledToBottom] = useState(false);
@@ -201,24 +204,10 @@ function TermsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
 
           <h3 style={{fontSize: '1.1rem', fontWeight: 700, marginTop: '2rem', marginBottom: '0.75rem'}}>21. ACCOUNT TIERS & SELLER RULES</h3>
           <p>Users may choose from {tiers.length || 3} account levels, each with specific system-enforced limits and benefits:</p>
-          <div style={{display:'flex', flexDirection:'column', gap:'1rem', marginBottom:'1.5rem'}}>
-            {tiers.length > 0 ? tiers.map(tier => (
-              <div key={tier.id} className="tier-block" style={{padding: '15px', border: `1px solid ${tier.tier_name === 'basic' ? '#0071e340' : (tier.tier_name === 'pro' ? '#8e8e9340' : '#ff9f0a40')}`, borderRadius: '12px', borderLeft: `4px solid ${tier.tier_name === 'basic' ? '#0071e3' : (tier.tier_name === 'pro' ? '#8e8e93' : '#ff9f0a')}`, background: 'rgba(0,0,0,0.02)'}}>
-                <h4 style={{fontSize:'1.05rem', fontWeight:800, marginBottom:'0.5rem', textTransform:'capitalize'}}>{tier.tier_name} Account</h4>
-                <p style={{margin:0, fontSize:'0.9rem', lineHeight:1.6}}>
-                    The <strong>{tier.tier_name}</strong> account allows users to upload up to <strong>{tier.product_limit}</strong> products with <strong>{tier.images_per_product}</strong> image(s) per product.
-                    This account {tier.price > 0 ? `requires a fee of GHS ${Number(tier.price).toFixed(2)}` : 'is completely free'} and assigns a customized badge color wrapping an update horizon of <strong>{tier.duration} months</strong>. 
-                    Ads Boost feature is <strong>{tier.ads_boost ? 'enabled' : 'not available'}</strong> limit-wide.
-                </p>
-                {tier.benefits && tier.benefits.length > 0 && (
-                  <ul style={{marginTop: '0.8rem', paddingLeft: '1.2rem', fontSize: '0.85rem', color: 'var(--text-muted)'}}>
-                    {tier.benefits.map((b: string, i: number) => (
-                      <li key={i} style={{marginBottom: '0.3rem'}}>{b}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )) : (
+          <div style={{marginBottom:'1.5rem'}}>
+            {tiers.length > 0 ? (
+              <PricingSimple tiers={tiers} showCta={false} />
+            ) : (
               <div style={{color:'var(--text-muted)'}}>Loading tier data...</div>
             )}
           </div>
@@ -326,12 +315,17 @@ function AIAssistant() {
 }
 
 export default function Footer() {
+  const { isLoggedIn, isAdmin, isSeller } = useAuth();
   const [termsOpen, setTermsOpen] = useState(false);
 
   // Expose openTermsModal globally for backward compatibility
   React.useEffect(() => {
     (window as any).openTermsModal = () => setTermsOpen(true);
   }, []);
+
+  const accountHomeUrl = isAdmin ? buildLegacyUrl('/admin/') : buildLegacyUrl('/dashboard.php');
+  const accountHomeLabel = isAdmin ? 'Admin Panel' : 'Dashboard';
+  const showSellLink = !isLoggedIn || (isSeller && !isAdmin);
 
   return (
     <>
@@ -349,8 +343,10 @@ export default function Footer() {
             <h4 style={{fontWeight:700, marginBottom:'0.5rem', fontSize:'0.75rem', textTransform:'uppercase', color:'var(--text-muted)'}}>Navigation</h4>
             <ul style={{listStyle:'none', padding:0, display:'flex', flexDirection:'column', gap:'0.25rem'}}>
               <li><Link to="/" style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>Home</Link></li>
-              <li><Link to="/dashboard" style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>Dashboard</Link></li>
-              <li><Link to="/add-product" style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>Sell</Link></li>
+              <li><a href={accountHomeUrl} style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>{accountHomeLabel}</a></li>
+              {showSellLink && (
+                <li><a href={buildLegacyUrl('/add_product.php')} style={{color:'var(--text-main)', textDecoration:'none', fontSize:'0.75rem'}}>Sell</a></li>
+              )}
             </ul>
           </div>
           <div>

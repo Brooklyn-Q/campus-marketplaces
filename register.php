@@ -1,9 +1,11 @@
 <?php
 require_once 'includes/db.php';
 if (isLoggedIn())
-    redirect('index.php');
+    redirect(isAdmin() ? 'admin/' : 'dashboard.php');
 
-$error = '';
+$error = getFlashMessage('auth_error');
+$success = getFlashMessage('auth_success');
+$googleEnabled = googleSignInEnabled();
 $mode = $_GET['mode'] ?? 'buyer'; // buyer or seller
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -114,9 +116,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $new_ref = generateReferralCode();
                 $role = ($mode === 'seller') ? 'seller' : 'buyer';
 
-                $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, accepted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,NOW())");
-                $stmt->execute([$username, $email, $hashed, $role, $faculty, $department ?: null, $level ?: null, $hall ?: null, $hall_residence ?: null, $phone ?: null, $pic, $new_ref, $referred_by]);
-                $user_id = (int) $pdo->lastInsertId();
+                $insertParams = [$username, $email, $hashed, $role, $faculty, $department ?: null, $level ?: null, $hall ?: null, $hall_residence ?: null, $phone ?: null, $pic, $new_ref, $referred_by];
+                if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, accepted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,true,NOW()) RETURNING id");
+                    $stmt->execute($insertParams);
+                    $user_id = (int) $stmt->fetchColumn();
+                } else {
+                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, accepted_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,1,NOW())");
+                    $stmt->execute($insertParams);
+                    $user_id = (int) $pdo->lastInsertId();
+                }
+
+                if ($user_id <= 0) {
+                    throw new RuntimeException('Could not determine new user ID after registration.');
+                }
 
                 // Referral bonuses
                 if ($referred_by) {
@@ -128,12 +141,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $pdo->commit();
+                session_regenerate_id(true);
                 $_SESSION['user_id'] = $user_id;
                 $_SESSION['username'] = $username;
                 $_SESSION['role'] = $role;
-                redirect('dashboard.php');
+                redirect($role === 'admin' ? 'admin/' : 'dashboard.php');
             } catch (Exception $e) {
                 $pdo->rollBack();
+                error_log('register.php registration failed: ' . $e->getMessage());
                 $error = "Registration failed. Please try again.";
             }
         }
@@ -143,9 +158,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once 'includes/header.php';
 ?>
 
+<style>
+    .google-auth-button-wrap {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        min-height: 44px;
+    }
+
+    @media (max-width: 640px) {
+        .auth-wrapper {
+            padding: 14px !important;
+            align-items: flex-start !important;
+        }
+
+        .register-card {
+            padding: 1.1rem !important;
+        }
+
+        .register-card h1 {
+            font-size: 1.55rem !important;
+        }
+    }
+</style>
+
 <div class="auth-wrapper"
     style="min-height: calc(100vh - 100px); display:flex; align-items:center; justify-content:center; padding: 20px;">
-    <div class="glass form-container fade-in"
+    <div class="glass form-container fade-in register-card"
         style="width:100%; max-width:680px; box-shadow:0 32px 80px rgba(0,0,0,0.12); border-radius:32px;">
 
         <div class="text-center" style="margin-bottom:2rem;">
@@ -188,6 +227,50 @@ require_once 'includes/header.php';
                 <?= htmlspecialchars($error) ?>
             </div>
         <?php endif; ?>
+        <?php if ($success): ?>
+            <div class="alert alert-success fade-in" style="text-align:center; margin-bottom:2rem;">
+                <?= htmlspecialchars($success) ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if ($googleEnabled): ?>
+            <div style="margin-bottom:1.8rem;">
+                <div id="googleRegisterButton" class="google-auth-button-wrap"></div>
+                <p style="font-size:0.82rem; color:var(--text-muted); text-align:center; margin-top:0.85rem;">
+                    Continue with Google as a <?= htmlspecialchars($mode) ?>. You can finish profile details after sign-up.
+                </p>
+                <form id="googleRegisterForm" method="POST" action="google_signin.php" style="display:none;">
+                    <input type="hidden" name="credential" id="googleRegisterCredential">
+                    <input type="hidden" name="mode" value="<?= htmlspecialchars($mode) ?>">
+                </form>
+                <script src="https://accounts.google.com/gsi/client" async defer></script>
+                <script>
+                    function handleGoogleRegister(response) {
+                        const input = document.getElementById('googleRegisterCredential');
+                        if (!response || !response.credential || !input) return;
+                        input.value = response.credential;
+                        document.getElementById('googleRegisterForm').submit();
+                    }
+                    window.addEventListener('load', function () {
+                        if (!window.google || !google.accounts || !document.getElementById('googleRegisterButton')) return;
+                        const buttonWidth = Math.min(420, Math.max(220, document.getElementById('googleRegisterButton').offsetWidth || 0));
+                        google.accounts.id.initialize({
+                            client_id: <?= json_encode(env('GOOGLE_CLIENT_ID', '')) ?>,
+                            callback: handleGoogleRegister
+                        });
+                        google.accounts.id.renderButton(
+                            document.getElementById('googleRegisterButton'),
+                            { theme: 'outline', size: 'large', shape: 'pill', text: 'signup_with', width: buttonWidth }
+                        );
+                    });
+                </script>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px; margin:1.5rem 0 2rem;">
+                <div style="height:1px; background:rgba(0,0,0,0.08); flex:1;"></div>
+                <span style="font-size:0.82rem; color:var(--text-muted); font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">or use email</span>
+                <div style="height:1px; background:rgba(0,0,0,0.08); flex:1;"></div>
+            </div>
+        <?php endif; ?>
 
         <form method="POST" enctype="multipart/form-data" id="registerForm">
             <?= csrf_field() ?>
@@ -208,9 +291,9 @@ require_once 'includes/header.php';
             <div class="form-row">
                 <div class="form-group">
                     <label>Password *</label>
-                    <input type="password" name="password" class="form-control" id="regPassword" required minlength="8"
-                        pattern="(?=.*\d)(?=.*[A-Z]).{8,}"
-                        title="Must contain at least one number and one uppercase and lowercase letter, and at least 8 or more characters">
+                    <input type="password" name="password" class="form-control" id="regPassword" required minlength="12"
+                        pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};:&quot;\\|,.<>\/?]).{12,}"
+                        title="Must contain at least 12 characters, including uppercase, lowercase, number, and special character.">
                 </div>
                 <div class="form-group">
                     <label>Referral Code (Optional)</label>
@@ -288,8 +371,8 @@ require_once 'includes/header.php';
 
             <div class="form-group"
                 style="display:flex; gap:0.75rem; align-items:flex-start; margin:2rem 0; background:rgba(0,113,227,0.03); padding:1.25rem; border-radius:20px; border:1px solid rgba(0,113,227,0.08);">
-                <input type="checkbox" name="terms" value="1" id="termsCheckbox" required disabled
-                    style="width:20px; height:20px; margin-top:3px; cursor:not-allowed;">
+                <input type="checkbox" name="terms" value="1" id="termsCheckbox" required
+                    style="width:20px; height:20px; margin-top:3px; cursor:pointer;">
                 <label for="termsCheckbox"
                     style="font-size:0.9rem; color:var(--text-main); line-height:1.5; font-weight:500; margin:0;">
                     I have read and agree to the <a href="javascript:void(0)" onclick="openTermsModal()"
@@ -298,20 +381,10 @@ require_once 'includes/header.php';
                 </label>
             </div>
 
-            <button type="submit" id="regSubmitBtn" class="btn btn-primary" disabled
-                style="width:100%; justify-content:center; padding:1.1rem; font-size:1.1rem; font-weight:700; opacity:0.5; cursor:not-allowed;">Create
+            <button type="submit" id="regSubmitBtn" class="btn btn-primary"
+                style="width:100%; justify-content:center; padding:1.1rem; font-size:1.1rem; font-weight:700;">Create
                 Account</button>
         </form>
-
-        <script>
-            const termsCheck = document.getElementById('termsCheckbox');
-            const submitBtn = document.getElementById('regSubmitBtn');
-            termsCheck.addEventListener('change', () => {
-                submitBtn.disabled = !termsCheck.checked;
-                submitBtn.style.opacity = termsCheck.checked ? '1' : '0.5';
-                submitBtn.style.cursor = termsCheck.checked ? 'pointer' : 'not-allowed';
-            });
-        </script>
 
         <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid rgba(0,0,0,0.06); text-align:center;">
             <p style="font-size:0.95rem; color:var(--text-muted); margin:0;">

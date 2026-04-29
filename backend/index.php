@@ -10,8 +10,8 @@ ini_set('display_errors', 1);
 ini_set('log_errors', 1);
 
 // Load environment + config
-require_once __DIR__ . '/config/cors.php';
 require_once __DIR__ . '/config/database.php';
+require_once __DIR__ . '/config/cors.php';
 require_once __DIR__ . '/config/jwt.php';
 require_once __DIR__ . '/helpers/functions.php';
 require_once __DIR__ . '/helpers/validators.php';
@@ -63,6 +63,11 @@ try {
     $param = $segments[2] ?? '';
 
     switch ($resource) {
+        // ── DEBUG ──
+        case 'debug':
+            require __DIR__ . '/routes/debug.php';
+            break;
+
         // ── AUTH ──
         case 'auth':
             require __DIR__ . '/routes/auth.php';

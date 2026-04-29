@@ -1,8 +1,16 @@
 <?php
 require_once 'includes/db.php';
-if (isLoggedIn()) redirect('index.php');
+if (isLoggedIn()) redirect(isAdmin() ? 'admin/' : 'dashboard.php');
 
-$error = '';
+$error = getFlashMessage('auth_error');
+$success = getFlashMessage('auth_success');
+$googleEnabled = googleSignInEnabled();
+$mode = strtolower(trim($_GET['mode'] ?? 'login'));
+$mode = in_array($mode, ['login', 'admin'], true) ? $mode : 'login';
+$googleHint = match ($mode) {
+    'admin' => 'Continue with Google as an approved admin account.',
+    default => 'Continue with Google to sign in. If this is your first time, we will ask whether you want a buyer or seller account.',
+};
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     $login_id = trim($_POST['login_id'] ?? '');
@@ -36,7 +44,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw $e;
                     }
                 }
-                redirect('dashboard.php');
+                redirect(($user['role'] ?? '') === 'admin' ? 'admin/' : 'dashboard.php');
             }
         } else {
             $error = "Invalid email/username or password.";
@@ -47,8 +55,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 require_once 'includes/header.php';
 ?>
 
+<style>
+    .google-auth-button-wrap {
+        display: flex;
+        justify-content: center;
+        width: 100%;
+        min-height: 44px;
+    }
+
+    @media (max-width: 640px) {
+        .auth-wrapper {
+            padding: 14px !important;
+            align-items: flex-start !important;
+        }
+
+        .auth-card {
+            max-width: 100% !important;
+            padding: 1.25rem !important;
+        }
+
+        .auth-card h1 {
+            font-size: 1.55rem !important;
+        }
+    }
+</style>
+
 <div class="auth-wrapper" style="min-height: calc(100vh - 100px); display:flex; align-items:center; justify-content:center; padding: 20px;">
-    <div class="glass form-container fade-in" style="width:100%; max-width:480px; box-shadow:0 32px 80px rgba(0,0,0,0.12);">
+    <div class="glass form-container fade-in auth-card" style="width:100%; max-width:480px; box-shadow:0 32px 80px rgba(0,0,0,0.12);">
         <div class="text-center" style="margin-bottom:2.5rem;">
             <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:22px; background:linear-gradient(135deg, rgba(0,113,227,0.12), rgba(0,113,227,0.06)); margin-bottom:1.25rem; border:1px solid rgba(0,113,227,0.1);">
                 <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0071e3" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
@@ -61,6 +94,11 @@ require_once 'includes/header.php';
             <div class="alert alert-error fade-in" style="text-align:center; margin-bottom:1.5rem;">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
                 <?= htmlspecialchars($error) ?>
+            </div>
+        <?php endif; ?>
+        <?php if($success): ?>
+            <div class="alert alert-success fade-in" style="text-align:center; margin-bottom:1.5rem;">
+                <?= htmlspecialchars($success) ?>
             </div>
         <?php endif; ?>
 
@@ -76,6 +114,45 @@ require_once 'includes/header.php';
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:1.1rem; font-size:1.05rem; font-weight:700; box-shadow:0 10px 30px rgba(0,113,227,0.2);">Sign In</button>
         </form>
+        <div style="margin-top:0.9rem; text-align:right;">
+            <a href="forgot_password.php" style="color:var(--primary); font-weight:700; text-decoration:none; font-size:0.92rem;">Forgot password?</a>
+        </div>
+        <?php if ($googleEnabled): ?>
+            <div style="display:flex; align-items:center; gap:12px; margin:1.5rem 0;">
+                <div style="height:1px; background:rgba(0,0,0,0.08); flex:1;"></div>
+                <span style="font-size:0.82rem; color:var(--text-muted); font-weight:700; letter-spacing:0.08em; text-transform:uppercase;">or</span>
+                <div style="height:1px; background:rgba(0,0,0,0.08); flex:1;"></div>
+            </div>
+            <div id="googleLoginButton" class="google-auth-button-wrap"></div>
+            <form id="googleLoginForm" method="POST" action="google_signin.php" style="display:none;">
+                <input type="hidden" name="credential" id="googleLoginCredential">
+                <input type="hidden" name="mode" value="<?= htmlspecialchars($mode, ENT_QUOTES, 'UTF-8') ?>">
+            </form>
+            <p style="font-size:0.82rem; color:var(--text-muted); text-align:center; margin-top:0.85rem;">
+                <?= htmlspecialchars($googleHint) ?>
+            </p>
+            <script src="https://accounts.google.com/gsi/client" async defer></script>
+            <script>
+                function handleGoogleLogin(response) {
+                    const input = document.getElementById('googleLoginCredential');
+                    if (!response || !response.credential || !input) return;
+                    input.value = response.credential;
+                    document.getElementById('googleLoginForm').submit();
+                }
+                window.addEventListener('load', function () {
+                    if (!window.google || !google.accounts || !document.getElementById('googleLoginButton')) return;
+                    const buttonWidth = Math.min(360, Math.max(220, document.getElementById('googleLoginButton').offsetWidth || 0));
+                    google.accounts.id.initialize({
+                        client_id: <?= json_encode(env('GOOGLE_CLIENT_ID', '')) ?>,
+                        callback: handleGoogleLogin
+                    });
+                    google.accounts.id.renderButton(
+                        document.getElementById('googleLoginButton'),
+                        { theme: 'outline', size: 'large', shape: 'pill', text: 'continue_with', width: buttonWidth }
+                    );
+                });
+            </script>
+        <?php endif; ?>
 
         <div style="margin-top:2rem; padding-top:1.5rem; border-top:1px solid rgba(0,0,0,0.06); text-align:center;">
             <p style="font-size:0.95rem; color:var(--text-muted); margin:0;">

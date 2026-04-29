@@ -50,6 +50,12 @@ switch ($action) {
         clearRateLimit($clientIp);
         logSecurityEvent($pdo, 'successful_login', "User logged in: " . $user['username'], $user['id'], $clientIp);
 
+        ensureLegacySessionStarted();
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = (int)$user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = $user['role'];
+
         // Update last seen
         updateLastSeen($pdo, $user['id']);
 
@@ -83,6 +89,7 @@ switch ($action) {
         $role = $body['role'] ?? 'buyer';
         $faculty = trim($body['faculty'] ?? '');
         $referralCode = trim($body['referral_code'] ?? '');
+        $termsAccepted = !empty($body['terms']);
 
         // Validate basics
         if (!$username || !$email || !$password) {
@@ -95,12 +102,22 @@ switch ($action) {
         if (strlen($password) < 12) {
             jsonError('Password must be at least 12 characters');
         }
-        // Optional: Add complexity requirements (uppercase + number)
-        if (!preg_match('/[A-Z]/', $password) || !preg_match('/[0-9]/', $password)) {
-            jsonError('Password must contain at least one uppercase letter and one number');
+        if (
+            !preg_match('/[A-Z]/', $password)
+            || !preg_match('/[a-z]/', $password)
+            || !preg_match('/[0-9]/', $password)
+            || !preg_match('/[!@#$%^&*()_+\-=\[\]{};:"\\\\|,.<>\/?]/', $password)
+        ) {
+            jsonError('Password must contain uppercase, lowercase, number, and special character');
         }
         if (!in_array($role, ['buyer', 'seller'])) {
             jsonError('Role must be buyer or seller');
+        }
+        if (!$termsAccepted) {
+            jsonError('You must accept the Terms & Conditions');
+        }
+        if ($faculty === '') {
+            jsonError('Faculty is required');
         }
 
         // Honeypot check
@@ -120,6 +137,10 @@ switch ($action) {
         $level = trim($body['level'] ?? '');
         $hall = trim($body['hall'] ?? $body['hall_residence'] ?? '');
         $phone = formatPhone(trim($body['phone'] ?? ''));
+
+        if ($role === 'seller' && (!$department || !$level || !$phone)) {
+            jsonError('Sellers must provide department, level, and phone');
+        }
 
         // Handle referral
         $referredBy = null;
@@ -144,17 +165,33 @@ switch ($action) {
 
         $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-        $stmt = $pdo->prepare("
-            INSERT INTO users (username, email, password, role, faculty, department, level, hall, phone, 
-                             profile_pic, referral_code, referred_by, seller_tier) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'basic')
-        ");
-        $stmt->execute([
+        $insertParams = [
             $username, $email, $hashedPassword, $role, $faculty,
             $department, $level, $hall, $phone, $profilePic, $myReferralCode, $referredBy
-        ]);
-        
-        $nextId = (int)$pdo->lastInsertId();
+        ];
+
+        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+            $stmt = $pdo->prepare("
+                INSERT INTO users (username, email, password, role, faculty, department, level, hall, phone, 
+                                 profile_pic, referral_code, referred_by, seller_tier, terms_accepted, accepted_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'basic', true, NOW())
+                RETURNING id
+            ");
+            $stmt->execute($insertParams);
+            $nextId = (int) $stmt->fetchColumn();
+        } else {
+            $stmt = $pdo->prepare("
+                INSERT INTO users (username, email, password, role, faculty, department, level, hall, phone, 
+                                 profile_pic, referral_code, referred_by, seller_tier, terms_accepted, accepted_at) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'basic', 1, NOW())
+            ");
+            $stmt->execute($insertParams);
+            $nextId = (int) $pdo->lastInsertId();
+        }
+
+        if ($nextId <= 0) {
+            jsonError('Registration failed. Please try again.', 500);
+        }
 
         // Process referral bonuses
         if ($referredBy) {
@@ -175,6 +212,12 @@ switch ($action) {
             'seller_tier' => 'basic',
         ]);
 
+        ensureLegacySessionStarted();
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = $nextId;
+        $_SESSION['username'] = $username;
+        $_SESSION['role'] = $role;
+
         jsonResponse([
             'success' => true,
             'message' => 'Registration successful',
@@ -186,7 +229,7 @@ switch ($action) {
                 'role' => $role,
                 'seller_tier' => 'basic',
                 'profile_pic' => $profilePic,
-                'terms_accepted' => false,
+                'terms_accepted' => true,
                 'referral_code' => $myReferralCode,
             ]
         ], 201);
@@ -221,6 +264,26 @@ switch ($action) {
         break;
 
     // ── ACCEPT TERMS ──
+    case 'session':
+        if ($method !== 'POST') jsonError('Method not allowed', 405);
+
+        $auth = authenticate();
+        $user = getUser($pdo, $auth['user_id']);
+        if (!$user) jsonError('User not found', 404);
+
+        ensureLegacySessionStarted();
+
+        session_regenerate_id(true);
+        $_SESSION['user_id'] = (int)$user['id'];
+        $_SESSION['username'] = $user['username'];
+        $_SESSION['role'] = $user['role'];
+
+        jsonResponse([
+            'success' => true,
+            'redirect_url' => $user['role'] === 'admin' ? '/admin/' : '/dashboard.php',
+        ]);
+        break;
+
     case 'accept-terms':
         if ($method !== 'POST') jsonError('Method not allowed', 405);
 

@@ -2,40 +2,33 @@
 $page_title = 'Analytics';
 require_once 'header.php';
 
-/**
- * Admin Analytics Dashboard (PostgreSQL/Supabase Optimized)
- * Collapses multiple queries into a single data trip to reduce cloud latency.
- */
-
-// ── Optimized Core Metrics (8 queries collapsed into 1 for cloud performance) ──
-$stats = $pdo->query("
-    SELECT 
-        (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type IN ('sale','boost','premium') AND status='completed') as total_rev,
-        (SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type='boost' AND status='completed') as boost_rev,
-        (SELECT COUNT(*) FROM users WHERE role != 'admin') as total_users,
-        (SELECT COUNT(*) FROM products) as total_products,
-        (SELECT COUNT(DISTINCT user_id) FROM products WHERE status='approved') as active_sellers,
-        (SELECT COUNT(*) FROM transactions WHERE type IN ('sale','purchase')) as total_orders,
-        (SELECT COALESCE(SUM(views),0) FROM products) as total_views,
-        (SELECT COUNT(*) FROM users WHERE created_at::date = CURRENT_DATE) as users_today
-")->fetch(PDO::FETCH_ASSOC);
+// ── Core Metrics ──
+$totalRevenue = $pdo->query("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type IN ('sale','boost','premium') AND status='completed'")->fetchColumn();
+$totalBoostRevenue = $pdo->query("SELECT COALESCE(SUM(amount),0) FROM transactions WHERE type='boost' AND status='completed'")->fetchColumn();
+$totalUsers = $pdo->query("SELECT COUNT(*) FROM users WHERE role != 'admin'")->fetchColumn();
+$totalProducts = $pdo->query("SELECT COUNT(*) FROM products")->fetchColumn();
+$activeSellers = $pdo->query("SELECT COUNT(DISTINCT user_id) FROM products WHERE status='approved'")->fetchColumn();
+$totalOrders = $pdo->query("SELECT COUNT(*) FROM transactions WHERE type IN ('sale','purchase')")->fetchColumn();
+$totalViews = $pdo->query("SELECT COALESCE(SUM(views),0) FROM products")->fetchColumn();
+$newUsersToday = $pdo->query("SELECT COUNT(*) FROM users WHERE CAST(created_at AS DATE) = CURRENT_DATE")->fetchColumn();
 
 // ── Daily Revenue & Users (last 14 days) ──
 $startDate = date('Y-m-d', strtotime('-13 days'));
 
-// Postgres-optimized date grouping using the ::date cast
-$stmtRev = $pdo->prepare("SELECT created_at::date, COALESCE(SUM(amount),0) FROM transactions WHERE type IN ('sale','boost','premium') AND status='completed' AND created_at >= ? GROUP BY created_at::date");
+// Fetch all revenue grouped by date in ONE query
+$stmtRev = $pdo->prepare("SELECT CAST(created_at AS DATE), COALESCE(SUM(amount),0) FROM transactions WHERE type IN ('sale','boost','premium') AND status='completed' AND created_at >= ? GROUP BY CAST(created_at AS DATE)");
 $stmtRev->execute([$startDate . ' 00:00:00']);
-$revData = $stmtRev->fetchAll(PDO::FETCH_KEY_PAIR);
+$revData = $stmtRev->fetchAll(PDO::FETCH_KEY_PAIR); // Creates an array of ['YYYY-MM-DD' => total]
 
-$stmtUsr = $pdo->prepare("SELECT created_at::date, COUNT(*) FROM users WHERE created_at >= ? GROUP BY created_at::date");
+// Fetch all new users grouped by date in ONE query
+$stmtUsr = $pdo->prepare("SELECT CAST(created_at AS DATE), COUNT(*) FROM users WHERE created_at >= ? GROUP BY CAST(created_at AS DATE)");
 $stmtUsr->execute([$startDate . ' 00:00:00']);
 $usrData = $stmtUsr->fetchAll(PDO::FETCH_KEY_PAIR);
 
 $dailyRevenue = [];
 $dailyUsers = [];
 
-// Loop through the 14 days in PHP to ensure empty days output 0 (Perfect for Chart.js)
+// Loop through the 14 days in PHP (No DB queries here!) to ensure empty days output 0
 for ($i = 13; $i >= 0; $i--) {
     $date = date('Y-m-d', strtotime("-$i days"));
     $label = date('M d', strtotime($date));
@@ -51,7 +44,7 @@ $topViewed = $pdo->query("SELECT p.title, p.views, p.price, u.username as seller
 $topSelling = $pdo->query("SELECT p.title, p.clicks as sales, p.price, u.username as seller FROM products p JOIN users u ON p.user_id = u.id ORDER BY p.clicks DESC LIMIT 10")->fetchAll();
 
 // ── Top 5 Seller Performers ──
-$topSellers = $pdo->query("SELECT u.username, u.seller_tier, COUNT(t.id) as sale_count, COALESCE(SUM(t.amount),0) as revenue FROM users u LEFT JOIN transactions t ON u.id = t.user_id AND t.type = 'sale' WHERE u.role = 'seller' GROUP BY u.id, u.username, u.seller_tier ORDER BY revenue DESC LIMIT 5")->fetchAll();
+$topSellers = $pdo->query("SELECT u.username, u.seller_tier, COUNT(t.id) as sale_count, COALESCE(SUM(t.amount),0) as revenue FROM users u LEFT JOIN transactions t ON u.id = t.user_id AND t.type = 'sale' WHERE u.role = 'seller' GROUP BY u.id ORDER BY revenue DESC LIMIT 5")->fetchAll();
 
 // ── Category Distribution ──
 $categoryDist = $pdo->query("SELECT category, COUNT(*) as cnt FROM products WHERE status='approved' GROUP BY category ORDER BY cnt DESC")->fetchAll();
@@ -69,35 +62,35 @@ $categoryDist = $pdo->query("SELECT category, COUNT(*) as cnt FROM products WHER
 
 <div class="stat-grid mb-3 fade-in" style="grid-template-columns:repeat(auto-fill, minmax(160px, 1fr));">
     <div class="glass stat-card">
-        <div class="stat-val" style="color:var(--success);">₵<?= number_format($stats['total_rev'], 2) ?></div>
+        <div class="stat-val" style="color:var(--success);">₵<?= number_format($totalRevenue, 2) ?></div>
         <div class="stat-label">Total Revenue</div>
     </div>
     <div class="glass stat-card">
-        <div class="stat-val" style="color:var(--gold);">₵<?= number_format($stats['boost_rev'], 2) ?></div>
+        <div class="stat-val" style="color:var(--gold);">₵<?= number_format($totalBoostRevenue, 2) ?></div>
         <div class="stat-label">Boost Revenue</div>
     </div>
     <div class="glass stat-card">
-        <div class="stat-val" style="color:var(--primary);"><?= $stats['total_users'] ?></div>
+        <div class="stat-val" style="color:var(--primary);"><?= $totalUsers ?></div>
         <div class="stat-label">Total Users</div>
     </div>
     <div class="glass stat-card">
-        <div class="stat-val"><?= $stats['total_products'] ?></div>
+        <div class="stat-val"><?= $totalProducts ?></div>
         <div class="stat-label">Total Products</div>
     </div>
     <div class="glass stat-card">
-        <div class="stat-val" style="color:#ff9500;"><?= $stats['active_sellers'] ?></div>
+        <div class="stat-val" style="color:#ff9500;"><?= $activeSellers ?></div>
         <div class="stat-label">Active Sellers</div>
     </div>
     <div class="glass stat-card">
-        <div class="stat-val" style="color:#af52de;"><?= $stats['total_orders'] ?></div>
+        <div class="stat-val" style="color:#af52de;"><?= $totalOrders ?></div>
         <div class="stat-label">Total Orders</div>
     </div>
     <div class="glass stat-card">
-        <div class="stat-val"><?= number_format($stats['total_views']) ?></div>
+        <div class="stat-val"><?= number_format($totalViews) ?></div>
         <div class="stat-label">Total Views</div>
     </div>
     <div class="glass stat-card">
-        <div class="stat-val" style="color:var(--success);">+<?= $stats['users_today'] ?></div>
+        <div class="stat-val" style="color:var(--success);">+<?= $newUsersToday ?></div>
         <div class="stat-label">New Today</div>
     </div>
 </div>
@@ -165,7 +158,8 @@ $categoryDist = $pdo->query("SELECT category, COUNT(*) as cnt FROM products WHER
                         <td><?= $i + 1 ?></td>
                         <td
                             style="font-weight:500; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                            <?= htmlspecialchars($p['title']) ?></td>
+                            <?= htmlspecialchars($p['title']) ?>
+                        </td>
                         <td style="font-size:0.8rem;"><?= htmlspecialchars($p['seller']) ?></td>
                         <td style="font-weight:700;"><?= number_format($p['views']) ?></td>
                         <td>₵<?= number_format($p['price'], 2) ?></td>
@@ -192,7 +186,8 @@ $categoryDist = $pdo->query("SELECT category, COUNT(*) as cnt FROM products WHER
                         <td><?= $i + 1 ?></td>
                         <td
                             style="font-weight:500; max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-                            <?= htmlspecialchars($p['title']) ?></td>
+                            <?= htmlspecialchars($p['title']) ?>
+                        </td>
                         <td style="font-size:0.8rem;"><?= htmlspecialchars($p['seller']) ?></td>
                         <td style="font-weight:700;"><?= $p['sales'] ?></td>
                         <td>₵<?= number_format($p['price'], 2) ?></td>

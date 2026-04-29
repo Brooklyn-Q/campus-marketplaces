@@ -4,6 +4,11 @@ $page_title = 'Dashboard';
 // Load DB + session BEFORE header.php to handle POST redirects
 require_once '../includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
+try {
+    $boolTrue = sqlBool(true, $pdo);
+    $pdo->prepare("UPDATE notifications SET is_read = {$boolTrue} WHERE user_id = ?")->execute([$_SESSION['user_id'] ?? 0]);
+} catch (PDOException $e) {}
+$supportAdminId = getPrimaryAdminId($pdo);
 
 // Add missing message column to announcements if it doesn't exist (Supabase transition)
 try {
@@ -118,8 +123,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vacation_action'])) {
         $req->execute([$vac_id]);
         $vr = $req->fetch();
         if ($vr) {
-            $boolT = sqlBool(true, $pdo);
-            $pdo->prepare("UPDATE users SET vacation_mode = $boolT WHERE id = ?")->execute([$vr['seller_id']]);
+            $stmt = $pdo->prepare("UPDATE users SET vacation_mode = ? WHERE id = ?");
+            $stmt->bindValue(1, true, PDO::PARAM_BOOL);
+            $stmt->bindValue(2, $vr['seller_id'], PDO::PARAM_INT);
+            $stmt->execute();
             $pdo->prepare("UPDATE vacation_requests SET status = 'approved' WHERE id = ?")->execute([$vac_id]);
             auditLog($pdo, $_SESSION['user_id'], "Approved vacation for seller #{$vr['seller_id']}");
             $disc_msg = "✅ Vacation mode approved for seller.";
@@ -266,14 +273,17 @@ try {
 // Pending premium requests (de-duplicated: only latest per user)
 $premiumPending = [];
 try {
-    $pstmt = $pdo->query("SELECT m.*, u.username as sender_name, u.seller_tier 
-        FROM messages m 
-        JOIN users u ON m.sender_id = u.id 
-        WHERE m.receiver_id = 1 
-        AND m.message LIKE '%Premium Badge upgrade%' 
-        AND m.id IN (SELECT MAX(id) FROM messages WHERE message LIKE '%Premium Badge upgrade%' GROUP BY sender_id)
-        ORDER BY m.created_at DESC");
-    $premiumPending = $pstmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    if ($supportAdminId > 0) {
+        $pstmt = $pdo->prepare("SELECT m.*, u.username as sender_name, u.seller_tier 
+            FROM messages m 
+            JOIN users u ON m.sender_id = u.id 
+            WHERE m.receiver_id = ? 
+            AND m.message LIKE '%Premium Badge upgrade%' 
+            AND m.id IN (SELECT MAX(id) FROM messages WHERE receiver_id = ? AND message LIKE '%Premium Badge upgrade%' GROUP BY sender_id)
+            ORDER BY m.created_at DESC");
+        $pstmt->execute([$supportAdminId, $supportAdminId]);
+        $premiumPending = $pstmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
 } catch (PDOException $e) { /* ignore */
 }
 
@@ -318,15 +328,57 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
 ?>
 
 <!-- TIER & PRICING MANAGEMENT SYSTEM -->
+<style>
+    .tier-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .tier-card {
+        padding: 1rem;
+        border-radius: 16px;
+    }
+
+    .tier-split {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
+    }
+
+    .benefit-input-row {
+        display: flex;
+        gap: 0.4rem;
+    }
+
+    @media (max-width: 768px) {
+        .tier-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .tier-split {
+            grid-template-columns: 1fr;
+        }
+
+        .benefit-input-row {
+            flex-direction: column;
+        }
+
+        .benefit-input-row .btn {
+            width: 100%;
+            justify-content: center;
+        }
+    }
+</style>
 <div class="glass fade-in mb-3" style="padding:1.5rem; border:1px solid var(--gold);">
     <h4 class="mb-2">⚙️ Tier & Pricing Management</h4>
     <form method="POST">
         <?= csrf_field() ?>
-        <div
-            style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem; margin-bottom:1.5rem;">
+        <div class="tier-grid">
             <!-- Basic -->
-            <div
-                style="background:rgba(0,113,227,0.05); padding:1rem; border-radius:16px; border:1px solid rgba(0,113,227,0.1);">
+            <div class="tier-card"
+                style="background:rgba(0,113,227,0.05); border:1px solid rgba(0,113,227,0.1);">
                 <h5 style="color:#0071e3; margin-bottom:1rem; display:flex; justify-content:space-between;">Basic Tier
                     <span style="font-size:0.7rem; opacity:0.7;">Free</span></h5>
                 <input type="hidden" name="basic_fee" value="0">
@@ -355,7 +407,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                             </div>
                         <?php endforeach; ?>
                     </div>
-                    <div style="display:flex; gap:0.4rem;">
+                    <div class="benefit-input-row">
                         <input type="text" id="add_ben_basic" class="form-control"
                             style="font-size:0.75rem; padding:0.4rem;" placeholder="E.g. Priority Support"
                             onkeypress="if(event.key==='Enter'){ event.preventDefault(); addBenefit('basic', '#0071e3'); }">
@@ -366,16 +418,16 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
             </div>
 
             <!-- Pro -->
-            <div
-                style="background:rgba(142,142,147,0.05); padding:1rem; border-radius:16px; border:1px solid rgba(142,142,147,0.1);">
+            <div class="tier-card"
+                style="background:rgba(142,142,147,0.05); border:1px solid rgba(142,142,147,0.1);">
                 <h5 style="color:#8e8e93; margin-bottom:1rem;">Pro Tier</h5>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                <div class="tier-split">
                     <div class="form-group mb-1"><label style="font-size:0.75rem;">Limit</label><input type="number"
                             name="pro_product_limit" class="form-control" value="<?= $tp['product_limit'] ?>"></div>
                     <div class="form-group mb-1"><label style="font-size:0.75rem;">Images</label><input type="number"
                             name="pro_image_limit" class="form-control" value="<?= $tp['images_per_product'] ?>"></div>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                <div class="tier-split">
                     <div class="form-group mb-1"><label style="font-size:0.75rem;">Fee (₵)</label><input type="number"
                             name="pro_fee" class="form-control" value="<?= $tp['price'] ?>"></div>
                     <div class="form-group mb-1"><label style="font-size:0.75rem;">Duration (Months)</label><input
@@ -399,7 +451,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                             </div>
                         <?php endforeach; ?>
                     </div>
-                    <div style="display:flex; gap:0.4rem;">
+                    <div class="benefit-input-row">
                         <input type="text" id="add_ben_pro" class="form-control"
                             style="font-size:0.75rem; padding:0.4rem;" placeholder="E.g. Analytics Dashboard"
                             onkeypress="if(event.key==='Enter'){ event.preventDefault(); addBenefit('pro', '#8e8e93'); }">
@@ -410,17 +462,17 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
             </div>
 
             <!-- Premium -->
-            <div
-                style="background:rgba(255,159,10,0.05); padding:1rem; border-radius:16px; border:1px solid rgba(255,159,10,0.12);">
+            <div class="tier-card"
+                style="background:rgba(255,159,10,0.05); border:1px solid rgba(255,159,10,0.12);">
                 <h5 style="color:#ff9f0a; margin-bottom:1rem;">Premium Tier</h5>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                <div class="tier-split">
                     <div class="form-group mb-1"><label style="font-size:0.75rem;">Limit</label><input type="number"
                             name="premium_product_limit" class="form-control" value="<?= $tm['product_limit'] ?>"></div>
                     <div class="form-group mb-1"><label style="font-size:0.75rem;">Images</label><input type="number"
                             name="premium_image_limit" class="form-control" value="<?= $tm['images_per_product'] ?>">
                     </div>
                 </div>
-                <div style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+                <div class="tier-split">
                     <div class="form-group mb-1"><label style="font-size:0.75rem;">Fee (₵)</label><input type="number"
                             name="premium_fee" class="form-control" value="<?= $tm['price'] ?>"></div>
                     <div class="form-group mb-1"><label style="font-size:0.75rem;">Duration (Months)</label><input
@@ -444,7 +496,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                             </div>
                         <?php endforeach; ?>
                     </div>
-                    <div style="display:flex; gap:0.4rem;">
+                    <div class="benefit-input-row">
                         <input type="text" id="add_ben_premium" class="form-control"
                             style="font-size:0.75rem; padding:0.4rem;" placeholder="E.g. Ad Boost Access"
                             onkeypress="if(event.key==='Enter'){ event.preventDefault(); addBenefit('premium', '#ff9f0a'); }">
@@ -851,7 +903,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                             <td style="padding:0.75rem;">
                                 <div style="font-size:0.72rem; color:var(--text-muted);">Ordered:
                                     <?= date('M d, H:i', strtotime($o['created_at'])) ?><br>Last Update:
-                                    <?= $o['updated_at'] ? date('M d, H:i', strtotime($o['updated_at'])) : 'N/A' ?></div>
+                                    <?= !empty($o['updated_at'] ?? null) ? date('M d, H:i', strtotime($o['updated_at'])) : 'N/A' ?></div>
                             </td>
                             <td style="padding:0.75rem;"><a
                                     href="messages.php?view=chat&u1=<?= $o['buyer_id'] ?>&u2=<?= $o['seller_id'] ?>"

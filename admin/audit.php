@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_logs'])) {
 require_once 'header.php';
 
 // Check for flash message from redirect
+$msg = '';
 if (isset($_SESSION['flash_msg'])) {
     $msg = $_SESSION['flash_msg'];
     unset($_SESSION['flash_msg']);

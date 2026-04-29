@@ -19,6 +19,98 @@
         // Auto-refresh logic or global notifications could be initialized here
         console.log("Admin Panel Loaded - Version 2.5.0");
     </script>
+    <script>
+    (function () {
+        let lastNotificationId = 0;
+        let primed = false;
+        let toastContainer = null;
+
+        function ensureToastContainer() {
+            if (toastContainer) return toastContainer;
+            toastContainer = document.createElement('div');
+            toastContainer.style.position = 'fixed';
+            toastContainer.style.right = '18px';
+            toastContainer.style.bottom = '18px';
+            toastContainer.style.zIndex = '1000002';
+            toastContainer.style.display = 'flex';
+            toastContainer.style.flexDirection = 'column';
+            toastContainer.style.gap = '10px';
+            toastContainer.style.maxWidth = '340px';
+            document.body.appendChild(toastContainer);
+            return toastContainer;
+        }
+
+        function showToast(title, message, linkUrl) {
+            const container = ensureToastContainer();
+            const toast = document.createElement('div');
+            toast.style.background = 'rgba(17,24,39,0.96)';
+            toast.style.color = '#fff';
+            toast.style.borderRadius = '18px';
+            toast.style.padding = '14px 16px';
+            toast.style.boxShadow = '0 18px 45px rgba(0,0,0,0.25)';
+            toast.style.border = '1px solid rgba(255,255,255,0.08)';
+            toast.style.backdropFilter = 'blur(18px)';
+            toast.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+            if (linkUrl) {
+                toast.style.cursor = 'pointer';
+                toast.addEventListener('click', function () {
+                    window.location.href = '../' + linkUrl.replace(/^\//, '');
+                });
+            }
+            toast.innerHTML = '<div style="font-weight:800; margin-bottom:4px;">' + title + '</div>'
+                + '<div style="font-size:0.9rem; line-height:1.45; color:rgba(255,255,255,0.82);">' + message + '</div>';
+            container.appendChild(toast);
+            setTimeout(function () {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateY(8px)';
+            }, 5000);
+            setTimeout(function () {
+                toast.remove();
+            }, 5400);
+        }
+
+        async function pollNotifications() {
+            try {
+                const response = await fetch('../notifications_poll.php?last_id=' + encodeURIComponent(lastNotificationId), {
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+                if (!response.ok) return;
+                const data = await response.json();
+                if (!data || data.success !== true) return;
+
+                const badge = document.getElementById('admin-notif-badge');
+                if (badge) {
+                    const count = Number(data.unread_notifications || 0);
+                    badge.textContent = count;
+                    badge.style.display = count > 0 ? '' : 'none';
+                }
+
+                const incoming = Array.isArray(data.notifications) ? data.notifications : [];
+                if (!primed) {
+                    incoming.forEach(function (item) {
+                        lastNotificationId = Math.max(lastNotificationId, Number(item.id || 0));
+                    });
+                    primed = true;
+                    return;
+                }
+
+                incoming.forEach(function (item) {
+                    const id = Number(item.id || 0);
+                    if (id > lastNotificationId) {
+                        lastNotificationId = id;
+                    }
+                    showToast(item.title || 'Campus Marketplace', item.message || '', item.link_url || '');
+                });
+            } catch (error) {
+                console.warn('Admin notification polling failed', error);
+            }
+        }
+
+        pollNotifications();
+        setInterval(pollNotifications, 20000);
+    })();
+    </script>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- GLOBAL PROFILE PICTURE PREVIEW MODAL (WhatsApp-style)             -->

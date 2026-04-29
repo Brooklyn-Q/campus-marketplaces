@@ -123,9 +123,10 @@ elseif ($method === 'DELETE' && $action === 'vacation') {
         ->execute([$auth['user_id']]);
 
     // Set vacation_mode to false
-    $boolF = sqlBool(false, $pdo);
-    $pdo->prepare("UPDATE users SET vacation_mode = $boolF WHERE id = ?")
-        ->execute([$auth['user_id']]);
+    $stmt = $pdo->prepare("UPDATE users SET vacation_mode = ? WHERE id = ?");
+    $stmt->bindValue(1, false, PDO::PARAM_BOOL);
+    $stmt->bindValue(2, $auth['user_id'], PDO::PARAM_INT);
+    $stmt->execute();
 
     jsonSuccess('Vacation mode ended. Your products are now visible.');
 }

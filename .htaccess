@@ -1,121 +1,39 @@
-# Campus Marketplace Security and Routing Configuration
+# Campus Marketplace Routing Configuration for AlwaysData
 
-# ===== SECURITY HEADERS =====
-<IfModule mod_headers.c>
-    # Prevent clickjacking attacks
-    Header always set X-Frame-Options "DENY"
-
-    # Prevent MIME type sniffing
-    Header always set X-Content-Type-Options "nosniff"
-
-    # Enable XSS protection in older browsers
-    Header always set X-XSS-Protection "1; mode=block"
-
-    # Enable HSTS (force HTTPS) - max-age is 1 year (31536000 seconds)
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
-
-    # Referrer policy - don't leak referrer to external sites
-    Header always set Referrer-Policy "strict-origin-when-cross-origin"
-
-    # Permissions policy (formerly Feature-Policy)
-    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=self"
-
-    # Content Security Policy (basic - can be customized)
-    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; img-src 'self' data: https:; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; connect-src 'self' https://api.paystack.co https://api.gemini.google.com; frame-ancestors 'none'"
-</IfModule>
-
-# ===== COMPRESSION =====
-<IfModule mod_deflate.c>
-    AddOutputFilterByType DEFLATE text/plain
-    AddOutputFilterByType DEFLATE text/html
-    AddOutputFilterByType DEFLATE text/xml
-    AddOutputFilterByType DEFLATE text/css
-    AddOutputFilterByType DEFLATE text/javascript
-    AddOutputFilterByType DEFLATE application/xml
-    AddOutputFilterByType DEFLATE application/xhtml+xml
-    AddOutputFilterByType DEFLATE application/rss+xml
-    AddOutputFilterByType DEFLATE application/javascript
-    AddOutputFilterByType DEFLATE application/x-javascript
-    AddOutputFilterByType DEFLATE application/json
-</IfModule>
-
-# ===== BROWSER CACHING =====
-<IfModule mod_expires.c>
-    ExpiresActive On
-    ExpiresByType text/css "access plus 1 year"
-    ExpiresByType text/javascript "access plus 1 year"
-    ExpiresByType application/javascript "access plus 1 year"
-    ExpiresByType image/jpeg "access plus 1 year"
-    ExpiresByType image/gif "access plus 1 year"
-    ExpiresByType image/png "access plus 1 year"
-    ExpiresByType image/webp "access plus 1 year"
-    ExpiresByType application/font-woff "access plus 1 year"
-    ExpiresByType application/font-woff2 "access plus 1 year"
-    ExpiresByType font/ttf "access plus 1 year"
-    ExpiresByType font/eot "access plus 1 year"
-</IfModule>
-
-# ===== DISABLE DIRECTORY LISTING =====
 Options -Indexes
+DirectoryIndex public/index.html index.php
 
-# ===== PROTECT SENSITIVE FILES =====
-<FilesMatch "\.(env|env\.local|env\.*.local|composer\.json|composer\.lock|\.git|\.htaccess|\.gitignore|README|LICENSE)$">
-    Order allow,deny
-    Deny from all
+# Protect sensitive files (env, lockfiles, git config)
+<FilesMatch "\.(env|env\.local|composer\.json|composer\.lock|gitignore)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
 </FilesMatch>
 
-# ===== API ROUTING - Rewrite all requests to backend/index.php =====
+# ===== API ROUTING =====
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
 
-    # Don't rewrite if it's a real file or directory
+    # Route /api/* to backend/index.php (keep legacy /api/*.php files)
+    RewriteCond %{REQUEST_URI} ^/api/ [NC]
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
-
-    # Route /api/* to backend/index.php
     RewriteRule ^api/(.*)$ backend/index.php?route=$1 [L,QSA]
 
-    # Route /admin/* to admin/index.php (or backend admin routes)
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_FILENAME} !-d
-    RewriteRule ^admin/(.*)$ backend/index.php?route=admin/$1 [L,QSA]
-
-    # Don't rewrite static assets
-    RewriteCond %{REQUEST_URI} ^/assets/ [OR]
-    RewriteCond %{REQUEST_URI} ^/uploads/ [OR]
-    RewriteCond %{REQUEST_URI} ^/frontend/ [OR]
+    # Skip static assets and real files/dirs
+    RewriteCond %{REQUEST_URI} ^/(assets|uploads|public)/ [OR]
     RewriteCond %{REQUEST_FILENAME} -f [OR]
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule .* - [L]
 
-    # Fix Vite dynamic chunk loading expecting files at root
-    RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteCond %{REQUEST_URI} ^/([a-zA-Z0-9_\.-]+\.js)$
-    RewriteCond %{DOCUMENT_ROOT}/assets/dist/%1 -f
-    RewriteRule ^(.*\.js)$ /assets/dist/$1 [L]
-
-    # Default: serve index.php for SPA routing
-    RewriteCond %{REQUEST_URI} !\.(css|js|map|ico|png|jpg|jpeg|webp|gif|svg)$ [NC]
-    RewriteRule ^(?!api/|admin/|assets/|uploads/|backend/|frontend/)(.*?)/?$ index.php [L,QSA]
+    # Default: serve React SPA from public/index.html
+    RewriteCond %{REQUEST_URI} !\.(css|js|map|ico|png|jpg|jpeg|webp|gif|svg|mp4|woff|woff2|ttf|eot|json)$ [NC]
+    RewriteRule ^(?!api/|admin/|backend/|includes/)(.*)$ /public/index.html [L,QSA]
 </IfModule>
 
-# ===== PREVENT HOTLINKING =====
-<IfModule mod_rewrite.c>
-    RewriteCond %{REQUEST_FILENAME} -f
-    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?localhost [NC]
-    RewriteCond %{HTTP_REFERER} !^https?://(www\.)?127\.0\.0\.1 [NC]
-    # Add your domain here when deploying:
-    # RewriteCond %{HTTP_REFERER} !^https?://(www\.)?yourdomainhere\.com [NC]
-    RewriteRule \.(jpg|jpeg|png|gif|webp|mp4|webm|mp3|wav|m4a|ogg)$ - [F,NC,L]
-</IfModule>
-
-# ===== PERFORMANCE =====
-<IfModule mod_expires.c>
-    ExpiresActive On
-    DefaultExpires "access plus 2 days"
-</IfModule>
-
-# ===== UTF-8 ENCODING =====
 AddDefaultCharset utf-8
-AddCharset UTF-8 .html .css .js .xml .json .php

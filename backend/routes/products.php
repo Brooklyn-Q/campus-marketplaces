@@ -43,7 +43,7 @@ if ($method === 'GET' && $action === 'my') {
 // ── LIST PRODUCTS ──
 if ($method === 'GET' && !$productId) {
     $page = max(1, (int) getQueryParam('page', 1));
-    $perPage = 20;
+    $perPage = max(1, min(48, (int) getQueryParam('per_page', 20)));
     $offset = ($page - 1) * $perPage;
 
     $where = ["p.status = 'approved'"];
@@ -88,6 +88,12 @@ if ($method === 'GET' && !$productId) {
         $params[] = (int) $sellerId;
     }
 
+    $seller = trim((string) getQueryParam('seller', ''));
+    if ($seller !== '') {
+        $where[] = "u.username = ?";
+        $params[] = $seller;
+    }
+
     $whereStr = implode(' AND ', $where);
 
     // Count total
@@ -115,6 +121,7 @@ if ($method === 'GET' && !$productId) {
     $stmt = $pdo->prepare("
         SELECT p.*, u.username as seller_name, u.seller_tier, u.verified as seller_verified, u.profile_pic as seller_pic,
             (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image,
+            (SELECT dr.original_price FROM discount_requests dr WHERE dr.product_id = p.id AND dr.status = 'approved' ORDER BY dr.created_at DESC LIMIT 1) as original_price_before_discount,
             (SELECT COALESCE(AVG(r.rating), 0) FROM reviews r WHERE r.product_id = p.id) as avg_rating,
             (SELECT COUNT(*) FROM reviews r WHERE r.product_id = p.id) as review_count
         FROM products p
@@ -132,7 +139,8 @@ if ($method === 'GET' && !$productId) {
             $vacation_check = sqlBool(false, $pdo);
             $stmt = $pdo->prepare("
                 SELECT p.*, u.username as seller_name, u.seller_tier, u.verified as seller_verified, u.profile_pic as seller_pic,
-                    (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image
+                    (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image,
+                    (SELECT dr.original_price FROM discount_requests dr WHERE dr.product_id = p.id AND dr.status = 'approved' ORDER BY dr.created_at DESC LIMIT 1) as original_price_before_discount
                 FROM products p
                 JOIN users u ON p.user_id = u.id
                 WHERE p.status = 'approved' AND u.vacation_mode = $vacation_check AND SOUNDEX(p.title) = SOUNDEX(?)
@@ -142,19 +150,39 @@ if ($method === 'GET' && !$productId) {
         $stmt->execute([$q]);
         $products = $stmt->fetchAll();
         $total = count($products);
+    } elseif (empty($products) && $q && strlen($q) > 3 && $driver === 'pgsql') {
+        $vacation_check = sqlBool(false, $pdo);
+        $stmt = $pdo->prepare("
+            SELECT p.*, u.username as seller_name, u.seller_tier, u.verified as seller_verified, u.profile_pic as seller_pic,
+                (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image,
+                (SELECT dr.original_price FROM discount_requests dr WHERE dr.product_id = p.id AND dr.status = 'approved' ORDER BY dr.created_at DESC LIMIT 1) as original_price_before_discount
+            FROM products p
+            JOIN users u ON p.user_id = u.id
+            WHERE p.status = 'approved' AND u.vacation_mode = $vacation_check AND p.title ILIKE ?
+            ORDER BY $orderBy
+            LIMIT $perPage
+        ");
+        $stmt->execute(['%' . substr($q, 0, 4) . '%']);
+        $products = $stmt->fetchAll();
+        $total = count($products);
     }
 
     // Add badge data to each product
     foreach ($products as &$p) {
         $p['seller_badge'] = getBadgeData($p['seller_tier'] ?: 'basic');
         $p['is_boosted'] = $p['boosted_until'] && strtotime($p['boosted_until']) > time();
-        $p['discount_percent'] = ($p['original_price'] ?? 0) > 0 && $p['original_price'] > $p['price']
-            ? round((1 - $p['price'] / $p['original_price']) * 100)
+        $originalPrice = (float) ($p['original_price_before_discount'] ?? $p['original_price'] ?? 0);
+        $p['discount_percent'] = $originalPrice > 0 && $originalPrice > (float) $p['price']
+            ? round((1 - ((float) $p['price'] / $originalPrice)) * 100)
             : 0;
     }
 
+    $categoryStmt = $pdo->query("SELECT DISTINCT category FROM products WHERE status = 'approved' ORDER BY category");
+    $availableCategories = $categoryStmt ? $categoryStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+
     jsonResponse([
         'products' => $products,
+        'categories' => $availableCategories,
         'pagination' => [
             'page' => $page,
             'per_page' => $perPage,

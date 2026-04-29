@@ -13,9 +13,16 @@ if (!$product) redirect('index.php');
 // Define $isOwner BEFORE any usage
 $isOwner = isLoggedIn() && $_SESSION['user_id'] == $product['seller_id'];
 
+$canReview = false;
+if (isLoggedIn() && !$isOwner) {
+    $reviewAccessStmt = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE product_id = ? AND buyer_id = ? AND status = 'completed'");
+    $reviewAccessStmt->execute([$pid, $_SESSION['user_id']]);
+    $canReview = ((int)$reviewAccessStmt->fetchColumn() > 0);
+}
+
 // 1. FORCED REVIEW BARRIER: Rule 10
 if (isLoggedIn() && hasUnreviewedOrders($pdo, $_SESSION['user_id'])) {
-    if (!$isOwner) {
+    if (!$isOwner && !$canReview) {
         $_SESSION['flash'] = "🔒 REVIEW REQUIRED: You must submit a review for your previously completed order before viewing more products.";
         header("Location: dashboard.php#buyer_orders");
         exit;
@@ -34,13 +41,6 @@ $images = getProductImages($pdo, $pid);
 $rating = getAvgRating($pdo, $pid);
 $reviewCount = $pdo->prepare("SELECT COUNT(*) FROM reviews WHERE product_id = ?"); $reviewCount->execute([$pid]); $reviewCount = $reviewCount->fetchColumn();
 
-$canReview = false;
-if (isLoggedIn() && !$isOwner) {
-    $reviewAccessStmt = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE product_id = ? AND buyer_id = ? AND status = 'completed'");
-    $reviewAccessStmt->execute([$pid, $_SESSION['user_id']]);
-    $canReview = ((int)$reviewAccessStmt->fetchColumn() > 0);
-}
-
 // Handle review submission
 $reviewMsg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review']) && $canReview) {
@@ -48,11 +48,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['review']) && $canRevi
     $r_rating = max(1, min(5, (int)($_POST['rating'] ?? 5)));
     $r_comment = trim($_POST['comment'] ?? '');
     try {
-        $pdo->prepare("INSERT INTO reviews (product_id, user_id, rating, comment) VALUES (?,?,?,?) ON DUPLICATE KEY UPDATE rating = VALUES(rating), comment = VALUES(comment)")
-            ->execute([$pid, $_SESSION['user_id'], $r_rating, $r_comment]);
+        $updateReview = $pdo->prepare("UPDATE reviews SET rating = ?, comment = ?, created_at = NOW() WHERE product_id = ? AND user_id = ?");
+        $updateReview->execute([$r_rating, $r_comment, $pid, $_SESSION['user_id']]);
+
+        if ($updateReview->rowCount() === 0) {
+            $pdo->prepare("INSERT INTO reviews (product_id, user_id, rating, comment) VALUES (?,?,?,?)")
+                ->execute([$pid, $_SESSION['user_id'], $r_rating, $r_comment]);
+        }
         $reviewMsg = "Review submitted!";
         $rating = getAvgRating($pdo, $pid);
-    } catch(Exception $e) { $reviewMsg = "Could not save review."; }
+    } catch(Exception $e) {
+        error_log('product.php review save failed: ' . $e->getMessage());
+        $reviewMsg = "Could not save review.";
+    }
 }
 
 // Handle purchase
@@ -179,32 +187,48 @@ require_once 'includes/header.php';
         <div class="product-detail-grid" style="display:grid; grid-template-columns:1fr; gap:1.5rem; align-items:start;">
         <div style="display:flex; flex-direction:column; align-items:center;">
             <?php if(count($images) > 0): ?>
-                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($images[0]['image_path'])) ?>" id="mainImg" alt="<?= htmlspecialchars($product['title']) ?>" style="width:100%; max-width:450px; height:340px; object-fit:fill; border-radius:18px; box-shadow:0 12px 32px rgba(0,0,0,0.08); cursor:pointer;" onclick="toggleAutoPlay()">
+                <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($images[0]['image_path'])) ?>" id="mainImg" alt="<?= htmlspecialchars($product['title']) ?>" style="width:100%; max-width:450px; height:340px; object-fit:cover; border-radius:18px; box-shadow:0 12px 32px rgba(0,0,0,0.08);">
                 <?php if(count($images) > 1): ?>
-                <div class="flex gap-1 mt-3" style="overflow-x:auto; max-width:480px; padding-bottom:0.5rem;">
+                <div class="flex gap-1 mt-3" id="productImageThumbs" style="overflow-x:auto; max-width:480px; padding-bottom:0.5rem;">
                     <?php foreach($images as $idx => $img): ?>
                         <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($img['image_path'])) ?>" style="width:60px;height:60px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid var(--border);transition:all 0.2s;" onclick="changeImg(<?= $idx ?>, this.src)" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
                     <?php endforeach; ?>
                 </div>
                 <script>
                     let currentImageIdx = 0;
-                    const imagesArr = <?= json_encode(array_column($images, 'image_path')) ?>;
+                    const imagesArr = <?= json_encode(array_map(static fn($imagePath) => getAssetUrl('uploads/' . $imagePath), array_column($images, 'image_path'))) ?>;
                     let autoPlayInterval = null;
                     function changeImg(idx, src) {
                         currentImageIdx = idx;
-                        document.getElementById('mainImg').src = src || ('uploads/' + imagesArr[idx]);
+                        document.getElementById('mainImg').src = src || imagesArr[idx];
                     }
-                    function toggleAutoPlay() {
-                        if(autoPlayInterval) {
-                            clearInterval(autoPlayInterval);
-                            autoPlayInterval = null;
-                        } else {
-                            autoPlayInterval = setInterval(() => {
-                                currentImageIdx = (currentImageIdx + 1) % imagesArr.length;
-                                changeImg(currentImageIdx);
-                            }, 1000);
-                        }
+
+                    function startAutoPlay() {
+                        if (autoPlayInterval || imagesArr.length < 2) return;
+                        autoPlayInterval = setInterval(() => {
+                            currentImageIdx = (currentImageIdx + 1) % imagesArr.length;
+                            changeImg(currentImageIdx);
+                        }, 2000);
                     }
+
+                    function stopAutoPlay() {
+                        if (!autoPlayInterval) return;
+                        clearInterval(autoPlayInterval);
+                        autoPlayInterval = null;
+                    }
+
+                    document.addEventListener('DOMContentLoaded', () => {
+                        startAutoPlay();
+
+                        const mainImg = document.getElementById('mainImg');
+                        const thumbs = document.getElementById('productImageThumbs');
+
+                        [mainImg, thumbs].forEach((el) => {
+                            if (!el) return;
+                            el.addEventListener('mouseenter', stopAutoPlay);
+                            el.addEventListener('mouseleave', startAutoPlay);
+                        });
+                    });
                 </script>
                 <?php endif; ?>
             <?php else: ?>
@@ -419,9 +443,12 @@ require_once 'includes/header.php';
         @keyframes blink { 0%,100%{ opacity:1; } 50%{ opacity:0.3; } }
         
         /* AD RESPONSIVENESS */
-        .ad-banner-img-prod { height: 160px; object-fit: cover !important; }
+        .legacy-product-ad-carousel::-webkit-scrollbar { display:none; }
+        .legacy-product-ad-card { flex: 0 0 86%; max-width: 86%; }
+        .ad-banner-img-prod { height: 180px; object-fit: cover !important; }
         @media (min-width: 768px) {
-            .ad-banner-img-prod { height: 320px !important; }
+            .legacy-product-ad-card { flex-basis: calc(50% - 0.5rem); max-width: calc(50% - 0.5rem); }
+            .ad-banner-img-prod { height: 240px !important; }
             .ad-image-container:hover { transform: translateY(-3px) scale(1.002); }
         }
     </style>
@@ -486,9 +513,9 @@ require_once 'includes/header.php';
         <!-- AD CAROUSEL (Product Page) -->
         <?php if(count($product_ads) > 0): ?>
         <div style="margin-bottom:1.5rem; position:relative;">
-            <div id="adCarouselProduct" class="horizontal-scroll-container" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding: 0 0 10px 0;">
+            <div id="adCarouselProduct" class="horizontal-scroll-container legacy-product-ad-carousel" style="display:flex; gap:1rem; overflow-x:auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding: 0 0 10px 0; scrollbar-width:none;">
                 <?php foreach($product_ads as $ad): ?>
-                <a href="<?= htmlspecialchars($ad['link_url']) ?>" target="_blank" rel="noopener" onclick="fetch('ad_click.php?id=<?= $ad['id'] ?>')" class="fade-in ad-item-link" style="flex: 0 0 100%; scroll-snap-align: start; min-width: 100%; text-decoration: none;">
+                <a href="<?= htmlspecialchars($ad['link_url']) ?>" target="_blank" rel="noopener" onclick="fetch('ad_click.php?id=<?= $ad['id'] ?>')" class="fade-in ad-item-link legacy-product-ad-card" data-product-ad-card="true" style="scroll-snap-align: start; text-decoration: none;">
                     <div class="ad-image-container" style="border-radius:24px; overflow:hidden; border:1px solid rgba(255,255,255,0.1); position:relative; transition:all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); background:rgba(0,0,0,0.02); box-shadow: 0 8px 30px rgba(0,0,0,0.1);">
                         <?php if($ad['image_url']): ?>
                             <img src="<?= htmlspecialchars($ad['image_url']) ?>" alt="<?= htmlspecialchars($ad['title']) ?>" class="ad-banner-img-prod" loading="lazy" style="width:100%; display:block; object-fit:cover;">
@@ -498,34 +525,41 @@ require_once 'includes/header.php';
                                 <p style="font-size:1.25rem; font-weight:800; letter-spacing:-0.02em;"><?= htmlspecialchars($ad['title']) ?></p>
                             </div>
                         <?php endif; ?>
-                        <span style="position:absolute; top:12px; right:12px; background:rgba(0,0,0,0.4); backdrop-filter:blur(10px); color:#fff; font-size:0.55rem; padding:4px 10px; border-radius:8px; letter-spacing:0.08em; font-weight:700; border:1px solid rgba(255,255,255,0.15);">AD</span>
+                        <div style="position:absolute; inset:auto 0 0 0; padding:1rem 1.1rem; background:linear-gradient(to top, rgba(0,0,0,0.68), rgba(0,0,0,0.08)); color:#fff;">
+                            <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem;">
+                                <div style="min-width:0;">
+                                    <p style="font-size:0.68rem; letter-spacing:0.14em; text-transform:uppercase; opacity:0.78; margin:0 0 0.35rem; font-weight:700;">Featured Ad</p>
+                                    <p style="font-size:1rem; font-weight:800; letter-spacing:-0.02em; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($ad['title']) ?></p>
+                                </div>
+                                <span style="background:rgba(255,255,255,0.14); backdrop-filter:blur(10px); color:#fff; font-size:0.62rem; padding:4px 10px; border-radius:999px; letter-spacing:0.08em; font-weight:700; border:1px solid rgba(255,255,255,0.15); flex-shrink:0;">AD</span>
+                            </div>
+                        </div>
                     </div>
                 </a>
                 <?php endforeach; ?>
             </div>
             <?php if(count($product_ads) > 1): ?>
-            <div style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:10; background:rgba(0,0,0,0.25); padding:4px 10px; border-radius:10px; backdrop-filter:blur(8px);">
-                <?php foreach($product_ads as $idx => $ad): ?>
-                    <div class="ad-dot-prod" style="width:6px; height:6px; border-radius:50%; background:<?= $idx === 0 ? '#fff' : 'rgba(255,255,255,0.4)' ?>; transition:all 0.2s;"></div>
-                <?php endforeach; ?>
-            </div>
             <script>
                 document.addEventListener('DOMContentLoaded', () => {
                     const carousel = document.getElementById('adCarouselProduct');
                     if(!carousel) return;
-                    const dots = document.querySelectorAll('.ad-dot-prod');
-                    carousel.addEventListener('scroll', () => {
-                        const idx = Math.round(carousel.scrollLeft / carousel.offsetWidth);
-                        dots.forEach((dot, i) => {
-                            dot.style.background = (i === idx) ? '#fff' : 'rgba(255,255,255,0.4)';
-                            dot.style.width = (i === idx) ? '12px' : '6px';
-                            dot.style.borderRadius = (i === idx) ? '3px' : '50%';
-                        });
-                    });
+                    const firstCard = carousel.querySelector('[data-product-ad-card]');
+                    if(!firstCard) return;
+
+                    const getStep = () => {
+                        const gap = parseFloat(getComputedStyle(carousel).gap || '0');
+                        return firstCard.getBoundingClientRect().width + gap;
+                    };
+
                     setInterval(() => {
-                        const nextIdx = (Math.round(carousel.scrollLeft / carousel.offsetWidth) + 1) % <?= count($product_ads) ?>;
-                        carousel.scrollTo({ left: nextIdx * carousel.offsetWidth, behavior: 'smooth' });
-                    }, 7000);
+                        const maxScroll = carousel.scrollWidth - carousel.clientWidth;
+                        if (maxScroll <= 0) return;
+                        const nextScroll = carousel.scrollLeft + getStep();
+                        carousel.scrollTo({
+                            left: nextScroll >= maxScroll - 10 ? 0 : Math.min(nextScroll, maxScroll),
+                            behavior: 'smooth'
+                        });
+                    }, 5000);
                 });
             </script>
             <?php endif; ?>

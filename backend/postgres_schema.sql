@@ -29,6 +29,7 @@ CREATE TABLE users (
     suspended BOOLEAN DEFAULT FALSE,
     terms_accepted BOOLEAN DEFAULT FALSE,
     accepted_at TIMESTAMP DEFAULT NULL,
+    tier_expires_at TIMESTAMP DEFAULT NULL,
     last_upload_at TIMESTAMP DEFAULT NULL,
     last_seen TIMESTAMP DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

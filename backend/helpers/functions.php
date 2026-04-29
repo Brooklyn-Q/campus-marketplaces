@@ -14,6 +14,9 @@ function sqlBool(bool $val, PDO $pdo): string {
 // ── JSON RESPONSES ──
 
 function jsonResponse($data, int $code = 200): void {
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
     http_response_code($code);
     echo json_encode($data, JSON_UNESCAPED_UNICODE);
     exit;
@@ -41,8 +44,292 @@ function getRequestMethod(): string {
     return $_SERVER['REQUEST_METHOD'];
 }
 
+function ensureLegacySessionStarted(): void {
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        return;
+    }
+
+    $isHttps = (
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+    );
+    $sessionParams = session_get_cookie_params();
+
+    session_set_cookie_params([
+        'lifetime' => 0,
+        'path' => '/',
+        'domain' => $sessionParams['domain'] ?? '',
+        'secure' => $isHttps,
+        'httponly' => true,
+        'samesite' => 'Lax',
+    ]);
+
+    session_start();
+}
+
 function getQueryParam(string $key, $default = null) {
     return $_GET[$key] ?? $default;
+}
+
+function getAppUrl(): string {
+    static $cached = null;
+
+    if ($cached !== null) {
+        return $cached;
+    }
+
+    $configured = rtrim((string) env('APP_URL', ''), '/');
+    if ($configured !== '') {
+        return $cached = $configured;
+    }
+
+    $isHttps = (
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
+    );
+    $scheme = $isHttps ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+    return $cached = $scheme . '://' . $host;
+}
+
+function runSchemaStatement(PDO $pdo, string $sql): void {
+    try {
+        $pdo->exec($sql);
+    } catch (PDOException $e) {
+        error_log('API feature schema statement failed: ' . $e->getMessage());
+    }
+}
+
+function ensureFeatureSupportSchema(PDO $pdo): void {
+    static $ready = false;
+
+    if ($ready) {
+        return;
+    }
+
+    $driver = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME);
+    if ($driver === 'pgsql') {
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier_expires_at TIMESTAMP NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications BOOLEAN NOT NULL DEFAULT TRUE");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS notifications (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            type VARCHAR(50) NOT NULL,
+            title VARCHAR(120) DEFAULT NULL,
+            message TEXT NOT NULL,
+            link_url VARCHAR(255) DEFAULT NULL,
+            reference_id INT DEFAULT NULL,
+            is_read BOOLEAN NOT NULL DEFAULT FALSE,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        runSchemaStatement($pdo, "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS title VARCHAR(120) DEFAULT NULL");
+        runSchemaStatement($pdo, "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link_url VARCHAR(255) DEFAULT NULL");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS security_logs (
+            id SERIAL PRIMARY KEY,
+            event_type VARCHAR(80) NOT NULL,
+            description TEXT NOT NULL,
+            user_id INT NULL REFERENCES users(id) ON DELETE SET NULL,
+            ip_address VARCHAR(64) DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS payment_verification_logs (
+            id SERIAL PRIMARY KEY,
+            user_id INT NULL REFERENCES users(id) ON DELETE SET NULL,
+            reference VARCHAR(255) NOT NULL,
+            status VARCHAR(32) NOT NULL,
+            error_message TEXT DEFAULT NULL,
+            ip_address VARCHAR(64) DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS ad_placements (
+            id SERIAL PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            image_path TEXT DEFAULT '',
+            link_url TEXT DEFAULT '#',
+            placement VARCHAR(50) DEFAULT 'homepage',
+            is_active BOOLEAN DEFAULT TRUE,
+            impressions INT DEFAULT 0,
+            clicks INT DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_path TEXT DEFAULT ''");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS link_url TEXT DEFAULT '#'");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS placement VARCHAR(50) DEFAULT 'homepage'");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT TRUE");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS impressions INT DEFAULT 0");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS clicks INT DEFAULT 0");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ALTER COLUMN image_path TYPE TEXT");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ALTER COLUMN link_url TYPE TEXT");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_url TEXT DEFAULT ''");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ALTER COLUMN image_url TYPE TEXT");
+        runSchemaStatement($pdo, "UPDATE ad_placements SET image_path = COALESCE(NULLIF(image_path, ''), image_url, '')");
+    } else {
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier_expires_at DATETIME NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_notifications TINYINT(1) NOT NULL DEFAULT 1");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS notifications (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            type VARCHAR(50) NOT NULL,
+            title VARCHAR(120) DEFAULT NULL,
+            message TEXT NOT NULL,
+            link_url VARCHAR(255) DEFAULT NULL,
+            reference_id INT DEFAULT NULL,
+            is_read TINYINT(1) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB");
+        runSchemaStatement($pdo, "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS title VARCHAR(120) DEFAULT NULL");
+        runSchemaStatement($pdo, "ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link_url VARCHAR(255) DEFAULT NULL");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS security_logs (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            event_type VARCHAR(80) NOT NULL,
+            description TEXT NOT NULL,
+            user_id INT NULL,
+            ip_address VARCHAR(64) DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS payment_verification_logs (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NULL,
+            reference VARCHAR(255) NOT NULL,
+            status VARCHAR(32) NOT NULL,
+            error_message TEXT DEFAULT NULL,
+            ip_address VARCHAR(64) DEFAULT NULL,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB");
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS ad_placements (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            title VARCHAR(255) NOT NULL,
+            image_path TEXT NULL,
+            link_url TEXT NULL,
+            placement VARCHAR(50) DEFAULT 'homepage',
+            is_active TINYINT(1) DEFAULT 1,
+            impressions INT DEFAULT 0,
+            clicks INT DEFAULT 0,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_path TEXT NULL");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS link_url TEXT NULL");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS placement VARCHAR(50) DEFAULT 'homepage'");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS is_active TINYINT(1) DEFAULT 1");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS impressions INT DEFAULT 0");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS clicks INT DEFAULT 0");
+        runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_url TEXT NULL");
+        runSchemaStatement($pdo, "UPDATE ad_placements SET image_path = COALESCE(NULLIF(image_path, ''), image_url, '')");
+    }
+
+    $ready = true;
+}
+
+if (isset($pdo) && $pdo instanceof PDO) {
+    ensureFeatureSupportSchema($pdo);
+}
+
+function notificationTitleFor(string $type): string {
+    return match ($type) {
+        'new_message' => 'New message',
+        'new_order', 'order_received' => 'New order',
+        'order_update', 'order_accepted', 'order_rejected', 'order_cancelled', 'seller_confirmed', 'buyer_confirmed' => 'Order update',
+        'admin_alert', 'dispute' => 'Admin alert',
+        default => 'Campus Marketplace',
+    };
+}
+
+function notificationLinkFor(string $type, ?int $referenceId = null): string {
+    return match ($type) {
+        'new_message' => $referenceId ? 'chat.php?user=' . $referenceId : 'chat.php',
+        'new_order', 'order_received' => 'dashboard.php#seller_orders',
+        'order_update', 'order_accepted', 'order_rejected', 'order_cancelled', 'seller_confirmed', 'buyer_confirmed' => 'dashboard.php#buyer_orders',
+        'admin_alert', 'dispute' => 'admin/',
+        default => 'dashboard.php',
+    };
+}
+
+function sendMarketplaceEmail(string $to, string $subject, string $html, string $plainText = ''): bool {
+    if (!filter_var($to, FILTER_VALIDATE_EMAIL)) {
+        return false;
+    }
+
+    $host = parse_url(getAppUrl(), PHP_URL_HOST) ?: 'campusmarketplace.local';
+    $fromAddress = (string) env('MAIL_FROM_ADDRESS', 'no-reply@' . $host);
+    $fromName = (string) env('MAIL_FROM_NAME', 'Campus Marketplace');
+
+    if ($plainText === '') {
+        $plainText = trim(preg_replace('/\s+/', ' ', strip_tags(str_replace(['<br>', '<br/>', '<br />', '</p>'], ["\n", "\n", "\n", "\n\n"], $html))));
+    }
+
+    $boundary = 'cm-' . bin2hex(random_bytes(12));
+    $headers = [];
+    $headers[] = 'MIME-Version: 1.0';
+    $headers[] = 'From: ' . $fromName . ' <' . $fromAddress . '>';
+    $headers[] = 'Reply-To: ' . $fromAddress;
+    $headers[] = 'Content-Type: multipart/alternative; boundary="' . $boundary . '"';
+
+    $body = "--{$boundary}\r\n";
+    $body .= "Content-Type: text/plain; charset=UTF-8\r\n\r\n";
+    $body .= $plainText . "\r\n";
+    $body .= "--{$boundary}\r\n";
+    $body .= "Content-Type: text/html; charset=UTF-8\r\n\r\n";
+    $body .= $html . "\r\n";
+    $body .= "--{$boundary}--";
+
+    return @mail($to, '=?UTF-8?B?' . base64_encode($subject) . '?=', $body, implode("\r\n", $headers));
+}
+
+function createNotification(PDO $pdo, int $userId, string $type, string $message, ?int $referenceId = null, array $options = []): void {
+    if ($userId <= 0) {
+        return;
+    }
+
+    ensureFeatureSupportSchema($pdo);
+
+    $title = $options['title'] ?? notificationTitleFor($type);
+    $linkUrl = $options['link_url'] ?? notificationLinkFor($type, $referenceId);
+
+    $stmt = $pdo->prepare("INSERT INTO notifications (user_id, type, title, message, link_url, reference_id) VALUES (?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$userId, $type, $title, $message, $linkUrl, $referenceId]);
+
+    $shouldEmail = array_key_exists('email', $options) ? (bool) $options['email'] : true;
+    if (!$shouldEmail) {
+        return;
+    }
+
+    $userStmt = $pdo->prepare("SELECT email, username, email_notifications FROM users WHERE id = ? LIMIT 1");
+    $userStmt->execute([$userId]);
+    $targetUser = $userStmt->fetch();
+    if (!$targetUser || empty($targetUser['email']) || !filter_var($targetUser['email'], FILTER_VALIDATE_EMAIL)) {
+        return;
+    }
+    if (isset($targetUser['email_notifications']) && !filter_var($targetUser['email_notifications'], FILTER_VALIDATE_BOOLEAN)) {
+        return;
+    }
+
+    $absoluteLink = rtrim(getAppUrl(), '/') . '/' . ltrim($linkUrl, '/');
+    $html = "<div style=\"font-family:Arial,sans-serif;line-height:1.6;color:#111827\">
+        <h2 style=\"margin:0 0 12px;color:#0071e3\">" . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . "</h2>
+        <p>Hello " . htmlspecialchars($targetUser['username'] ?? 'there', ENT_QUOTES, 'UTF-8') . ",</p>
+        <p>" . nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8')) . "</p>
+        <p><a href=\"" . htmlspecialchars($absoluteLink, ENT_QUOTES, 'UTF-8') . "\" style=\"display:inline-block;padding:10px 18px;background:#0071e3;color:#fff;text-decoration:none;border-radius:999px;font-weight:700\">Open Campus Marketplace</a></p>
+    </div>";
+
+    sendMarketplaceEmail($targetUser['email'], $title . ' | Campus Marketplace', $html);
+}
+
+function createMessageNotification(PDO $pdo, int $receiverId, int $senderId, string $messagePreview = ''): void {
+    $sender = getUser($pdo, $senderId);
+    $senderName = $sender['username'] ?? 'Someone';
+    $preview = $messagePreview !== '' ? mb_strimwidth($messagePreview, 0, 90, '…') : 'Open the chat to read it.';
+    createNotification(
+        $pdo,
+        $receiverId,
+        'new_message',
+        $senderName . ' sent you a message: ' . $preview,
+        $senderId,
+        [
+            'title' => 'New message from ' . $senderName,
+            'link_url' => 'chat.php?user=' . $senderId,
+        ]
+    );
 }
 
 // ── DATABASE HELPERS ──
@@ -86,8 +373,22 @@ function updateLastSeen(PDO $pdo, int $userId): void {
 }
 
 function auditLog(PDO $pdo, int $adminId, string $action, string $targetType = '', int $targetId = 0): void {
-    $pdo->prepare("INSERT INTO audit_log (admin_id, action, target_type, target_id) VALUES (?, ?, ?, ?)")
-        ->execute([$adminId, $action, $targetType, $targetId]);
+    if ($adminId <= 0) {
+        error_log("auditLog skipped for unauthenticated event: " . $action);
+        return;
+    }
+
+    try {
+        $pdo->prepare("INSERT INTO audit_log (admin_id, action, target_type, target_id) VALUES (?, ?, ?, ?)")
+            ->execute([$adminId, $action, $targetType, $targetId]);
+    } catch (PDOException $e) {
+        $sqlState = (string) ($e->errorInfo[0] ?? $e->getCode());
+        if ($sqlState === '23503' || $sqlState === '23000') {
+            error_log("auditLog skipped due to missing admin reference #{$adminId}: " . $e->getMessage());
+            return;
+        }
+        throw $e;
+    }
 }
 
 function getSetting(PDO $pdo, string $key, $default = ''): string {

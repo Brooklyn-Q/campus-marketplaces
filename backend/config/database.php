@@ -1,28 +1,62 @@
 <?php
 /**
  * Database connection via PDO
- * Reads credentials from .env file
+ * Reads credentials from environment file(s)
+ *
+ * AlwaysData deployment notes:
+ * - The deploy script may ship `alwaysdata.env` and/or rename it to `.env` in the web root.
+ * - The API lives in `/backend`, so we load env from the web root first, then `/backend/.env` as fallback.
  */
 
 function loadEnv(): void {
-    $envFile = __DIR__ . '/../.env';
-    if (!file_exists($envFile)) return;
+    $rootEnv = __DIR__ . '/../../.env';
+    $rootAlwaysdataEnv = __DIR__ . '/../../alwaysdata.env';
+    $backendEnv = __DIR__ . '/../.env';
 
-    $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    foreach ($lines as $line) {
-        $line = trim($line);
-        if ($line === '' || $line[0] === '#') continue;
-        if (strpos($line, '=') === false) continue;
+    $candidates = [];
 
-        [$key, $value] = explode('=', $line, 2);
-        $key = trim($key);
-        $value = trim($value);
-        // Remove surrounding quotes
-        $value = trim($value, '"\'');
+    // Prefer AlwaysData env file on non-local HTTP requests when present.
+    $host = $_SERVER['HTTP_HOST'] ?? '';
+    $host = is_string($host) ? strtolower(trim(explode(':', $host)[0] ?? '')) : '';
+    $isCli = PHP_SAPI === 'cli';
+    $isLocalHost = $host === '' || $host === 'localhost' || $host === '127.0.0.1' || $host === '::1' || $host === '[::1]';
+    $preferAlwaysdata = !$isCli && !$isLocalHost && is_file($rootAlwaysdataEnv);
 
-        if (!getenv($key)) {
-            putenv("$key=$value");
-            $_ENV[$key] = $value;
+    if ($preferAlwaysdata) {
+        $candidates[] = $rootAlwaysdataEnv;
+    } elseif (is_file($rootEnv)) {
+        $candidates[] = $rootEnv;
+    } elseif (is_file($rootAlwaysdataEnv)) {
+        // Fallback when `.env` is absent (local/dev convenience).
+        $candidates[] = $rootAlwaysdataEnv;
+    }
+    // Backend folder as last resort.
+    $candidates[] = $backendEnv;
+
+    foreach ($candidates as $envFile) {
+        if (!is_file($envFile)) {
+            continue;
+        }
+
+        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || strpos($line, '#') === 0) {
+                continue;
+            }
+            if (strpos($line, '=') === false) {
+                continue;
+            }
+
+            [$key, $value] = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            $value = trim($value, "\"'");
+
+            if ($key !== '' && getenv($key) === false) {
+                putenv("$key=$value");
+                $_ENV[$key] = $value;
+            }
         }
     }
 }
@@ -30,7 +64,11 @@ function loadEnv(): void {
 loadEnv();
 
 function env(string $key, $default = '') {
-    return getenv($key) ?: ($_ENV[$key] ?? $default);
+    $val = getenv($key);
+    if ($val !== false) {
+        return $val;
+    }
+    return $_ENV[$key] ?? $default;
 }
 
 function getDbConnection(): PDO {
@@ -54,8 +92,8 @@ function getDbConnection(): PDO {
         $options = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-            PDO::ATTR_EMULATE_PREPARES => false,
-            PDO::ATTR_PERSISTENT => true,
+            PDO::ATTR_EMULATE_PREPARES => $driver === 'pgsql',
+            PDO::ATTR_PERSISTENT => $driver !== 'pgsql',
         ];
 
         if ($driver === 'mysql') {
@@ -63,6 +101,9 @@ function getDbConnection(): PDO {
         }
 
         $pdo = new PDO($dsn, $user, $pass, $options);
+        if ($driver === 'pgsql' && defined('PDO::PGSQL_ATTR_DISABLE_PREPARES')) {
+            $pdo->setAttribute(PDO::PGSQL_ATTR_DISABLE_PREPARES, true);
+        }
     } catch (PDOException $e) {
         error_log('RESCUE_DB_FAILED: ' . $e->getMessage());
         header('Content-Type: application/json');

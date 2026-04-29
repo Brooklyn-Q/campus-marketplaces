@@ -1,0 +1,88 @@
+$ErrorActionPreference = 'Stop'
+
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$ftpBase = 'ftp://ftp-campusmarketplace.alwaysdata.net/www'
+$httpBase = 'https://campusmarketplace.alwaysdata.net'
+$username = 'campusmarketplace'
+
+$files = @(
+    'db.php',
+    'login.php',
+    'register.php',
+    'google_signin.php',
+    'forgot_password.php',
+    'reset_password.php',
+    'notifications_poll.php',
+    'checkout.php',
+    'chat.php',
+    'dashboard.php',
+    'edit_profile.php',
+    'includes/header.php',
+    'includes/footer.php',
+    'admin/header.php',
+    'admin/footer.php',
+    'admin/index.php',
+    'admin/settings.php',
+    'backend/helpers/functions.php',
+    'backend/routes/messages.php',
+    'backend/routes/orders.php'
+)
+
+$plainPassword = $env:ALWAYSDATA_PASSWORD
+if ([string]::IsNullOrWhiteSpace($plainPassword)) {
+    $securePassword = Read-Host 'Enter your AlwaysData password' -AsSecureString
+    $plainPassword = [System.Net.NetworkCredential]::new('', $securePassword).Password
+}
+
+if ([string]::IsNullOrWhiteSpace($plainPassword)) {
+    throw 'AlwaysData password was not provided.'
+}
+
+$credential = "$username`:$plainPassword"
+
+foreach ($relativePath in $files) {
+    $localPath = Join-Path $repoRoot $relativePath
+    if (-not (Test-Path $localPath)) {
+        throw "Missing file: $relativePath"
+    }
+
+    $remoteUrl = ($ftpBase.TrimEnd('/') + '/' + ($relativePath -replace '\\', '/'))
+    Write-Host "Uploading $relativePath ..." -ForegroundColor Cyan
+    & curl.exe --noproxy "*" --ssl-reqd -T $localPath $remoteUrl -u $credential
+    if ($LASTEXITCODE -ne 0) {
+        throw "Upload failed for $relativePath"
+    }
+}
+
+$resetFileName = 'opcache_reset_' + [guid]::NewGuid().ToString('N') + '.php'
+$tempResetPath = Join-Path $env:TEMP $resetFileName
+$resetPhp = "<?php if (function_exists('opcache_reset')) { @opcache_reset(); } echo 'OK';"
+[System.IO.File]::WriteAllText($tempResetPath, $resetPhp, [System.Text.Encoding]::UTF8)
+
+try {
+    $remoteResetUrl = $ftpBase.TrimEnd('/') + '/' + $resetFileName
+    Write-Host "Uploading $resetFileName ..." -ForegroundColor Cyan
+    & curl.exe --noproxy "*" --ssl-reqd -T $tempResetPath $remoteResetUrl -u $credential
+    if ($LASTEXITCODE -ne 0) {
+        throw "Upload failed for $resetFileName"
+    }
+
+    Write-Host 'Resetting PHP opcode cache ...' -ForegroundColor Cyan
+    & curl.exe --noproxy "*" "$httpBase/$resetFileName" --max-time 20
+    if ($LASTEXITCODE -ne 0) {
+        throw 'Could not call remote opcache reset endpoint.'
+    }
+
+    Write-Host 'Cleaning up remote reset script ...' -ForegroundColor Cyan
+    & curl.exe --noproxy "*" --ssl-reqd "ftp://ftp-campusmarketplace.alwaysdata.net/" -Q "DELE /www/$resetFileName" -u $credential
+    if ($LASTEXITCODE -ne 0) {
+        Write-Warning "Could not delete remote reset script $resetFileName. Please remove it manually if it remains."
+    }
+}
+finally {
+    if (Test-Path $tempResetPath) {
+        Remove-Item -LiteralPath $tempResetPath -Force -ErrorAction SilentlyContinue
+    }
+}
+
+Write-Host 'Targeted auth/notification deployment completed.' -ForegroundColor Green

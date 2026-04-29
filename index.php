@@ -25,6 +25,16 @@ if ($is_api) {
     exit;
 }
 
+require_once 'includes/db.php';
+
+// 1. FORCED REVIEW BARRIER: Rule 10
+if (isLoggedIn() && hasUnreviewedOrders($pdo, $_SESSION['user_id'])) {
+    if (basename($_SERVER['PHP_SELF']) !== 'dashboard.php') {
+        $_SESSION['flash'] = "Review required: please submit a review for your recent purchase before you continue browsing.";
+        redirect('dashboard.php#buyer_orders');
+    }
+}
+
 // ── Full PHP Landing Page ──
 require_once 'includes/header.php';
 require_once 'includes/ai_recommendations.php';
@@ -33,16 +43,6 @@ if (!isset($pdo)) {
     echo "<div class='glass form-container text-center'><h2>Run Setup</h2><a href='setup.php' class='btn btn-primary mt-2'>Initialize Database</a></div>";
     require_once 'includes/footer.php'; exit;
 }
-
-// 1. FORCED REVIEW BARRIER: Rule 10
-if (isLoggedIn() && hasUnreviewedOrders($pdo, $_SESSION['user_id'])) {
-    if (basename($_SERVER['PHP_SELF']) !== 'dashboard.php') {
-        $_SESSION['flash'] = "🔒 REVIEW REQUIRED: Please submit a review for your recent purchase before you continue browsing.";
-        header("Location: dashboard.php#buyer_orders");
-        exit;
-    }
-}
-
 
 // Database migrations moved to migrate.php for performance
 
@@ -217,54 +217,60 @@ $cat_desc = ($category && isset($cat_descriptions[$category])) ? $cat_descriptio
 <!-- AD CAROUSEL (Context Aware) -->
 <?php if(count($homepage_ads) > 0): ?>
 <div style="margin-top:2rem; margin-bottom:1.5rem; position:relative;">
-    <div id="adCarousel" class="horizontal-scroll-container" style="scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding: 0 0 10px 0;">
+    <div id="adCarousel" class="horizontal-scroll-container legacy-home-ad-carousel" style="display:flex; gap:1rem; overflow-x:auto; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; padding: 0 0 10px 0; scrollbar-width:none;">
         <?php foreach($homepage_ads as $ad): ?>
-        <a href="<?= htmlspecialchars($ad['link_url']) ?>" target="_blank" rel="noopener" onclick="fetch('ad_click.php?id=<?= $ad['id'] ?>')" class="fade-in ad-item-link" style="flex: 0 0 100%; scroll-snap-align: start; min-width: 100%; text-decoration: none;">
+        <a href="<?= htmlspecialchars($ad['link_url']) ?>" target="_blank" rel="noopener" onclick="fetch('ad_click.php?id=<?= $ad['id'] ?>')" class="fade-in ad-item-link legacy-home-ad-card" data-ad-card="true" style="scroll-snap-align: start; text-decoration: none;">
             <div class="ad-image-container" style="border-radius:24px; overflow:hidden; border:1px solid rgba(0,0,0,0.05); position:relative; transition:all 0.4s cubic-bezier(0.165, 0.84, 0.44, 1); box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
                 <?php $ad_img = $ad['image_url'] ?? $ad['image_path'] ?? ''; ?>
                 <?php if($ad_img): ?>
-                    <img src="<?= htmlspecialchars($ad_img) ?>" alt="<?= htmlspecialchars($ad['title']) ?>" class="ad-banner-img" loading="lazy" style="width:100%; height:100%; object-fit:cover; display:block;">
+                    <img src="<?= htmlspecialchars($ad_img) ?>" alt="<?= htmlspecialchars($ad['title']) ?>" class="legacy-home-ad-banner" loading="lazy" style="width:100%; object-fit:cover; display:block;">
                 <?php else: ?>
                     <div style="background:linear-gradient(135deg, #0071e3, #34aaff); color:#fff; padding:2.5rem; text-align:center; min-height:160px; display:flex; flex-direction:column; justify-content:center;">
                         <p style="font-size:0.7rem; letter-spacing:0.15em; text-transform:uppercase; opacity:0.8; margin-bottom:0.5rem; font-weight:700;">Sponsored Content</p>
                         <p style="font-size:1.5rem; font-weight:800; letter-spacing:-0.02em;"><?= htmlspecialchars($ad['title']) ?></p>
                     </div>
                 <?php endif; ?>
-                <span style="position:absolute; top:12px; right:12px; background:rgba(0,0,0,0.4); backdrop-filter:blur(10px); color:#fff; font-size:0.6rem; padding:4px 10px; border-radius:8px; letter-spacing:0.08em; font-weight:700; border:1px solid rgba(255,255,255,0.1);">AD</span>
+                <div style="position:absolute; inset:auto 0 0 0; padding:1rem 1.1rem; background:linear-gradient(to top, rgba(0,0,0,0.68), rgba(0,0,0,0.08)); color:#fff;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:0.75rem;">
+                        <div style="min-width:0;">
+                            <p style="font-size:0.68rem; letter-spacing:0.14em; text-transform:uppercase; opacity:0.78; margin:0 0 0.35rem; font-weight:700;">Sponsored</p>
+                            <p style="font-size:1rem; font-weight:800; letter-spacing:-0.02em; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars($ad['title']) ?></p>
+                        </div>
+                        <span style="background:rgba(255,255,255,0.14); backdrop-filter:blur(10px); color:#fff; font-size:0.62rem; padding:4px 10px; border-radius:999px; letter-spacing:0.08em; font-weight:700; border:1px solid rgba(255,255,255,0.15); flex-shrink:0;">AD</span>
+                    </div>
+                </div>
             </div>
         </a>
         <?php endforeach; ?>
     </div>
     
     <?php if(count($homepage_ads) > 1): ?>
-    <div style="position:absolute; bottom:20px; left:50%; transform:translateX(-50%); display:flex; gap:6px; z-index:10; background:rgba(0,0,0,0.25); padding:4px 10px; border-radius:10px; backdrop-filter:blur(8px);">
-        <?php foreach($homepage_ads as $idx => $ad): ?>
-            <div class="ad-dot" style="width:6px; height:6px; border-radius:50%; background:<?= $idx === 0 ? '#fff' : 'rgba(255,255,255,0.4)' ?>; transition:all 0.2s;"></div>
-        <?php endforeach; ?>
-    </div>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const carousel = document.getElementById('adCarousel');
             if(!carousel) return;
-            const dots = document.querySelectorAll('.ad-dot');
-            carousel.addEventListener('scroll', () => {
-                const idx = Math.round(carousel.scrollLeft / carousel.offsetWidth);
-                dots.forEach((dot, i) => {
-                    dot.style.background = (i === idx) ? '#fff' : 'rgba(255,255,255,0.4)';
-                    dot.style.width = (i === idx) ? '12px' : '6px';
-                    dot.style.borderRadius = (i === idx) ? '3px' : '50%';
+            const firstCard = carousel.querySelector('[data-ad-card]');
+            if(!firstCard) return;
+
+            const getStep = () => {
+                const gap = parseFloat(getComputedStyle(carousel).gap || '0');
+                return firstCard.getBoundingClientRect().width + gap;
+            };
+
+            const advance = () => {
+                const maxScroll = carousel.scrollWidth - carousel.clientWidth;
+                if (maxScroll <= 0) return;
+                const nextScroll = carousel.scrollLeft + getStep();
+                carousel.scrollTo({
+                    left: nextScroll >= maxScroll - 10 ? 0 : Math.min(nextScroll, maxScroll),
+                    behavior: 'smooth'
                 });
-            });
-            let scrollInterval = setInterval(() => {
-                const nextIdx = (Math.round(carousel.scrollLeft / carousel.offsetWidth) + 1) % <?= count($homepage_ads) ?>;
-                carousel.scrollTo({ left: nextIdx * carousel.offsetWidth, behavior: 'smooth' });
-            }, 6000);
+            };
+
+            let scrollInterval = setInterval(advance, 5000);
             carousel.addEventListener('mouseenter', () => clearInterval(scrollInterval));
             carousel.addEventListener('mouseleave', () => {
-                scrollInterval = setInterval(() => {
-                    const nextIdx = (Math.round(carousel.scrollLeft / carousel.offsetWidth) + 1) % <?= count($homepage_ads) ?>;
-                    carousel.scrollTo({ left: nextIdx * carousel.offsetWidth, behavior: 'smooth' });
-                }, 6000);
+                scrollInterval = setInterval(advance, 5000);
             });
         });
     </script>
@@ -310,9 +316,12 @@ document.addEventListener('DOMContentLoaded', () => {
 </script>
 
 <style>
-    .ad-banner-img { height: 180px; object-fit: cover !important; }
+    .legacy-home-ad-carousel::-webkit-scrollbar { display:none; }
+    .legacy-home-ad-card { flex: 0 0 86%; max-width: 86%; }
+    .legacy-home-ad-banner { height: 200px; object-fit: cover !important; }
     @media (min-width: 768px) {
-        .ad-banner-img { height: 420px !important; }
+        .legacy-home-ad-card { flex-basis: calc(50% - 0.5rem); max-width: calc(50% - 0.5rem); }
+        .legacy-home-ad-banner { height: 280px !important; }
         .ad-image-container:hover { transform: scale(1.005); filter: brightness(1.05); }
     }
 </style>

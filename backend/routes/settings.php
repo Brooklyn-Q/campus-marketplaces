@@ -5,7 +5,15 @@
  */
 
 if ($method === 'GET' && $action === 'tiers') {
-    $stmt = $pdo->query("SELECT * FROM account_tiers ORDER BY price ASC");
+    $stmt = $pdo->query("
+        SELECT * FROM account_tiers
+        ORDER BY CASE tier_name
+            WHEN 'basic' THEN 1
+            WHEN 'pro' THEN 2
+            WHEN 'premium' THEN 3
+            ELSE 99
+        END, price ASC
+    ");
     $tiers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($tiers as &$tier) {
         if (isset($tier['benefits']) && is_string($tier['benefits'])) {

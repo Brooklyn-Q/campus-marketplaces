@@ -1,9 +1,15 @@
 # Deployment & System Exclusions
 .env
+alwaysdata.env
 .DS_Store
 Thumbs.db
 *.log
 *.tmp
+app.zip
+react.zip
+unzip.php
+unzip_*.php
+deploy_with_password.bat
 
 # Local Storage (Production uses Supabase Storage)
 uploads/
@@ -15,6 +21,10 @@ vendor/
 node_modules/
 frontend/node_modules/
 frontend/dist/
+frontend/.npm-cache/
+frontend/cloudinary_map.json
+frontend/public/assets/dist/
+.deploy-artifacts/
 
 # XAMPP specific
 /cgi-bin/
@@ -34,3 +44,4 @@ others_search.txt
 products_list.txt
 users_structure.txt
 messages_structure.txt
+deploy_log.txt

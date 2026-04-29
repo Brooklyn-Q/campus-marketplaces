@@ -6,6 +6,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import { buildLegacyUrl } from '../../utils/legacyAuth';
 
 export default function Header() {
   const { user, isLoggedIn, isAdmin, isSeller, logout } = useAuth();
@@ -64,6 +65,11 @@ export default function Header() {
     { name: 'Hostels for Rent', icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> },
   ];
 
+  const accountHomeUrl = isAdmin ? buildLegacyUrl('/admin/') : buildLegacyUrl('/dashboard.php');
+  const accountHomeLabel = isAdmin ? 'Admin Panel' : 'Dashboard';
+  const messagesUrl = isAdmin ? buildLegacyUrl('/admin/messages.php') : buildLegacyUrl('/chat.php');
+  const canSellFromNav = isSeller && !isAdmin;
+
   return (
     <nav style={{position:'sticky', top:0, zIndex:999999, backdropFilter:'saturate(180%) blur(24px)', WebkitBackdropFilter:'saturate(180%) blur(24px)', background: mobileOpen ? (isDark ? '#1c1c1e' : '#ffffff') : (isDark ? 'rgba(28,28,30,0.85)' : 'rgba(255,255,255,0.75)'), borderBottom: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)'}`, transition:'background 0.3s, border-color 0.3s', padding:'0 5%'}}>
       <div className="nav-shell" style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:'1rem', height:'58px', maxWidth:'1400px', margin:'0 auto', width:'100%'}}>
@@ -104,7 +110,13 @@ export default function Header() {
               }}
             >
               {categories.map((cat) => (
-                <Link key={cat.name} to={`/?category=${encodeURIComponent(cat.name)}`} className="cat-item" onClick={() => { setCatOpen(false); closeMobile(); }} style={{ padding: mobileOpen ? '12px 16px' : '10px 16px' }}>
+                <Link
+                  key={cat.name}
+                  to={{ pathname: '/', search: `?category=${encodeURIComponent(cat.name)}` }}
+                  className="cat-item"
+                  onClick={() => { setCatOpen(false); closeMobile(); }}
+                  style={{ padding: mobileOpen ? '12px 16px' : '10px 16px' }}
+                >
                   {cat.icon}
                   {cat.name}
                 </Link>
@@ -114,24 +126,21 @@ export default function Header() {
 
           {isLoggedIn ? (
             <>
-              <Link to="/leaderboard" onClick={closeMobile} style={{color:'var(--text-muted)', fontWeight:600, fontSize:'0.95rem', padding:'0.55rem 0.9rem', borderRadius:'10px', transition:'all 0.2s', textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>🏆 Rank</Link>
-              <Link to="/dashboard" onClick={closeMobile} style={{color:'var(--text-muted)', fontWeight:600, fontSize:'0.95rem', padding:'0.55rem 0.9rem', borderRadius:'10px', transition:'all 0.2s', textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>Dashboard</Link>
-              <Link to="/chat" onClick={closeMobile} style={{color:'var(--text-muted)', fontWeight:600, fontSize:'0.95rem', padding:'0.55rem 0.9rem', borderRadius:'10px', transition:'all 0.2s', textDecoration:'none', position:'relative', whiteSpace:'nowrap', flexShrink:0}}>
+              <a href={buildLegacyUrl('/leaderboard.php')} onClick={closeMobile} style={{color:'var(--text-muted)', fontWeight:600, fontSize:'0.95rem', padding:'0.55rem 0.9rem', borderRadius:'10px', transition:'all 0.2s', textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>🏆 Rank</a>
+              <a href={accountHomeUrl} onClick={closeMobile} style={{color:'var(--text-muted)', fontWeight:600, fontSize:'0.95rem', padding:'0.55rem 0.9rem', borderRadius:'10px', transition:'all 0.2s', textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>{accountHomeLabel}</a>
+              <a href={messagesUrl} onClick={closeMobile} style={{color:'var(--text-muted)', fontWeight:600, fontSize:'0.95rem', padding:'0.55rem 0.9rem', borderRadius:'10px', transition:'all 0.2s', textDecoration:'none', position:'relative', whiteSpace:'nowrap', flexShrink:0}}>
                 Messages
                 {unreadCount > 0 && <span className="notif-badge msg-unread-badge" style={{display:'flex'}}>{unreadCount}</span>}
-              </Link>
-              {isSeller && (
-                <Link to="/add-product" onClick={closeMobile} className="btn btn-primary" style={{display:'inline-flex', alignItems:'center', justifyContent:'center', flexShrink:0, minHeight:'38px', padding:'0.5rem 1rem', borderRadius:980, fontSize:'0.85rem', fontWeight:700}}>+ Sell</Link>
+              </a>
+              {canSellFromNav && (
+                <a href={buildLegacyUrl('/add_product.php')} onClick={closeMobile} className="btn btn-primary" style={{display:'inline-flex', alignItems:'center', justifyContent:'center', flexShrink:0, minHeight:'38px', padding:'0.5rem 1rem', borderRadius:980, fontSize:'0.85rem', fontWeight:700, textDecoration:'none'}}>+ Sell</a>
               )}
-              {isAdmin && (
-                <Link to="/admin" onClick={closeMobile} style={{color:'var(--text-muted)', fontWeight:600, fontSize:'0.95rem', padding:'0.55rem 0.9rem', borderRadius:'10px', transition:'all 0.2s', textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>Admin</Link>
-              )}
-              <a href="#" className="nav-pill-link" onClick={(e) => { e.preventDefault(); closeMobile(); logout(); }} style={{color:'var(--text-muted)', fontWeight:600, fontSize:'0.95rem', padding:'0.55rem 0.95rem', borderRadius:'999px', transition:'all 0.2s', textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>Logout</a>
+              <a href="#" className="nav-pill-link" onClick={(e) => { e.preventDefault(); closeMobile(); logout(); }} style={{color:'var(--text-muted)', fontWeight:600, fontSize:'0.95rem', padding:'0.55rem 0.95rem', borderRadius:'999px', transition:'all 0.2s', textDecoration:'none', whiteSpace:'nowrap', flexShrink:0}}>Sign Out</a>
             </>
           ) : (
             <>
-              <Link to="/login" className="nav-pill-link" onClick={closeMobile} style={{color:'var(--text-muted)', fontWeight:500, fontSize:'0.85rem', padding:'0.4rem 0.85rem', borderRadius:'999px', transition:'all 0.2s', textDecoration:'none'}}>Login</Link>
-              <Link to="/register" onClick={closeMobile} className="btn btn-primary" style={{display:'inline-flex', alignItems:'center', justifyContent:'center', minHeight:'38px', padding:'0.45rem 1.1rem', borderRadius:'980px', textDecoration:'none', transition:'all 0.2s', fontWeight:600, fontSize:'0.85rem'}}>Sign Up</Link>
+              <a href={buildLegacyUrl('/login.php')} className="nav-pill-link" onClick={closeMobile} style={{color:'var(--text-muted)', fontWeight:500, fontSize:'0.85rem', padding:'0.4rem 0.85rem', borderRadius:'999px', transition:'all 0.2s', textDecoration:'none'}}>Sign In</a>
+              <a href={buildLegacyUrl('/register.php')} onClick={closeMobile} className="btn btn-primary" style={{display:'inline-flex', alignItems:'center', justifyContent:'center', minHeight:'38px', padding:'0.45rem 1.1rem', borderRadius:'980px', textDecoration:'none', transition:'all 0.2s', fontWeight:600, fontSize:'0.85rem'}}>Sign Up</a>
             </>
           )}
         </div>

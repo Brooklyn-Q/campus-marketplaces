@@ -6,17 +6,17 @@
 
 function getDefaultApiBase(): string {
   if (typeof window === 'undefined') {
-    return '/backend/api';
+    return '/api';
   }
 
   const { origin, hostname, pathname } = window.location;
 
   if (hostname === 'localhost' || hostname === '127.0.0.1') {
     const localBase = pathname.startsWith('/marketplace/') ? '/marketplace' : '';
-    return `${origin}${localBase}/backend/api`;
+    return `${origin}${localBase}/api`;
   }
 
-  return `${origin}/backend/api`;
+  return `${origin}/api`;
 }
 
 const API_BASE =
@@ -61,6 +61,7 @@ export async function apiFetch<T = any>(
   const res = await fetch(`${API_BASE}/${normalizedEndpoint}`, {
     ...options,
     headers,
+    credentials: 'same-origin',
   });
 
   // Handle 401 - token expired
@@ -232,7 +233,7 @@ export const settings = {
 // ── PAYMENTS API ──
 
 export const payments = {
-  initialize: (type: 'pro' | 'premium' | 'deposit', amount?: number) =>
+  initialize: (type: string, amount?: number) =>
     apiFetch('payments/initialize', {
       method: 'POST',
       body: JSON.stringify({ type, amount }),
@@ -273,9 +274,17 @@ export const leaderboard = {
 // ── ADS API ──
 
 export const ads = {
-  list: (placement?: string) => {
+  list: async (placement?: string) => {
     const qs = placement ? `?placement=${encodeURIComponent(placement)}` : '';
-    return apiFetch(`ads${qs}`);
+    const apiRoot = API_BASE.endsWith('/api') ? API_BASE.slice(0, -4) : API_BASE;
+    const res = await fetch(`${apiRoot}/home_ads.php${qs}`, {
+      credentials: 'same-origin',
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(data?.error || data?.message || `API Error ${res.status}`);
+    }
+    return data;
   },
 
   click: (id: number) =>

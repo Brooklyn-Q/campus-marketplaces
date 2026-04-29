@@ -115,6 +115,8 @@ elseif ($method === 'POST') {
     $pdo->prepare("UPDATE messages SET delivery_status = 'delivered' WHERE sender_id = ? AND receiver_id = ? AND delivery_status = 'sent'")
         ->execute([$me, $receiverId]);
 
+    createMessageNotification($pdo, $receiverId, $me, $message ?: ($attachmentUrl ? 'Media attachment' : ''));
+
     jsonResponse([
         'success' => true,
         'message_id' => $msgId,

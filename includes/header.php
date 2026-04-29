@@ -6,7 +6,7 @@ header('X-Content-Type-Options: nosniff');
 header('X-Frame-Options: SAMEORIGIN');
 header('X-XSS-Protection: 1; mode=block');
 header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
-header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net cdnjs.cloudflare.com js.stripe.com connect.facebook.net; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com; connect-src 'self' api.example.com; frame-src 'self' js.stripe.com");
+header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' cdn.jsdelivr.net cdnjs.cloudflare.com js.stripe.com connect.facebook.net https://js.paystack.co https://accounts.google.com https://accounts.gstatic.com; style-src 'self' 'unsafe-inline' fonts.googleapis.com cdnjs.cloudflare.com; img-src 'self' data: https: blob:; font-src 'self' fonts.gstatic.com cdnjs.cloudflare.com; connect-src 'self' api.example.com https://api.paystack.co https://js.paystack.co https://accounts.google.com https://oauth2.googleapis.com; frame-src 'self' js.stripe.com https://js.paystack.co https://checkout.paystack.com https://standard.paystack.co https://paystack.com https://accounts.google.com; media-src 'self' data: https: blob:;");
 
 if (isLoggedIn()) {
     $current_file = basename($_SERVER['PHP_SELF']);
@@ -48,7 +48,7 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Campus Marketplace — Buy and sell safely within your university community.">
     <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?? '' ?>">
-    <title>Campus Marketplace</title>
+    <title><?= htmlspecialchars($pageTitle ?? 'Campus Marketplace', ENT_QUOTES, 'UTF-8') ?></title>
     <script>
         if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
             document.documentElement.classList.add('dark-mode');
@@ -76,7 +76,8 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
 
             <!-- Center Nav Links -->
             <div class="nav-links" id="mobileNavLinks" style="display:flex; align-items:center; justify-content:center; gap:1.25rem; flex:1; min-width:0;">
-                <a href="<?= $baseUrl ?>" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Explore</a>
+                <a href="<?= getSpaUrl() ?>" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Explore</a>
+                <a href="<?= $baseUrl ?>about.php" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">About</a>
 
                 <!-- Categories Dropdown -->
                 <div class="cat-dropdown" style="position:relative; display:inline-block; flex-shrink:0;">
@@ -85,31 +86,31 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                     </a>
                     <div id="catMenu" class="cat-dropdown-menu" style="display:none; position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); z-index:999; width:240px; background:var(--card-bg); backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px); border:1px solid var(--border); border-radius:16px; box-shadow:0 12px 48px rgba(0,0,0,0.12); overflow:hidden;">
-                        <a href="<?= $baseUrl ?>index.php?category=Computer+%26+Accessories" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Computer & Accessories']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                             Computer &amp; Accessories
                         </a>
-                        <a href="<?= $baseUrl ?>index.php?category=Phone+%26+Accessories" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Phone & Accessories']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                             Phone &amp; Accessories
                         </a>
-                        <a href="<?= $baseUrl ?>index.php?category=Electrical+Appliances" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Electrical Appliances']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                             Electrical Appliances
                         </a>
-                        <a href="<?= $baseUrl ?>index.php?category=Fashion" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Fashion']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.13z"/></svg>
                             Fashion
                         </a>
-                        <a href="<?= $baseUrl ?>index.php?category=Food+%26+Groceries" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Food & Groceries']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
                             Food &amp; Groceries
                         </a>
-                        <a href="<?= $baseUrl ?>index.php?category=Education+%26+Books" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Education & Books']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                             Education &amp; Books
                         </a>
-                        <a href="<?= $baseUrl ?>index.php?category=Hostels+for+Rent" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Hostels for Rent']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                             Hostels for Rent
                         </a>
@@ -117,22 +118,34 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
                 </div>
 
                 <?php if(isLoggedIn()): ?>
-                    <?php $unread = getUnreadCount($pdo, $_SESSION['user_id']); ?>
+                    <?php
+                        $unread = getUnreadCount($pdo, $_SESSION['user_id']);
+                        $unreadNotifications = getUnreadNotificationCount($pdo, $_SESSION['user_id']);
+                        $isAdminMainAppView = isAdmin();
+                        $accountHomeUrl = $baseUrl . 'dashboard.php';
+                        $accountHomeLabel = $isAdminMainAppView ? 'Seller Dashboard' : 'Dashboard';
+                        $alertsUrl = $accountHomeUrl;
+                        $messagesUrl = $baseUrl . 'chat.php';
+                    ?>
                     <a href="<?= $baseUrl ?>leaderboard.php" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">🏆 Rank</a>
-                    <a href="<?= $baseUrl ?>dashboard.php" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Dashboard</a>
-                    <a href="<?= $baseUrl ?>chat.php" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; position:relative; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">
+                    <a href="<?= $accountHomeUrl ?>" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'"><?= htmlspecialchars($accountHomeLabel, ENT_QUOTES, 'UTF-8') ?></a>
+                    <a href="<?= $alertsUrl ?>" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; position:relative; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">
+                        Alerts
+                        <span class="notif-badge notif-unread-badge" style="<?= $unreadNotifications > 0 ? 'display:flex;' : 'display:none;' ?>"><?= $unreadNotifications ?></span>
+                    </a>
+                    <a href="<?= $messagesUrl ?>" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; position:relative; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">
                         Messages
                         <span class="notif-badge msg-unread-badge" style="<?= $unread > 0 ? 'display:flex;' : 'display:none;' ?>"><?= $unread ?></span>
                     </a>
-                    <?php if(isSeller() || isAdmin()): ?>
+                    <?php if($isAdminMainAppView): ?>
+                        <a href="<?= $baseUrl ?>admin/" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Admin Panel</a>
+                    <?php endif; ?>
+                    <?php if(isSeller()): ?>
                         <a href="<?= $baseUrl ?>add_product.php" class="react-liquid-btn" data-label="+ Sell" style="display:inline-flex; align-items:center; justify-content:center; min-height:48px; flex-shrink:0;"></a>
                     <?php endif; ?>
-                    <?php if(isAdmin()): ?>
-                        <a href="<?= $baseUrl ?>admin/" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Admin</a>
-                    <?php endif; ?>
-                    <a href="<?= $baseUrl ?>logout.php" class="nav-pill-link" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.95rem; border-radius:999px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='#ff3b30'; this.style.background='rgba(255,59,48,0.06)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Logout</a>
+                    <a href="<?= $baseUrl ?>logout.php" class="nav-pill-link" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.95rem; border-radius:999px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='#ff3b30'; this.style.background='rgba(255,59,48,0.06)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Sign Out</a>
                 <?php else: ?>
-                    <a href="<?= $baseUrl ?>login.php" class="nav-pill-link" style="color:var(--text-muted); font-weight:500; font-size:0.85rem; padding:0.4rem 0.85rem; border-radius:999px; transition:all 0.2s; text-decoration:none;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Login</a>
+                    <a href="<?= $baseUrl ?>login.php" class="nav-pill-link" style="color:var(--text-muted); font-weight:500; font-size:0.85rem; padding:0.4rem 0.85rem; border-radius:999px; transition:all 0.2s; text-decoration:none;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Sign In</a>
                     <a href="<?= $baseUrl ?>register.php" style="background:#0071e3; color:#fff; font-weight:600; font-size:0.85rem; padding:0.5rem 1.1rem; min-height:48px; border-radius:980px; text-decoration:none; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center;" onmouseover="this.style.background='#0080f8'" onmouseout="this.style.background='#0071e3'">Sign Up</a>
                 <?php endif; ?>
             </div>

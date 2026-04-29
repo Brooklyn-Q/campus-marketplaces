@@ -7,6 +7,9 @@ $user = getUser($pdo, $_SESSION['user_id']);
 if (!$user) { session_destroy(); redirect('login.php'); }
 
 $error = ''; $success = '';
+if (isset($_GET['google_setup'])) {
+    $success = "You're in. Please review and complete your profile details, especially faculty and contact info.";
+}
 
 // Faculty options
 $faculties = [
