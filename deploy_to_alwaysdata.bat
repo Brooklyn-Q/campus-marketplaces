@@ -12,6 +12,7 @@ set "UNZIP_REACT_PHP=%ARTIFACT_DIR%\unzip_react.php"
 set "REACT_ZIP_LOG=%ARTIFACT_DIR%\react_zip.log"
 set "APP_ZIP_LOG=%ARTIFACT_DIR%\app_zip.log"
 set "DEPLOY_MODE=full"
+set "DEPLOY_SECRET=Brooklyn@2005"
 set "KEEP_ARTIFACTS=%DEPLOY_KEEP_ARTIFACTS%"
 set "SKIP_INSTALL=%DEPLOY_SKIP_INSTALL%"
 set "SKIP_BUILD=%DEPLOY_SKIP_BUILD%"
@@ -148,9 +149,9 @@ if errorlevel 1 (
     goto :error
 )
 
-:: Upload unzip scripts
+:: Upload unzip scripts (inject DEPLOY_SECRET into placeholder before uploading)
 echo Creating unzip.php...
-copy /y "%~dp0scripts\alwaysdata_unzip.php" "%UNZIP_PHP%" >nul
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '%~dp0scripts\alwaysdata_unzip.php' -Raw).Replace('%%%%DEPLOY_SECRET%%%%', '%DEPLOY_SECRET%') | Set-Content '%UNZIP_PHP%' -Encoding UTF8"
 if not exist "%UNZIP_PHP%" (
     echo ERROR: unzip.php was not created
     goto :error
@@ -159,7 +160,7 @@ echo Uploading unzip.php...
 curl.exe --noproxy "*" --ssl-reqd --ftp-pasv --retry 3 --retry-delay 5 -T "%UNZIP_PHP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass% || goto :error
 
 echo Creating unzip_react.php...
-copy /y "%~dp0scripts\alwaysdata_unzip_react.php" "%UNZIP_REACT_PHP%" >nul
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "(Get-Content '%~dp0scripts\alwaysdata_unzip_react.php' -Raw).Replace('%%%%DEPLOY_SECRET%%%%', '%DEPLOY_SECRET%') | Set-Content '%UNZIP_REACT_PHP%' -Encoding UTF8"
 if not exist "%UNZIP_REACT_PHP%" (
     echo ERROR: unzip_react.php was not created
     goto :error
@@ -168,7 +169,6 @@ echo Uploading unzip_react.php...
 curl.exe --noproxy "*" --ssl-reqd --ftp-pasv --retry 3 --retry-delay 5 -T "%UNZIP_REACT_PHP%" ftp://ftp-campusmarketplace.alwaysdata.net/www/ -u campusmarketplace:%ad_pass% || goto :error
 
 :: Extract files on the server (secret required — see alwaysdata.env DEPLOY_SECRET)
-set "DEPLOY_SECRET=Brooklyn@2005"
 echo Extracting PHP files on the server...
 curl.exe --noproxy "*" -s "https://campusmarketplace.alwaysdata.net/unzip.php?secret=%DEPLOY_SECRET%"
 echo.
