@@ -31,6 +31,8 @@ run_query($pdo, "ALTER TABLE users MODIFY COLUMN seller_tier ENUM('basic','pro',
 run_query($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS tier_expires_at DATETIME DEFAULT NULL", "Tier Expiration Column");
 run_query($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS vacation_mode TINYINT(1) DEFAULT 0", "Vacation Mode Column");
 run_query($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_joined TINYINT(1) DEFAULT 0", "WhatsApp Channel Joined Column");
+// Existing users who already accepted terms are grandfathered in as having joined
+run_query($pdo, "UPDATE users SET whatsapp_joined = 1 WHERE terms_accepted = 1 AND whatsapp_joined = 0", "Grandfather existing terms-accepted users as WhatsApp joined");
 
 // 2. Products Enhancements
 run_query($pdo, "ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_tag VARCHAR(50) DEFAULT '' AFTER quantity", "Product Promo Tag");
