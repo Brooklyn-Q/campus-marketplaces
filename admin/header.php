@@ -391,6 +391,7 @@ $logoutLink = $realSiteRoot . '/logout.php';
         function closeNav() {
             navEl.classList.remove('open');
             btnEl.setAttribute('aria-expanded', 'false');
+            return true; // Ensure navigation proceeds
         }
     </script>
 
