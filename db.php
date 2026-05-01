@@ -1104,10 +1104,10 @@ function getBadgeHtml(PDO $pdo, string $tier): string {
     };
     
     $txt = '#fff';
-    $icon = match($tier) { 
-        'premium' => '⭐ ', 
-        'pro' => '⚡ ', 
-        default => '✔️ ' 
+    $icon = match($tier) {
+        'premium' => '',
+        'pro' => '',
+        default => ''
     };
 
     return "<span class='badge' style='background:".htmlspecialchars($bg, ENT_QUOTES, 'UTF-8')."; color:".htmlspecialchars($txt, ENT_QUOTES, 'UTF-8')."; padding:4px 12px; border-radius:30px; font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.8px; box-shadow:0 2px 8px rgba(0,0,0,0.1); border:1px solid rgba(255,255,255,0.1);'>{$icon}" . ucfirst($tier) . "</span>";

@@ -277,7 +277,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'
             $allowedUpgrade = true;
 
         if (!$allowedUpgrade || $currentUser['role'] !== 'seller') {
-            $msg = "❌ Invalid upgrade path for this user.";
+            $msg = "Invalid upgrade path for this user.";
         } else {
             $tier = ($act === 'upgrade_pro') ? 'pro' : 'premium';
             $allTiers = getAccountTiers($pdo);
@@ -336,7 +336,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'
                 $msg = "User #$id upgraded to " . ucfirst($tier) . " Seller. Revenue of ₵" . number_format($price, 2) . " recorded.";
             } catch (Exception $e) {
                 $pdo->rollBack();
-                $msg = "❌ Error: " . htmlspecialchars($e->getMessage());
+                $msg = "Error: " . htmlspecialchars($e->getMessage());
             }
         }
 
@@ -350,13 +350,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'
         $boolT = sqlBool(true, $pdo);
         $pdo->prepare("UPDATE users SET suspended = $boolT WHERE id = ? AND role != 'admin'")->execute([$id]);
         auditLog($pdo, $sess_id, "Suspended user #$id", 'user', $id);
-        $msg = "⛔ User #$id suspended.";
+        $msg = "User #$id suspended.";
 
     } elseif ($act === 'reactivate') {
         $boolF = sqlBool(false, $pdo);
         $pdo->prepare("UPDATE users SET suspended = $boolF WHERE id = ?")->execute([$id]);
         auditLog($pdo, $sess_id, "Reactivated user #$id", 'user', $id);
-        $msg = "✅ User #$id reactivated.";
+        $msg = "User #$id reactivated.";
     }
 }
 
@@ -504,9 +504,9 @@ function adminResolvedAvatarUrl(array $user): string {
                     <td data-label="Balance">₵<?= number_format($u['balance'], 2) ?></td>
                     <td data-label="Status">
                         <?php if ($is_suspended): ?>
-                            <span class="badge badge-rejected">⛔ Suspended</span>
+                            <span class="badge badge-rejected">Suspended</span>
                         <?php elseif ($u['verified']): ?>
-                            <span style="color:var(--success);">✓ Verified</span>
+                            <span style="color:var(--success);">Verified</span>
                         <?php else: ?>
                             <span class="text-muted">—</span>
                         <?php endif; ?>
@@ -529,10 +529,10 @@ function adminResolvedAvatarUrl(array $user): string {
                                     ?>
                                     <?php // Upgrade buttons only render when the user is strictly below that tier ?>
                                     <?php if ($cur_rank < $tier_rank['pro']): ?>
-                                        <?= actionBtn('upgrade_pro', $uid, $filter, '🥈 Pro', 'btn-outline') ?>
+                                        <?= actionBtn('upgrade_pro', $uid, $filter, 'Pro', 'btn-outline') ?>
                                     <?php endif; ?>
                                     <?php if ($cur_rank < $tier_rank['premium']): ?>
-                                        <?= actionBtn('upgrade_premium', $uid, $filter, '⭐ Premium', 'btn-gold') ?>
+                                        <?= actionBtn('upgrade_premium', $uid, $filter, 'Premium', 'btn-gold') ?>
                                     <?php endif; ?>
                                     <?php if ($cur_rank > $tier_rank['basic']): ?>
                                         <?= actionBtn(
@@ -551,7 +551,7 @@ function adminResolvedAvatarUrl(array $user): string {
                                         'reactivate',
                                         $uid,
                                         $filter,
-                                        '✅ Reactivate',
+                                        'Reactivate',
                                         'btn-success',
                                         'Reactivate this user?'
                                     ) ?>
@@ -560,13 +560,13 @@ function adminResolvedAvatarUrl(array $user): string {
                                         'suspend',
                                         $uid,
                                         $filter,
-                                        '⏸ Suspend',
+                                        'Suspend',
                                         'btn-warn',
                                         'Suspend this user? They will not be able to log in.'
                                     ) ?>
                                 <?php endif; ?>
 
-                                <a href="messages.php?view=chat&u1=<?= (int) $_SESSION['user_id'] ?>&u2=<?= $uid ?>" class="btn btn-outline btn-sm">💬 Message</a>
+                                <a href="messages.php?view=chat&u1=<?= (int) $_SESSION['user_id'] ?>&u2=<?= $uid ?>" class="btn btn-outline btn-sm">Message</a>
 
                                 <?php if (!$is_self): ?>
                                     <?= actionBtn(
