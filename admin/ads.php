@@ -83,24 +83,24 @@ $ads = $pdo->query("SELECT * FROM ad_placements ORDER BY created_at DESC")->fetc
     <form method="POST" enctype="multipart/form-data" class="ad-form-grid">
         <?= csrf_field() ?>
         <div class="form-group">
-            <label>Ad Title *</label>
-            <input type="text" name="ad_title" class="form-control" required placeholder="e.g. Back to School Sale">
+            <label for="ad_title">Ad Title *</label>
+            <input type="text" name="ad_title" id="ad_title" class="form-control" required placeholder="e.g. Back to School Sale">
         </div>
         <div class="form-group">
-            <label>Upload Image</label>
-            <input type="file" name="ad_file" class="form-control">
+            <label for="ad_file">Upload Image</label>
+            <input type="file" name="ad_file" id="ad_file" class="form-control">
         </div>
         <div class="form-group">
-            <label>Or Image URL</label>
-            <input type="url" name="ad_image" class="form-control" placeholder="https://...">
+            <label for="ad_image">Or Image URL</label>
+            <input type="url" name="ad_image" id="ad_image" class="form-control" placeholder="https://...">
         </div>
         <div class="form-group">
-            <label>Link URL</label>
-            <input type="url" name="ad_link" class="form-control" placeholder="https://..." value="#">
+            <label for="ad_link">Link URL</label>
+            <input type="url" name="ad_link" id="ad_link" class="form-control" placeholder="https://..." value="#">
         </div>
         <div class="form-group">
-            <label>Placement</label>
-            <select name="ad_placement" class="form-control">
+            <label for="ad_placement">Placement</label>
+            <select name="ad_placement" id="ad_placement" class="form-control">
                 <option value="homepage">Homepage</option>
                 <option value="category">Category Page</option>
                 <option value="product">Product Page</option>

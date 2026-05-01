@@ -69,8 +69,8 @@ require_once 'includes/header.php';
         <form method="POST">
             <?= csrf_field() ?>
             <div class="form-group">
-                <label>Email or Username</label>
-                <input type="text" name="login_id" class="form-control" required autocomplete="username email" placeholder="Enter your email or username">
+                <label for="login_id">Email or Username</label>
+                <input type="text" name="login_id" id="login_id" class="form-control" required autocomplete="username email" placeholder="Enter your email or username">
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Send Reset Link</button>
         </form>
