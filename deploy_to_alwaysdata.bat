@@ -256,6 +256,12 @@ echo   - Auto-redirects after profile/product updates
 echo   - Fixed navbar overflow in mobile landscape view
 echo   - Fixed all broken WhatsApp links (channel URL + country code handling)
 echo   - Updated WhatsApp channel to Campus Marketplace_TTU
+echo   - UI Refresh: Removed all emojis, replaced with Lucide SVG icons
+echo   - Added Lucide icons for promo tags (Hot Deal, Flash Sale, etc.)
+echo   - Star ratings now use filled star SVGs instead of emojis
+echo   - Added live promo tag preview with icons in add_product.php
+echo   - Fixed session permission issues with local sessions folder
+echo   - CSS/JS cache bumped to v1.8
 echo   - Confirm Order flow: buyer must order before Phone/WhatsApp unlock
 echo   - Phone button now calls seller (tel:) instead of WhatsApp
 echo   - Auto chat message sent to seller on order confirmation
