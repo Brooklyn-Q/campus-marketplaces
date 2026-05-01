@@ -168,7 +168,7 @@ require_once 'includes/header.php';
                                 </div>
                                 <div class="col-md-7">
                                     <div class="p-3 bg-dark-soft rounded-3 border mb-3">
-                                        <label class="small text-muted mb-1 d-block">Secret Key (Manual Entry)</label>
+                                        <span class="small text-muted mb-1 d-block">Secret Key (Manual Entry)</span>
                                         <code class="d-block word-break-all text-primary fw-bold" style="font-size:1.1rem;"><?= htmlspecialchars($setupSecret) ?></code>
                                     </div>
                                     <p class="small text-muted mb-4">

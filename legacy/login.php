@@ -62,12 +62,12 @@ require_once 'includes/header.php';
 
         <form method="POST">
             <div class="form-group">
-                <label>Email or Username</label>
-                <input type="text" name="login_id" class="form-control" placeholder="Enter your identifier" required autocomplete="username">
+                <label for="login_id">Email or Username</label>
+                <input type="text" name="login_id" id="login_id" class="form-control" placeholder="Enter your identifier" required autocomplete="username">
             </div>
             <div class="form-group" style="margin-bottom:2rem;">
-                <label>Password</label>
-                <input type="password" name="password" class="form-control" placeholder="••••••••" required>
+                <label for="password">Password</label>
+                <input type="password" name="password" id="password" class="form-control" placeholder="••••••••" required>
             </div>
             <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:1.1rem; font-size:1.05rem; font-weight:700; box-shadow:0 10px 30px rgba(124,58,237,0.2);">Sign In</button>
         </form>

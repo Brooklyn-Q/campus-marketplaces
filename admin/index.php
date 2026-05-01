@@ -396,7 +396,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                         name="badge_color_basic" id="badge_color_basic" class="form-control" value="<?= htmlspecialchars($tb['badge']) ?>"
                         style="height:35px; padding:2px;"></div>
                 <div class="form-group mb-1">
-                    <label style="font-size:0.75rem; font-weight:700;">Included Benefits</label>
+                    <span style="font-size:0.75rem; font-weight:700;">Included Benefits</span>
                     <div id="benefits_wrap_basic"
                         style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.5rem; min-height:28px;">
                         <?php foreach (json_decode($tb['benefits'] ?? '[]', true) ?: [] as $ben): ?>
@@ -442,7 +442,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                         name="badge_color_pro" id="badge_color_pro" class="form-control" value="<?= htmlspecialchars($tp['badge']) ?>"
                         style="height:35px; padding:2px;"></div>
                 <div class="form-group mb-1">
-                    <label style="font-size:0.75rem; font-weight:700;">Included Benefits</label>
+                    <span style="font-size:0.75rem; font-weight:700;">Included Benefits</span>
                     <div id="benefits_wrap_pro"
                         style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.5rem; min-height:28px;">
                         <?php foreach (json_decode($tp['benefits'] ?? '[]', true) ?: [] as $ben): ?>
@@ -489,7 +489,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                         name="badge_color_premium" id="badge_color_premium" class="form-control" value="<?= htmlspecialchars($tm['badge']) ?>"
                         style="height:35px; padding:2px;"></div>
                 <div class="form-group mb-1">
-                    <label style="font-size:0.75rem; font-weight:700;">Included Benefits</label>
+                    <span style="font-size:0.75rem; font-weight:700;">Included Benefits</span>
                     <div id="benefits_wrap_premium"
                         style="display:flex; flex-wrap:wrap; gap:0.4rem; margin-bottom:0.5rem; min-height:28px;">
                         <?php foreach (json_decode($tm['benefits'] ?? '[]', true) ?: [] as $ben): ?>

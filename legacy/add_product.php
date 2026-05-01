@@ -102,26 +102,26 @@ require_once 'includes/header.php';
     <?php else: ?>
     <form method="POST" enctype="multipart/form-data" id="addProductForm">
         <div class="form-group">
-            <label>Product Title *</label>
+            <label for="productTitle">Product Title *</label>
             <input type="text" name="title" class="form-control" required maxlength="150" id="productTitle">
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Category *</label>
-                <select name="category" class="form-control" required>
+                <label for="category">Category *</label>
+                <select name="category" id="category" class="form-control" required>
                     <?php foreach($categories as $c): ?>
                         <option value="<?= $c ?>"><?= $c ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
             <div class="form-group">
-                <label>Quantity *</label>
-                <input type="number" name="quantity" class="form-control" value="1" min="1" required>
+                <label for="quantity">Quantity *</label>
+                <input type="number" name="quantity" id="quantity" class="form-control" value="1" min="1" required>
             </div>
         </div>
         <div class="form-group">
-            <label>Promo Tag <span style="color:var(--text-muted); font-weight:400; font-size:0.8rem;">(optional — makes your listing stand out)</span></label>
-            <select name="promo_tag" class="form-control">
+            <label for="promo_tag">Promo Tag <span style="color:var(--text-muted); font-weight:400; font-size:0.8rem;">(optional — makes your listing stand out)</span></label>
+            <select name="promo_tag" id="promo_tag" class="form-control">
                 <option value="">No promo tag</option>
                 <option value="🔥 Hot Deal">🔥 Hot Deal</option>
                 <option value="⚡ Flash Sale">⚡ Flash Sale</option>
@@ -133,25 +133,25 @@ require_once 'includes/header.php';
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Price (₵) *</label>
+                <label for="productPrice">Price (₵) *</label>
                 <input type="number" step="0.01" name="price" class="form-control" required min="0.01" id="productPrice">
             </div>
             <div class="form-group">
-                <label>Stock Quantity *</label>
-                <input type="number" name="quantity" class="form-control" required min="1" value="1">
+                <label for="stock_quantity">Stock Quantity *</label>
+                <input type="number" name="quantity" id="stock_quantity" class="form-control" required min="1" value="1">
             </div>
         </div>
         <div class="form-row">
             <div class="form-group">
-                <label>Delivery Method *</label>
-                <select name="delivery_method" class="form-control" required>
+                <label for="delivery_method">Delivery Method *</label>
+                <select name="delivery_method" id="delivery_method" class="form-control" required>
                     <option value="Pickup">Pickup</option>
                     <option value="Delivery">Delivery</option>
                 </select>
             </div>
             <div class="form-group">
-                <label>Payment Agreement *</label>
-                <select name="payment_agreement" class="form-control" required>
+                <label for="payment_agreement">Payment Agreement *</label>
+                <select name="payment_agreement" id="payment_agreement" class="form-control" required>
                     <option value="Pay on delivery">Pay on delivery</option>
                     <option value="Pay before delivery">Pay before delivery</option>
                 </select>
@@ -159,13 +159,13 @@ require_once 'includes/header.php';
         </div>
         <div class="form-group">
             <div class="flex-between mb-1">
-                <label style="margin:0;">Description *</label>
+                <label for="productDesc" style="margin:0;">Description *</label>
                 <button type="button" class="btn btn-primary btn-sm" onclick="generateAI()" id="aiBtn">✨ Generate AI Text</button>
             </div>
             <textarea name="description" class="form-control" rows="5" required id="productDesc"></textarea>
         </div>
         <div class="form-group">
-            <label>Product Images (max <?= $maxImages ?>)</label>
+            <label for="imgUpload">Product Images (max <?= $maxImages ?>)</label>
             <input type="file" name="images[]" class="form-control" accept="image/*" multiple id="imgUpload">
             <small class="text-muted">Supported: JPG, PNG, WebP</small>
         </div>

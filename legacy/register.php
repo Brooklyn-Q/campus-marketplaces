@@ -132,28 +132,28 @@ require_once 'includes/header.php';
 
             <div class="form-row">
                 <div class="form-group">
-                    <label>Username *</label>
+                    <label for="regUsername">Username *</label>
                     <input type="text" name="username" class="form-control" id="regUsername" required>
                 </div>
                 <div class="form-group">
-                    <label>Email Address *</label>
+                    <label for="regEmail">Email Address *</label>
                     <input type="email" name="email" class="form-control" id="regEmail" required>
                 </div>
             </div>
 
             <div class="form-row">
                 <div class="form-group">
-                    <label>Password *</label>
+                    <label for="regPassword">Password *</label>
                     <input type="password" name="password" class="form-control" id="regPassword" required minlength="6">
                 </div>
                 <div class="form-group">
-                    <label>Referral Code (Optional)</label>
-                    <input type="text" name="referral_code" class="form-control" placeholder="Code">
+                    <label for="referral_code">Referral Code (Optional)</label>
+                    <input type="text" name="referral_code" id="referral_code" class="form-control" placeholder="Code">
                 </div>
             </div>
 
             <div class="form-group" style="position:relative;">
-                <label>Select Your Faculty * <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to search</span></label>
+                <label for="facultyInput">Select Your Faculty * <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to search</span></label>
                 <input type="text" name="faculty" id="facultyInput" class="form-control" list="facultyList" required autocomplete="off" placeholder="Start typing faculty name...">
                 <datalist id="facultyList">
                     <option value="Faculty of Applied Arts and Technology">
@@ -170,13 +170,13 @@ require_once 'includes/header.php';
             <?php if($mode === 'seller'): ?>
                 <div class="form-row">
                     <div class="form-group" style="position:relative;">
-                        <label>Department * <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to search</span></label>
+                        <label for="departmentInput">Department * <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to search</span></label>
                         <input type="text" name="department" id="departmentInput" class="form-control" list="departmentList" required autocomplete="off" placeholder="Select faculty first...">
                         <datalist id="departmentList"></datalist>
                     </div>
                     <div class="form-group">
-                        <label>Academic Level *</label>
-                        <select name="level" class="form-control" required>
+                        <label for="level">Academic Level *</label>
+                        <select name="level" id="level" class="form-control" required>
                             <option value="">Select Level</option>
                             <option value="100">Level 100</option>
                             <option value="200">Level 200</option>
@@ -188,7 +188,7 @@ require_once 'includes/header.php';
                 </div>
                 <div class="form-row">
                     <div class="form-group" style="position:relative;">
-                        <label>Hall / Residence <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to search</span></label>
+                        <label for="hallInput">Hall / Residence <span style="font-size:0.72rem; color:var(--text-muted); font-weight:400;">Type to search</span></label>
                         <input type="text" name="hall_residence" id="hallInput" class="form-control" list="hallList" autocomplete="off" placeholder="Start typing residence...">
                         <datalist id="hallList">
                             <option value="Ahanta Hall">
@@ -201,13 +201,13 @@ require_once 'includes/header.php';
                         </datalist>
                     </div>
                     <div class="form-group">
-                        <label>Phone Number *</label>
-                        <input type="tel" name="phone" class="form-control" required placeholder="024XXXXXXX" pattern="(0[0-9]{9}|\+233[0-9]{9})">
+                        <label for="phone">Phone Number *</label>
+                        <input type="tel" name="phone" id="phone" class="form-control" required placeholder="024XXXXXXX" pattern="(0[0-9]{9}|\+233[0-9]{9})">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label>Profile Photo <span style="font-weight:400; font-size:0.8rem; color:var(--text-muted);">(Optional)</span></label>
-                    <input type="file" name="profile_pic" class="form-control" accept="image/*" style="padding:0.6rem;">
+                    <label for="profile_pic">Profile Photo <span style="font-weight:400; font-size:0.8rem; color:var(--text-muted);">(Optional)</span></label>
+                    <input type="file" name="profile_pic" id="profile_pic" class="form-control" accept="image/*" style="padding:0.6rem;">
                 </div>
             <?php endif; ?>
 
