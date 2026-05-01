@@ -38,17 +38,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['disc_action'])) {
                 $pdo->prepare("UPDATE discount_requests SET status = 'approved' WHERE id = ?")->execute([$disc_id]);
                 $pdo->prepare("UPDATE products SET price = ? WHERE id = ?")->execute([$dr['discounted_price'], $dr['product_id']]);
                 auditLog($pdo, $_SESSION['user_id'], "Approved discount #{$disc_id} for product #{$dr['product_id']}", 'discount', $disc_id);
-                $disc_msg = "✅ Discount approved! Product price updated to ₵" . number_format($dr['discounted_price'], 2);
+                $disc_msg = "Discount approved! Product price updated to ₵" . number_format($dr['discounted_price'], 2);
             }
             $pdo->commit();
         } catch (Exception $e) {
             $pdo->rollBack();
-            $disc_msg = "❌ Error approving discount: " . $e->getMessage();
+            $disc_msg = "Error approving discount: " . $e->getMessage();
         }
     } elseif ($disc_act === 'reject_discount' && $disc_id > 0) {
         $pdo->prepare("UPDATE discount_requests SET status = 'rejected' WHERE id = ? AND status = 'pending'")->execute([$disc_id]);
         auditLog($pdo, $_SESSION['user_id'], "Rejected discount #{$disc_id}", 'discount', $disc_id);
-        $disc_msg = "❌ Discount request rejected.";
+        $disc_msg = "Discount request rejected.";
     }
 }
 
@@ -78,16 +78,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['profile_action'])) {
                 }
                 $pdo->prepare("UPDATE profile_edit_requests SET status='approved', admin_id=?, resolved_at=NOW() WHERE id=?")->execute([$_SESSION['user_id'], $req_id]);
                 auditLog($pdo, $_SESSION['user_id'], "Approved profile edit #{$req_id} for user #{$pr['user_id']}", 'profile', $req_id);
-                $profile_msg = "✅ Profile change approved and applied.";
+                $profile_msg = "Profile change approved and applied.";
             }
         } catch (Exception $e) {
-            $profile_msg = "❌ Error: " . $e->getMessage();
+            $profile_msg = "Error: " . $e->getMessage();
         }
 
     } elseif ($p_act === 'reject_profile' && $req_id > 0) {
         $pdo->prepare("UPDATE profile_edit_requests SET status='rejected', admin_id=?, resolved_at=NOW() WHERE id=? AND status='pending'")->execute([$_SESSION['user_id'], $req_id]);
         auditLog($pdo, $_SESSION['user_id'], "Rejected profile edit #{$req_id}", 'profile', $req_id);
-        $profile_msg = "❌ Profile change rejected.";
+        $profile_msg = "Profile change rejected.";
 
     } elseif ($p_act === 'approve_all_user') {
         $uid = (int) ($_POST['uid'] ?? 0);
@@ -108,7 +108,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['profile_action'])) {
                 $pdo->prepare("UPDATE profile_edit_requests SET status='approved', admin_id=?, resolved_at=NOW() WHERE id=?")->execute([$_SESSION['user_id'], $pr['id']]);
             }
             auditLog($pdo, $_SESSION['user_id'], "Bulk approved all profile edits for user #{$uid}", 'profile', $uid);
-            $profile_msg = "✅ All profile changes for user #{$uid} approved.";
+            $profile_msg = "All profile changes for user #{$uid} approved.";
         }
     }
 }
@@ -130,12 +130,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['vacation_action'])) {
             $stmt->execute();
             $pdo->prepare("UPDATE vacation_requests SET status = 'approved' WHERE id = ?")->execute([$vac_id]);
             auditLog($pdo, $_SESSION['user_id'], "Approved vacation for seller #{$vr['seller_id']}");
-            $disc_msg = "✅ Vacation mode approved for seller.";
+            $disc_msg = "Vacation mode approved for seller.";
         }
     } elseif ($vac_act === 'reject' && $vac_id > 0) {
         $pdo->prepare("UPDATE vacation_requests SET status = 'rejected' WHERE id = ?")->execute([$vac_id]);
         auditLog($pdo, $_SESSION['user_id'], "Rejected vacation request #{$vac_id}");
-        $disc_msg = "❌ Vacation mode rejected.";
+        $disc_msg = "Vacation mode rejected.";
     }
     // FIX #8: PRG pattern — redirect after POST so refresh doesn't re-submit
     header("Location: " . $_SERVER['PHP_SELF']);
@@ -154,7 +154,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['send_announcement']))
         if (function_exists('auditLog')) {
             auditLog($pdo, $_SESSION['user_id'], "Published global announcement: " . substr($msg_content, 0, 30) . "...");
         }
-        $disc_msg = "✅ Global announcement published successfully!";
+        $disc_msg = "Global announcement published successfully!";
     }
     // FIX #8: PRG after POST
     header("Location: " . $_SERVER['PHP_SELF'] . "?msg=" . urlencode($disc_msg));
@@ -170,10 +170,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['ann_action'])) {
         if ($ann_act === 'deactivate') {
             $boolF = sqlBool(false, $pdo);
             $pdo->prepare("UPDATE announcements SET is_active = $boolF WHERE id = ?")->execute([$ann_id]);
-            $disc_msg = "✅ Announcement deactivated.";
+            $disc_msg = "Announcement deactivated.";
         } elseif ($ann_act === 'delete') {
             $pdo->prepare("DELETE FROM announcements WHERE id = ?")->execute([$ann_id]);
-            $disc_msg = "✅ Announcement deleted from history.";
+            $disc_msg = "Announcement deleted from history.";
         }
     }
     // FIX #8: PRG after POST
@@ -192,7 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['dispute_action'])) {
     if ($dact === 'resolve_dispute' && $did > 0) {
         $pdo->prepare("UPDATE disputes SET status='resolved', admin_note=? WHERE id=?")->execute([$note, $did]);
         auditLog($pdo, $_SESSION['user_id'], "Resolved dispute #$did", 'dispute', $did);
-        $disc_msg = "✅ Dispute #{$did} resolved.";
+        $disc_msg = "Dispute #{$did} resolved.";
     }
     header("Location: " . $_SERVER['PHP_SELF']);
     exit;
@@ -218,7 +218,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_tiers'])) {
             ->execute([$limit, $img, $price, $original_price, $dur, $badge, $ads, $benefits_json, $t]);
     }
     auditLog($pdo, $_SESSION['user_id'], "Updated marketplace tier settings in account_tiers");
-    $disc_msg = "✅ Tier configurations globally updated!";
+    $disc_msg = "Tier configurations globally updated!";
 }
 
 // Carry flash message across PRG redirect
@@ -632,10 +632,10 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
 <h2 class="mb-3">Admin Dashboard</h2>
 
 <?php if ($disc_msg): ?>
-    <div class="alert <?= strpos($disc_msg, '✅') !== false ? 'alert-success' : 'alert-error' ?> fade-in">
+    <div class="alert <?= stripos($disc_msg, 'approved') !== false || stripos($disc_msg, 'success') !== false || stripos($disc_msg, 'resolved') !== false || stripos($disc_msg, 'updated') !== false ? 'alert-success' : 'alert-error' ?> fade-in">
         <?= htmlspecialchars($disc_msg) ?></div><?php endif; ?>
 <?php if ($profile_msg): ?>
-    <div class="alert <?= strpos($profile_msg, '✅') !== false ? 'alert-success' : 'alert-error' ?> fade-in">
+    <div class="alert <?= stripos($profile_msg, 'approved') !== false || stripos($profile_msg, 'success') !== false ? 'alert-success' : 'alert-error' ?> fade-in">
         <?= htmlspecialchars($profile_msg) ?></div><?php endif; ?>
 
 <?php if ($stats['profile_pending'] > 0): ?>
@@ -864,7 +864,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
 <!-- Order Transparency Hub -->
 <div id="transparency_section" class="glass fade-in mt-3" style="padding:1.5rem;">
     <div class="flex-between mb-2">
-        <h4>📦 Marketplace Transparency Hub (All Orders)</h4>
+        <h4>Marketplace Transparency Hub (All Orders)</h4>
         <a href="audit.php" class="btn btn-outline btn-sm">View Audit Logs</a>
     </div>
     <?php
@@ -1003,7 +1003,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
             </div>
         <?php endforeach; ?>
     <?php else: ?>
-        <p class="text-muted" style="text-align:center; padding:1.5rem;">✅ No pending discount requests.</p>
+        <p class="text-muted" style="text-align:center; padding:1.5rem;">No pending discount requests.</p>
     <?php endif; ?>
 </div>
 
@@ -1054,14 +1054,14 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
             </div>
         <?php endforeach; ?>
     <?php else: ?>
-        <p class="text-muted text-center" style="padding:1.5rem;">✅ No active disputes.</p>
+        <p class="text-muted text-center" style="padding:1.5rem;">No active disputes.</p>
     <?php endif; ?>
 </div>
 
 <!-- Premium Badge Requests -->
 <div id="premium_section" class="glass fade-in mt-3" style="padding:1.5rem;">
     <div class="flex-between mb-2">
-        <h4>⭐ Premium Badge Requests</h4>
+        <h4>Premium Badge Requests</h4>
     </div>
     <?php if (count($premiumPending) > 0): ?>
         <?php foreach ($premiumPending as $req): ?>
@@ -1078,21 +1078,21 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                 </div>
                 <div class="flex gap-1 mt-2">
                     <?php if ($req['seller_tier'] === 'premium'): ?>
-                        <span class="badge badge-approved">✅ Already Premium</span>
+                        <span class="badge badge-approved">Already Premium</span>
                     <?php else: ?>
                         <form method="POST" action="users.php" style="display:inline;">
                             <?= csrf_field() ?>
                             <input type="hidden" name="action" value="upgrade_premium">
                             <input type="hidden" name="id" value="<?= (int) $req['sender_id'] ?>">
                             <input type="hidden" name="filter" value="sellers">
-                            <button type="submit" class="btn btn-gold btn-sm">⭐ Upgrade to Premium</button>
+                            <button type="submit" class="btn btn-gold btn-sm">Upgrade to Premium</button>
                         </form>
                     <?php endif; ?>
                 </div>
             </div>
         <?php endforeach; ?>
     <?php else: ?>
-        <p class="text-muted" style="text-align:center; padding:1.5rem;">✅ No pending premium requests.</p>
+        <p class="text-muted" style="text-align:center; padding:1.5rem;">No pending premium requests.</p>
     <?php endif; ?>
 </div>
 
@@ -1177,7 +1177,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
             </div>
         <?php endforeach; ?>
     <?php else: ?>
-        <p class="text-muted" style="text-align:center; padding:1.5rem;">✅ No pending profile edit requests.</p>
+        <p class="text-muted" style="text-align:center; padding:1.5rem;">No pending profile edit requests.</p>
     <?php endif; ?>
 </div>
 

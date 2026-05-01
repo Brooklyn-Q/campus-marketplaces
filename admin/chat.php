@@ -199,7 +199,7 @@ if ($selected_u1 && $selected_u2) {
         <?php else: ?>
             <div
                 style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center;">
-                <div style="font-size:3rem; margin-bottom:1rem; opacity:0.3;">💬</div>
+                <div style="font-size:3rem; margin-bottom:1rem; opacity:0.3;"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:0.4;"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div>
                 <h3>Omni Chat Panel</h3>
                 <p class="text-muted" style="max-width:300px;">Select a conversation from the sidebar to inspect the
                     transcript or intervene as administrator.</p>

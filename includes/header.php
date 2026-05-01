@@ -73,11 +73,11 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
         window.MARKETPLACE_BASE_URL = '<?= $baseUrl ?>';
     </script>
     <!-- Fonts loaded via CSS @import in style.css -->
-    <link rel="stylesheet" href="<?= getAssetUrl('assets/css/style.css?v=1.8') ?>">
+    <link rel="stylesheet" href="<?= getAssetUrl('assets/css/style.css?v=1.9') ?>">
 
     <!-- LOAD REACT ASSETS EVERYWHERE -->
-    <link rel="stylesheet" href="<?= getAssetUrl('assets/dist/app.css?v=1.8') ?>">
-    <script type="module" src="<?= getAssetUrl('assets/dist/app.js?v=1.8') ?>" onerror="console.error('Failed to load module')"></script>
+    <link rel="stylesheet" href="<?= getAssetUrl('assets/dist/app.css?v=1.9') ?>">
+    <script type="module" src="<?= getAssetUrl('assets/dist/app.js?v=1.9') ?>" onerror="console.error('Failed to load module')"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
 

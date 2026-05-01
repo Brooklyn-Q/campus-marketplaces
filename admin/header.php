@@ -341,15 +341,15 @@ $logoutLink = $realSiteRoot . '/logout.php';
             <div class="nav-links" id="main-nav">
                 <a href="index.php" class="nav-link" onclick="closeNav()">Dashboard</a>
                 <a href="users.php" class="nav-link" onclick="closeNav()">Users</a>
-                <a href="subscriptions.php" class="nav-link" onclick="closeNav()">💳 Subscriptions</a>
+                <a href="subscriptions.php" class="nav-link" onclick="closeNav()">Subscriptions</a>
                 <a href="products.php" class="nav-link" onclick="closeNav()">Moderation</a>
                 <a href="messages.php" class="nav-link" onclick="closeNav()">Messages</a>
                 <a href="index.php" class="nav-link" onclick="closeNav()">Alerts <span id="admin-notif-badge" style="<?= $adminUnreadNotifications > 0 ? '' : 'display:none;' ?>; margin-left:6px; background:#ff3b30; color:#fff; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;"><?= (int) $adminUnreadNotifications ?></span></a>
                 <a href="audit.php" class="nav-link" onclick="closeNav()">Audit Log</a>
-                <a href="analytics.php" class="nav-link" onclick="closeNav()">📊 Analytics</a>
-                <a href="ads.php" class="nav-link" onclick="closeNav()">📢 Ads</a>
+                <a href="analytics.php" class="nav-link" onclick="closeNav()">Analytics</a>
+                <a href="ads.php" class="nav-link" onclick="closeNav()">Ads</a>
                 <a href="settings.php" class="nav-link" onclick="closeNav()">Settings</a>
-                <a href="<?= $dashLink ?>" class="nav-link" onclick="closeNav()">🛒 Seller Dashboard</a>
+                <a href="<?= $dashLink ?>" class="nav-link" onclick="closeNav()">Seller Dashboard</a>
                 <a href="<?= $mainAppLink ?>" class="nav-link" onclick="closeNav()">Main App</a>
                 <a href="<?= $logoutLink ?>" class="nav-link-cta" onclick="closeNav()">Sign Out</a>
             </div>
