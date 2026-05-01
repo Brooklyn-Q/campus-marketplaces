@@ -4,11 +4,7 @@ $page_title = 'Omni Chat';
 // Load DB + session BEFORE header.php to handle POST redirects
 require_once '../includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
-
-if (!isAdmin()) {
-    http_response_code(403);
-    exit('Forbidden');
-}
+$adminAccess = ensureAdminPageAccess($pdo);
 
 $currentAdminId = (int) ($_SESSION['user_id'] ?? 0);
 $selected_u1 = (int) ($_GET['u1'] ?? $_POST['u1'] ?? 0);

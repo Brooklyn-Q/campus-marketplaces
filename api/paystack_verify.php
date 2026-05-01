@@ -16,61 +16,6 @@ function normalize_tier_name($tier): string
     return strtolower(trim((string)$tier));
 }
 
-function parse_tier_duration(string $duration): array
-{
-    $value = strtolower(trim($duration));
-
-    if ($value === '' || $value === '0' || $value === 'forever' || $value === 'lifetime') {
-        return ['modify' => null, 'label' => 'lifetime access'];
-    }
-
-    if ($value === 'weekly' || $value === '1_week') {
-        return ['modify' => '+1 week', 'label' => '1 week'];
-    }
-
-    if ($value === '2_weeks') {
-        return ['modify' => '+2 weeks', 'label' => '2 weeks'];
-    }
-
-    if (preg_match('/^(\d+)_weeks?$/', $value, $matches)) {
-        $weeks = max(1, (int)$matches[1]);
-        return ['modify' => '+' . $weeks . ' weeks', 'label' => $weeks . ' week' . ($weeks === 1 ? '' : 's')];
-    }
-
-    if (preg_match('/^(\d+)_months?$/', $value, $matches)) {
-        $months = max(1, (int)$matches[1]);
-        return ['modify' => '+' . $months . ' months', 'label' => $months . ' month' . ($months === 1 ? '' : 's')];
-    }
-
-    if (is_numeric($value)) {
-        $months = max(1, (int)$value);
-        return ['modify' => '+' . $months . ' months', 'label' => $months . ' month' . ($months === 1 ? '' : 's')];
-    }
-
-    return ['modify' => '+1 month', 'label' => '1 month'];
-}
-
-function next_tier_expiry(?string $currentExpiry, string $duration): ?string
-{
-    $parsed = parse_tier_duration($duration);
-    if ($parsed['modify'] === null) {
-        return null;
-    }
-
-    $base = new DateTimeImmutable('now');
-    if (!empty($currentExpiry)) {
-        try {
-            $existing = new DateTimeImmutable($currentExpiry);
-            if ($existing > $base) {
-                $base = $existing;
-            }
-        } catch (Exception $e) {
-        }
-    }
-
-    return $base->modify($parsed['modify'])->format('Y-m-d H:i:s');
-}
-
 if (!isLoggedIn()) {
     respond_json(['status' => 'error', 'message' => 'Unauthorized']);
 }
@@ -144,13 +89,19 @@ try {
         $nextExpiry = next_tier_expiry($currentTierData['tier_expires_at'] ?? null, (string)($targetTier['duration'] ?? ''));
         $durationLabel = parse_tier_duration((string)($targetTier['duration'] ?? ''))['label'];
 
+        $boolF = sqlBool(false, $pdo);
         $updateStmt = $pdo->prepare("
             UPDATE users
             SET seller_tier = ?,
-                tier_expires_at = ?
+                tier_expires_at = ?,
+                vacation_mode = $boolF
             WHERE id = ?
         ");
         $updateStmt->execute([$tier, $nextExpiry, $userId]);
+
+        // ── LOG SUBSCRIPTION (Phase 2) ──
+        $pdo->prepare("INSERT INTO tier_subscriptions (user_id, tier_name, amount, transaction_id, expires_at) VALUES (?, ?, ?, ?, ?)")
+            ->execute([$userId, $tier, $amount, $reference, $nextExpiry]);
 
         $description = ucfirst($tier) . ' Upgrade';
         if ($durationLabel !== '') {

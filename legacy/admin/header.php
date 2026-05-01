@@ -1,6 +1,18 @@
 <?php
 require_once '../includes/db.php';
-if (!isAdmin()) redirect('../index.php');
+if (!isAdmin()) {
+    header('Location: /login.php?mode=admin');
+    exit;
+}
+if (!is_admin_ip_allowed()) {
+    http_response_code(403);
+    exit('Access denied: your IP is not allowed for admin access.');
+}
+$admin2faVerified = filter_var($_SESSION['admin_2fa_verified'] ?? false, FILTER_VALIDATE_BOOLEAN);
+if (!$admin2faVerified) {
+    header('Location: /admin/verify_2fa.php');
+    exit;
+}
 $page_title = $page_title ?? 'Admin';
 ?>
 <!DOCTYPE html>

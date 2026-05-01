@@ -4,6 +4,7 @@ $page_title = 'Audit Log';
 // Handle POST redirect BEFORE header.php outputs HTML
 require_once '../includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
+$adminAccess = ensureAdminPageAccess($pdo);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['clear_logs'])) {
     check_csrf();

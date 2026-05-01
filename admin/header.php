@@ -11,9 +11,22 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once '../includes/db.php';
-if (!isAdmin())
-    redirect('../');
-$adminUnreadNotifications = getUnreadNotificationCount($pdo, $_SESSION['user_id']);
+
+if (!isset($adminUnreadNotifications, $adminUserId, $admin2faVerified)) {
+    $adminAccess = ensureAdminPageAccess($pdo);
+    $admin2faVerified = $adminAccess['admin_2fa_verified'];
+    $adminUserId = $adminAccess['admin_user_id'];
+    $adminUnreadNotifications = $adminAccess['admin_unread_notifications'];
+}
+
+// DEEP FIX: Calculate site root correctly since $baseUrl changes based on current directory
+$realSiteRoot = rtrim(dirname($baseUrl), '/\\');
+if ($realSiteRoot === '.' || $realSiteRoot === '/' || $realSiteRoot === '\\' || $realSiteRoot === '') {
+    $realSiteRoot = '';
+}
+$dashLink = $realSiteRoot . '/dashboard.php?view=seller';
+$mainAppLink = $realSiteRoot . '/';
+$logoutLink = $realSiteRoot . '/logout.php';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -47,6 +60,81 @@ $adminUnreadNotifications = getUnreadNotificationCount($pdo, $_SESSION['user_id'
             width: 96% !important;
             padding-left: 2rem;
             padding-right: 2rem;
+        }
+
+        /* ADMIN DASHBOARD ALIGNMENT FIXES */
+        .stat-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            padding: 1.5rem 1rem;
+            text-align: center;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 120px;
+            border-radius: 16px;
+        }
+
+        .stat-card .stat-val {
+            font-family: var(--font-heading, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+            font-size: 2rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+            color: var(--text-main);
+        }
+
+        .stat-card .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            font-weight: 600;
+            line-height: 1.2;
+            margin: 0;
+        }
+
+        .glass {
+            backdrop-filter: blur(12px);
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .dark-mode .glass {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        @media (max-width: 768px) {
+            .stat-grid {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 0.75rem;
+            }
+            .stat-card {
+                padding: 1rem 0.75rem;
+                min-height: 100px;
+            }
+            .stat-card .stat-val { font-size: 1.5rem; }
+            .stat-card .stat-label { font-size: 0.7rem; }
+        }
+
+        @media (max-width: 480px) {
+            .stat-grid {
+                grid-template-columns: 1fr;
+            }
         }
 
         /* FIX #5: Hide hamburger on desktop so it doesn't appear alongside the full nav */
@@ -179,6 +267,51 @@ $adminUnreadNotifications = getUnreadNotificationCount($pdo, $_SESSION['user_id'
             border-color: rgba(124, 58, 237, 0.22);
         }
 
+        @media (max-width: 992px) {
+            .admin-grid {
+                grid-template-columns: 1fr !important;
+                gap: 1rem !important;
+            }
+        }
+
+        /* SHARED RESPONSIVE TABLE STYLES */
+        @media (max-width: 768px) {
+            .responsive-table, .responsive-table thead, .responsive-table tbody, .responsive-table th, .responsive-table td, .responsive-table tr { 
+                display: block; 
+                width: 100% !important;
+            }
+            .responsive-table thead { display: none; }
+            .responsive-table tr {
+                background: rgba(255, 255, 255, 0.5);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                margin-bottom: 1rem;
+                padding: 1rem;
+                position: relative;
+            }
+            .responsive-table td {
+                border: none;
+                padding: 0.5rem 0;
+                text-align: left !important;
+                white-space: normal;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                font-size: 0.85rem;
+            }
+            .responsive-table td::before {
+                content: attr(data-label);
+                font-weight: 700;
+                color: var(--text-muted);
+                font-size: 0.7rem;
+                text-transform: uppercase;
+                margin-right: 1rem;
+            }
+            .dark-mode .responsive-table tr {
+                background: rgba(255, 255, 255, 0.03);
+            }
+        }
+
         .dark-mode nav {
             background: rgba(20, 20, 25, 0.88) !important;
         }
@@ -208,6 +341,7 @@ $adminUnreadNotifications = getUnreadNotificationCount($pdo, $_SESSION['user_id'
             <div class="nav-links" id="main-nav">
                 <a href="index.php" class="nav-link" onclick="closeNav()">Dashboard</a>
                 <a href="users.php" class="nav-link" onclick="closeNav()">Users</a>
+                <a href="subscriptions.php" class="nav-link" onclick="closeNav()">💳 Subscriptions</a>
                 <a href="products.php" class="nav-link" onclick="closeNav()">Moderation</a>
                 <a href="messages.php" class="nav-link" onclick="closeNav()">Messages</a>
                 <a href="index.php" class="nav-link" onclick="closeNav()">Alerts <span id="admin-notif-badge" style="<?= $adminUnreadNotifications > 0 ? '' : 'display:none;' ?>; margin-left:6px; background:#ff3b30; color:#fff; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;"><?= (int) $adminUnreadNotifications ?></span></a>
@@ -215,9 +349,9 @@ $adminUnreadNotifications = getUnreadNotificationCount($pdo, $_SESSION['user_id'
                 <a href="analytics.php" class="nav-link" onclick="closeNav()">📊 Analytics</a>
                 <a href="ads.php" class="nav-link" onclick="closeNav()">📢 Ads</a>
                 <a href="settings.php" class="nav-link" onclick="closeNav()">Settings</a>
-                <a href="../dashboard.php" class="nav-link" onclick="closeNav()">Seller Dashboard</a>
-                <a href="../" class="nav-link" onclick="closeNav()">Main App</a>
-                <a href="../logout.php" class="nav-link-cta" onclick="closeNav()">Sign Out</a>
+                <a href="<?= $dashLink ?>" class="nav-link" onclick="closeNav()">🛒 Seller Dashboard</a>
+                <a href="<?= $mainAppLink ?>" class="nav-link" onclick="closeNav()">Main App</a>
+                <a href="<?= $logoutLink ?>" class="nav-link-cta" onclick="closeNav()">Sign Out</a>
             </div>
 
             <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">

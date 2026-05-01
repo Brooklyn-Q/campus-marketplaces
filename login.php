@@ -16,6 +16,8 @@ purge_old_login_attempts($pdo);
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
+    $submittedMode = strtolower(trim($_POST['mode'] ?? $mode));
+    $submittedMode = in_array($submittedMode, ['login', 'admin'], true) ? $submittedMode : 'login';
     $login_id = trim($_POST['login_id'] ?? '');
     $password = $_POST['password'] ?? '';
 
@@ -25,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = "Too many failed login attempts. Please wait " . LOGIN_ATTEMPT_WINDOW . " minutes and try again.";
     } else {
         // Case-sensitive username check but insensitive email check
-        $stmt = $pdo->prepare("SELECT id, password, role, username, suspended, whatsapp_joined FROM users WHERE LOWER(email) = LOWER(?) OR username = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, password, role, username, suspended, whatsapp_joined, totp_enabled, email_verified_at FROM users WHERE LOWER(email) = LOWER(?) OR username = ? LIMIT 1");
         $stmt->execute([$login_id, $login_id]);
         $user = $stmt->fetch();
 
@@ -39,11 +41,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($isSuspended) {
                 $error = "⛔ Your account has been suspended. Contact admin for assistance.";
             } else {
-                clear_login_attempts($pdo, $_login_ip);
-                session_regenerate_id(true);
-                $_SESSION['user_id'] = $user['id'];
-                $_SESSION['username'] = $user['username'];
-                $_SESSION['role'] = $user['role'];
+                $isAdmin = ($user['role'] ?? '') === 'admin';
+                if ($isAdmin && $submittedMode !== 'admin') {
+                    $error = "Admin accounts must sign in via the dedicated admin login.";
+                } elseif (!$isAdmin && $submittedMode === 'admin') {
+                    $error = "This login is restricted to admin accounts only.";
+                } else {
+                    clear_login_attempts($pdo, $_login_ip);
+                    if ($isAdmin) {
+                        ensure_admin_2fa_schema($pdo);
+                        session_regenerate_id(true);
+                        $_SESSION['pending_admin_2fa_user_id'] = (int) $user['id'];
+                        $_SESSION['pending_admin_2fa_username'] = (string) $user['username'];
+                        $_SESSION['pending_admin_2fa_ip'] = $_login_ip;
+                        redirect('admin/verify_2fa.php');
+                    }
+                    
+                    // Check for User 2FA
+                    $userTotpEnabled = filter_var($user['totp_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                    if ($userTotpEnabled) {
+                        session_regenerate_id(true);
+                        $_SESSION['pending_2fa_user_id'] = (int) $user['id'];
+                        $_SESSION['pending_2fa_username'] = (string) $user['username'];
+                        $_SESSION['pending_2fa_ip'] = $_login_ip;
+                        $_SESSION['pending_2fa_role'] = (string) $user['role'];
+                        redirect('verify_2fa.php');
+                    }
+
+                    // Check for Email Verification
+                    $isAdminCheck = ($user['role'] ?? '') === 'admin';
+                    if (!$isAdminCheck && empty($user['email_verified_at'])) {
+                        session_regenerate_id(true);
+                        $_SESSION['user_id'] = $user['id'];
+                        $_SESSION['username'] = $user['username'];
+                        $_SESSION['role'] = $user['role'];
+                        redirect('verify_email.php?pending=1');
+                    }
+
+                    session_regenerate_id(true);
+                    $_SESSION['user_id'] = $user['id'];
+                    $_SESSION['username'] = $user['username'];
+                    $_SESSION['role'] = $user['role'];
+                    
+                    // Register session (Phase 3)
+                    registerUserSession($pdo, (int)$user['id']);
                 // Best-effort last_seen update. Do not block login when DB row is locked.
                 try {
                     $pdo->prepare("UPDATE users SET last_seen = NOW() WHERE id = ?")->execute([$user['id']]);
@@ -54,13 +95,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         throw $e;
                     }
                 }
-                // Non-admin users must have joined the WhatsApp channel
-                $isAdmin = ($user['role'] ?? '') === 'admin';
-                $hasJoined = filter_var($user['whatsapp_joined'] ?? false, FILTER_VALIDATE_BOOLEAN);
-                if (!$isAdmin && !$hasJoined) {
-                    redirect('whatsapp_join.php');
+                    // Non-admin users must have joined the WhatsApp channel
+                    $hasJoined = filter_var($user['whatsapp_joined'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                    if (!$isAdmin && !$hasJoined) {
+                        redirect('whatsapp_join.php');
+                    }
+                    redirect($isAdmin ? 'admin/' : 'dashboard.php');
                 }
-                redirect($isAdmin ? 'admin/' : 'dashboard.php');
             }
         } else {
             record_login_failure($pdo, $_login_ip, $login_id);
@@ -305,10 +346,18 @@ require_once 'includes/header.php';
 .auth-hero-dot.active { background: rgba(255,255,255,0.95); }
 .auth-hero-dot.mid { background: rgba(255,255,255,0.6); }
 
-@media (max-width: 640px) {
-    .auth-form-panel { padding: 1rem; align-items: flex-start; padding-top: 1.5rem; }
-    .auth-card-new { padding: 1.25rem; }
+@media (max-width: 1024px) {
+    .auth-page-root { flex-direction: column; height: auto; min-height: auto !important; }
+    .auth-form-panel { padding: 2rem 1rem; }
+    .auth-form-inner { max-width: 100%; }
+}
+
+@media (max-width: 768px) {
+    .auth-form-panel { padding: 1.5rem 1rem; align-items: flex-start; }
+    .auth-card-new { padding: 1.5rem 1.25rem; border-radius: 1.25rem; width: 100% !important; max-width: 100% !important; }
     .auth-title { font-size: 1.6rem; }
+    .auth-header { margin-bottom: 1.5rem; }
+    .auth-icon-wrap { width: 48px; height: 48px; margin-bottom: 0.75rem; }
 }
 </style>
 
@@ -331,6 +380,13 @@ require_once 'includes/header.php';
 
             <!-- Card -->
             <div class="auth-card-new fade-in">
+                <div style="background:rgba(124,58,237,0.06); border:1px solid rgba(124,58,237,0.12); border-radius:12px; padding:0.75rem 1rem; margin-bottom:1.5rem; display:flex; align-items:flex-start; gap:0.75rem;">
+                    <div style="background:var(--auth-primary); color:#fff; border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:0.7rem; margin-top:2px;">i</div>
+                    <p style="margin:0; font-size:0.82rem; color:var(--auth-text); line-height:1.4;">
+                        <strong>Security Reminder:</strong> Campus Marketplace staff will <u>never</u> ask for your password via WhatsApp or email.
+                    </p>
+                </div>
+
                 <?php if ($error): ?>
                     <div class="auth-alert auth-alert-error">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:2px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
@@ -346,6 +402,7 @@ require_once 'includes/header.php';
 
                 <form method="POST" id="loginForm">
                     <?= csrf_field() ?>
+                    <input type="hidden" name="mode" value="<?= htmlspecialchars($mode, ENT_QUOTES, 'UTF-8') ?>">
 
                     <div class="auth-field">
                         <label class="auth-label" for="login_id">Email or Username</label>

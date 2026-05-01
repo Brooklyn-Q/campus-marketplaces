@@ -64,18 +64,47 @@ async function collectReferencedAssets(buildDir) {
   const urlMap = {};
   console.log(`Uploading ${files.length} referenced media file(s) to Cloudinary...`);
 
+  const MAX_RETRIES = 3;
+  const failed = [];
+
   for (const rel of files) {
     const localPath = path.join(buildDir, rel);
-    const resp = await cloudinary.uploader.upload(localPath, {
-      folder: 'marketplace_assets',
-      public_id: rel.replace(/\.[^.]+$/, ''),
-      resource_type: /(?:mp4|webm|mp3|wav)$/i.test(rel) ? 'video' : 'image',
-    });
+    let uploaded = false;
 
-    urlMap[rel] = resp.secure_url;
-    console.log(`Uploaded ${rel} -> ${resp.secure_url}`);
+    for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const resp = await cloudinary.uploader.upload(localPath, {
+          folder: 'marketplace_assets',
+          public_id: rel.replace(/\.[^.]+$/, ''),
+          resource_type: /(?:mp4|webm|mp3|wav)$/i.test(rel) ? 'video' : 'image',
+        });
+        urlMap[rel] = resp.secure_url;
+        console.log(`Uploaded ${rel} -> ${resp.secure_url}`);
+        uploaded = true;
+        break;
+      } catch (err) {
+        const msg = err && err.message ? err.message : JSON.stringify(err);
+        console.error(`[attempt ${attempt}/${MAX_RETRIES}] Failed to upload ${rel}: ${msg}`);
+        if (attempt < MAX_RETRIES) {
+          await new Promise(r => setTimeout(r, 2000 * attempt));
+        }
+      }
+    }
+
+    if (!uploaded) {
+      failed.push(rel);
+      console.error(`Giving up on ${rel} after ${MAX_RETRIES} attempts.`);
+    }
+  }
+
+  if (failed.length > 0) {
+    console.error(`\nERROR: ${failed.length} file(s) failed to upload:\n  ${failed.join('\n  ')}`);
+    process.exit(1);
   }
 
   fs.writeFileSync(path.join(__dirname, 'cloudinary_map.json'), JSON.stringify(urlMap, null, 2));
   console.log('Cloudinary upload map written to cloudinary_map.json');
-})();
+})().catch(err => {
+  console.error('Cloudinary upload failed:', err && err.message ? err.message : err);
+  process.exit(1);
+});

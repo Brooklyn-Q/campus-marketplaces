@@ -2,7 +2,7 @@
 require_once 'includes/header.php';
 ?>
 
-<h2 style="font-size:1.4rem; margin-bottom:1rem;">🛒 Your Cart</h2>
+<h2 style="font-size:1.4rem; margin-bottom:1rem;">Your Cart</h2>
 
 <div id="cart-page-container" class="glass" style="padding:2rem;">
     <div id="cart-items" style="display:flex; flex-direction:column; gap:1rem;"></div>

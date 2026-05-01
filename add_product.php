@@ -102,7 +102,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("UPDATE users SET last_upload_at = NOW() WHERE id = ?")->execute([$user['id']]);
 
             $pdo->commit();
-            $success = "Product submitted for review. It will appear once admin approves.";
+            setFlashMessage('auth_success', "Product submitted for review. It will appear once admin approves.");
+            redirect('dashboard.php');
 
         } catch (Exception $e) {
             $pdo->rollBack();
@@ -158,16 +159,40 @@ require_once 'includes/header.php';
         </div>
         <div class="form-group">
             <label>Promo Tag <span style="color:var(--text-muted); font-weight:400; font-size:0.8rem;">(optional — makes your listing stand out)</span></label>
-            <select name="promo_tag" class="form-control">
-                <option value="">No promo tag</option>
-                <option value="🔥 Hot Deal">🔥 Hot Deal</option>
-                <option value="⚡ Flash Sale">⚡ Flash Sale</option>
-                <option value="⏳ Limited Offer">⏳ Limited Offer</option>
-                <option value="🎓 Student Special">🎓 Student Special</option>
-                <option value="📦 Bundle Deal">📦 Bundle Deal</option>
-                <option value="🏷️ Clearance">🏷️ Clearance</option>
+            <select name="promo_tag" class="form-control" id="promoTagSelect">
+                <option value="" data-icon="">No promo tag</option>
+                <option value="Hot Deal" data-icon="flame">Hot Deal</option>
+                <option value="Flash Sale" data-icon="zap">Flash Sale</option>
+                <option value="Limited Offer" data-icon="timer">Limited Offer</option>
+                <option value="Student Special" data-icon="graduation-cap">Student Special</option>
+                <option value="Bundle Deal" data-icon="package">Bundle Deal</option>
+                <option value="Clearance" data-icon="tag">Clearance</option>
             </select>
+            <div id="promoPreview" style="margin-top:0.5rem; display:none; align-items:center; gap:0.5rem; font-size:0.85rem; color:var(--primary);"></div>
         </div>
+        <script>
+        (function() {
+            const select = document.getElementById('promoTagSelect');
+            const preview = document.getElementById('promoPreview');
+            const icons = {
+                'flame': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-1.072-5.714-1-7 0 0-2.5 1.5-2.5 5 0 2.5 1 3.5 1.5 4.5.5 1 1.5 2.5 1.5 4.5a2.5 2.5 0 0 0 2.5 2.5c1.5 0 2.5-1 2.5-2.5 0-1.5-1-2.5-1.5-3.5-.5-1-1-2-1-3.5 0-1.5.5-2.5 1-3.5.5-1 1-2 1-3.5a2.5 2.5 0 0 0-2.5-2.5c-1.5 0-2.5 1-3 2.5-.5 1.5-.5 3-.5 4.5"/></svg>',
+                'zap': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
+                'timer': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></svg>',
+                'graduation-cap': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>',
+                'package': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7.5 4.27 9 5.15"/><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></svg>',
+                'tag': '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ec4899" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/></svg>'
+            };
+            select.addEventListener('change', function() {
+                const iconKey = this.options[this.selectedIndex].dataset.icon;
+                if (iconKey && icons[iconKey]) {
+                    preview.innerHTML = icons[iconKey] + ' <span>' + this.value + '</span>';
+                    preview.style.display = 'flex';
+                } else {
+                    preview.style.display = 'none';
+                }
+            });
+        })();
+        </script>
         <div class="form-row">
             <div class="form-group">
                 <label>Price (₵) *</label>

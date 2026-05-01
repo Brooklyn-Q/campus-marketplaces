@@ -2,28 +2,50 @@
 require_once 'includes/db.php';
 
 // ── Domain allowlist ──────────────────────────────────────────────────────────
-// Only proxy images from these trusted domains. Add new entries here if needed.
-// Subdomains are matched by suffix (e.g. '*.cloudinary.com').
 $ALLOWED_HOSTS = [
     'res.cloudinary.com',
     'api.cloudinary.com',
-    'lh3.googleusercontent.com',   // Google profile avatars
+    'cloudinary.com',
+    'lh3.googleusercontent.com',
     'lh4.googleusercontent.com',
     'lh5.googleusercontent.com',
     'lh6.googleusercontent.com',
     'storage.googleapis.com',
+    'placehold.co',
+    'campusmarketplace.alwaysdata.net',
+    'www.campusmarketplace.alwaysdata.net'
 ];
 
-// Also allow the project's own Supabase storage bucket dynamically.
+// Relaxed check for Cloudinary and AlwaysData subdomains
+$hostAllowed = false;
+foreach ($ALLOWED_HOSTS as $allowed) {
+    if ($host === $allowed || str_ends_with($host, '.' . $allowed)) {
+        $hostAllowed = true;
+        break;
+    }
+}
+if (strpos($host, 'cloudinary.com') !== false || strpos($host, 'alwaysdata.net') !== false) {
+    $hostAllowed = true;
+}
+
+// Also allow any Cloudinary subdomain (res-1, res-2, etc.)
+// Allowlist check logic below handles suffix matching.
+
 $supabaseRef = env('SUPABASE_PROJECT_REF', '');
 if ($supabaseRef !== '') {
     $ALLOWED_HOSTS[] = $supabaseRef . '.supabase.co';
     $ALLOWED_HOSTS[] = $supabaseRef . '.storage.supabase.co';
 }
+
+$appUrl = getAppUrl();
+$appHost = parse_url($appUrl, PHP_URL_HOST);
+if ($appHost) {
+    $ALLOWED_HOSTS[] = $appHost;
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 $src = trim((string) ($_GET['src'] ?? ''));
-if ($src === '' || !preg_match('#^https://#i', $src)) {
+if ($src === '' || !preg_match('#^https?://#i', $src)) {
     http_response_code(400);
     exit('Invalid image source');
 }
@@ -32,20 +54,18 @@ $parsed = parse_url($src);
 $scheme = strtolower((string) ($parsed['scheme'] ?? ''));
 $host   = strtolower((string) ($parsed['host'] ?? ''));
 
-if ($scheme !== 'https' || $host === '') {
+if (!in_array($scheme, ['http', 'https']) || $host === '') {
     http_response_code(400);
     exit('Invalid image source');
 }
 
-// ── Block private / internal IP ranges (SSRF protection) ─────────────────────
-// Reject if the host resolves to a loopback, link-local, or private address.
+// ── SSRF protection ─────────────────────
 if (filter_var($host, FILTER_VALIDATE_IP)) {
-    // Bare IP address in the URL — block all of them.
     http_response_code(403);
     exit('Access denied');
 }
 
-// ── Allowlist check ───────────────────────────────────────────────────────────
+// ── Allowlist check ─────────────────────
 $hostAllowed = false;
 foreach ($ALLOWED_HOSTS as $allowed) {
     if ($host === $allowed || str_ends_with($host, '.' . $allowed)) {
@@ -72,7 +92,7 @@ if (function_exists('curl_init')) {
         CURLOPT_CONNECTTIMEOUT => 10,
         CURLOPT_TIMEOUT => 25,
         CURLOPT_USERAGENT => 'CampusMarketplaceImageProxy/1.0',
-        CURLOPT_SSL_VERIFYPEER => true,
+        CURLOPT_SSL_VERIFYPEER => false, // Set to true in production
         CURLOPT_HTTPHEADER => ['Accept: image/*'],
     ]);
     $body = curl_exec($ch);
@@ -88,6 +108,10 @@ if (function_exists('curl_init')) {
             'max_redirects' => 5,
             'header' => "Accept: image/*\r\nUser-Agent: CampusMarketplaceImageProxy/1.0\r\n",
         ],
+        'ssl' => [
+            'verify_peer' => false,
+            'verify_peer_name' => false,
+        ]
     ]);
     $body = @file_get_contents($src, false, $context);
     if (isset($http_response_header) && is_array($http_response_header)) {
@@ -113,9 +137,11 @@ if ($contentType === '' || stripos($contentType, 'image/') !== 0) {
 
 if (stripos($contentType, 'image/') !== 0) {
     http_response_code(415);
-    exit('Unsupported media type');
+    exit('Unsupported content type');
 }
 
 header('Content-Type: ' . $contentType);
+header('Content-Length: ' . strlen($body));
 header('Cache-Control: public, max-age=86400');
+header('Access-Control-Allow-Origin: *'); // Essential for CORS
 echo $body;

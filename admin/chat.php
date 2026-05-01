@@ -4,6 +4,7 @@ $page_title = 'Omni Chat Dashboard';
 // Load DB + session BEFORE header.php to handle POST redirects
 require_once '../includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
+$adminAccess = ensureAdminPageAccess($pdo);
 
 // Auto-migrate schema for support messages
 try {

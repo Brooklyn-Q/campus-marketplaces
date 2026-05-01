@@ -48,22 +48,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $msg = "✅ Ad created successfully!";
         }
     }
-}
 
-// CSRF check added for GET actions
-if (isset($_GET['action'])) {
-    if (empty($_GET['token']) || $_GET['token'] !== $_SESSION['csrf_token']) {
-        die("❌ Security check failed. Please refresh and try again.");
-    }
-
-    $adId = (int) ($_GET['id'] ?? 0);
-    if ($_GET['action'] === 'toggle') {
-        $pdo->prepare("UPDATE ad_placements SET is_active = NOT is_active WHERE id = ?")->execute([$adId]);
-        $msg = "✅ Ad toggled.";
-    } elseif ($_GET['action'] === 'delete') {
-        // Option to delete physical file could be added here
-        $pdo->prepare("DELETE FROM ad_placements WHERE id = ?")->execute([$adId]);
-        $msg = "✅ Ad deleted.";
+    if (isset($_POST['ad_action'], $_POST['id'])) {
+        $adId = (int) ($_POST['id'] ?? 0);
+        $adAction = $_POST['ad_action'];
+        if ($adAction === 'toggle' && $adId > 0) {
+            $pdo->prepare("UPDATE ad_placements SET is_active = NOT is_active WHERE id = ?")->execute([$adId]);
+            $msg = "✅ Ad toggled.";
+        } elseif ($adAction === 'delete' && $adId > 0) {
+            // Option to delete physical file could be added here
+            $pdo->prepare("DELETE FROM ad_placements WHERE id = ?")->execute([$adId]);
+            $msg = "✅ Ad deleted.";
+        }
     }
 }
 
@@ -159,10 +155,18 @@ $ads = $pdo->query("SELECT * FROM ad_placements ORDER BY created_at DESC")->fetc
                         <td><?= number_format($ad['clicks']) ?></td>
                         <td><?= $ad['impressions'] > 0 ? round($ad['clicks'] / $ad['impressions'] * 100, 1) . '%' : '0%' ?></td>
                         <td style="display:flex; gap:0.3rem;">
-                            <a href="?action=toggle&id=<?= $ad['id'] ?>&token=<?= $_SESSION['csrf_token'] ?>"
-                                class="btn btn-sm btn-outline"><?= $ad['is_active'] ? 'Pause' : 'Activate' ?></a>
-                            <a href="?action=delete&id=<?= $ad['id'] ?>&token=<?= $_SESSION['csrf_token'] ?>"
-                                class="btn btn-sm btn-danger" onclick="return confirm('Delete this ad?')">Delete</a>
+                            <form method="POST" style="display:inline;">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="ad_action" value="toggle">
+                                <input type="hidden" name="id" value="<?= (int) $ad['id'] ?>">
+                                <button type="submit" class="btn btn-sm btn-outline"><?= $ad['is_active'] ? 'Pause' : 'Activate' ?></button>
+                            </form>
+                            <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this ad?')">
+                                <?= csrf_field() ?>
+                                <input type="hidden" name="ad_action" value="delete">
+                                <input type="hidden" name="id" value="<?= (int) $ad['id'] ?>">
+                                <button type="submit" class="btn btn-sm btn-danger">Delete</button>
+                            </form>
                         </td>
                     </tr>
                 <?php endforeach; ?>

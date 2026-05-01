@@ -667,6 +667,77 @@ tbody tr:hover {
     to   { opacity: 1; transform: translateY(0); }
 }
 
+/* ── Landscape phones: trigger mobile hamburger menu ── */
+@media (orientation: landscape) and (max-height: 500px) {
+    nav { padding: 0 0.75rem !important; }
+    .nav-links {
+        display: none !important;
+        position: absolute;
+        top: 58px;
+        left: 0;
+        right: 0;
+        height: auto;
+        max-height: calc(100vh - 58px);
+        border-radius: 0 0 24px 24px;
+        z-index: 999999;
+        flex-direction: column;
+        background: #ffffff;
+        padding: 1.25rem 1.5rem 2rem;
+        gap: 0.25rem;
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+        box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+        animation: mobileNavSlideIn 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    .nav-links.open { display: flex !important; }
+    .nav-links a:not(.btn) {
+        color: var(--text-main) !important;
+        font-size: 1.05rem !important;
+        font-weight: 500 !important;
+        padding: 0.75rem 1rem !important;
+        border-radius: 12px !important;
+        width: 100%;
+        text-decoration: none !important;
+        transition: background 0.15s !important;
+    }
+    .nav-links .btn {
+        margin: 0.5rem 0;
+        width: 100%;
+        justify-content: center;
+    }
+    .nav-links .nav-pill-link {
+        color: var(--text-muted) !important;
+        justify-content: flex-start;
+        padding-left: 1rem !important;
+    }
+    .nav-links a:hover,
+    .nav-links a:active {
+        background: rgba(0,0,0,0.05) !important;
+    }
+    .nav-links a::after { display: none; }
+    .nav-link-row,
+    .nav-action-group {
+        width: 100%;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.25rem;
+    }
+    .nav-action-group {
+        margin-left: 0;
+        margin-top: 0.75rem;
+        padding-top: 0.75rem;
+        border-top: 1px solid rgba(0,0,0,0.06);
+    }
+    .nav-action-group .btn,
+    .nav-action-group .nav-pill-link,
+    .react-liquid-btn-wrapper,
+    .react-liquid-btn-wrapper > div {
+        width: 100%;
+    }
+    .mobile-toggle { display: flex !important; align-items: center; justify-content: center; }
+    .nav-links .react-liquid-btn { margin-top: 0.5rem; }
+}
+
 /* Dark mode mobile nav */
 :root.dark-mode .nav-links {
     background: #1c1c1e !important;

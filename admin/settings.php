@@ -3,6 +3,7 @@
 // can run before any HTML is output — same pattern as admin/index.php.
 require_once '../includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
+$adminAccess = ensureAdminPageAccess($pdo);
 
 $msg = '';
 $err = '';
@@ -45,7 +46,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $err = 'Could not write backup file. Check server permissions.';
         }
     }
+
+    if (isset($_POST['update_whatsapp_code'])) {
+        $new_code = trim($_POST['whatsapp_code'] ?? '');
+        if ($new_code === '') {
+            $err = 'Verification code cannot be empty.';
+        } else {
+            // Using a cross-driver approach for "Upsert" (works on MySQL and PostgreSQL)
+            try {
+                $pdo->beginTransaction();
+                // Check if exists
+                $check = $pdo->prepare("SELECT 1 FROM site_settings WHERE setting_key = 'whatsapp_verification_code'");
+                $check->execute();
+                if ($check->fetch()) {
+                    $stmt = $pdo->prepare("UPDATE site_settings SET setting_value = ?, updated_at = NOW() WHERE setting_key = 'whatsapp_verification_code'");
+                    $stmt->execute([$new_code]);
+                } else {
+                    $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) VALUES ('whatsapp_verification_code', ?)");
+                    $stmt->execute([$new_code]);
+                }
+                $pdo->commit();
+                $msg = 'WhatsApp verification code updated successfully.';
+                auditLog($pdo, $_SESSION['user_id'], "Updated WhatsApp Verification Code to: $new_code", 'system', 0);
+            } catch (Exception $e) {
+                if ($pdo->inTransaction()) $pdo->rollBack();
+                $err = 'Database error: ' . $e->getMessage();
+            }
+        }
+    }
 }
+
+// Current WhatsApp Code
+$whatsapp_code = getSiteSetting($pdo, 'whatsapp_verification_code', 'CAMPUS_JOIN_2026');
 
 // Recent backups
 $backups = [];
@@ -146,6 +178,31 @@ require_once 'header.php';
         <?php endif; ?>
     </div>
 
+</div>
+
+<!-- Security Overview -->
+<div style="background:var(--bg-card,#1a1a2e); border:1px solid var(--border); border-radius:14px; padding:1.75rem; margin-bottom:1.5rem;">
+    <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-main); margin:0 0 1.25rem; display:flex; align-items:center; gap:0.5rem;">
+        📱 WhatsApp Verification
+    </h3>
+    <p style="color:var(--text-muted); font-size:0.87rem; margin:0 0 1.25rem; line-height:1.5;">
+        This code must be entered by new users before they can access the marketplace. Make sure to update your WhatsApp channel description or latest post whenever you change this.
+    </p>
+
+    <form method="POST" style="max-width:400px;">
+        <?= csrf_field() ?>
+        <div style="margin-bottom: 1rem;">
+            <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">Current Verification Code</label>
+            <input type="text" name="whatsapp_code" value="<?= htmlspecialchars($whatsapp_code) ?>" 
+                style="width: 100%; padding: 0.75rem 1rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 9px; color: var(--text-main); font-family: monospace; font-size: 1.1rem; font-weight: 700; letter-spacing: 0.05em;" 
+                required>
+        </div>
+        <button type="submit" name="update_whatsapp_code" 
+            style="padding: 0.75rem 1.5rem; background: var(--primary); color: #fff; border: none; border-radius: 9px; font-weight: 700; cursor: pointer; transition: opacity 0.2s;"
+            onmouseover="this.style.opacity='0.85'" onmouseout="this.style.opacity='1'">
+            Update Verification Code
+        </button>
+    </form>
 </div>
 
 <!-- Security Overview -->

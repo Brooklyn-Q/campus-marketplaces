@@ -14,10 +14,18 @@ if (!$product) redirect('index.php');
 $isOwner = isLoggedIn() && $_SESSION['user_id'] == $product['seller_id'];
 
 $canReview = false;
+$hasActiveOrder = false;
+$canContactSeller = false;
 if (isLoggedIn() && !$isOwner) {
     $reviewAccessStmt = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE product_id = ? AND buyer_id = ? AND status = 'completed'");
     $reviewAccessStmt->execute([$pid, $_SESSION['user_id']]);
     $canReview = ((int)$reviewAccessStmt->fetchColumn() > 0);
+
+    $activeCheckStmt = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE product_id = ? AND buyer_id = ? AND status IN ('ordered','seller_seen','delivered')");
+    $activeCheckStmt->execute([$pid, $_SESSION['user_id']]);
+    $hasActiveOrder = ((int)$activeCheckStmt->fetchColumn() > 0);
+
+    $canContactSeller = $hasActiveOrder || $canReview;
 }
 
 // 1. FORCED REVIEW BARRIER: Rule 10
@@ -304,14 +312,26 @@ require_once 'includes/header.php';
                     <!-- Contact Buttons -->
                     <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
                         <?php if(!empty($product['phone'])): ?>
-                            <a href="tel:<?= htmlspecialchars($product['phone']) ?>" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#fff; border:1px solid rgba(0,0,0,0.1); color:#1d1d1f; font-weight:600; padding:0.55rem 0.7rem; border-radius:10px; font-size:0.8rem; text-decoration:none; transition:all 0.2s;">
-                                📱 Call
-                            </a>
+                            <?php if($canContactSeller): ?>
+                                <a href="tel:<?= htmlspecialchars(preg_replace('/[^0-9+]/', '', $product['phone'])) ?>" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#fff; border:1px solid rgba(0,0,0,0.1); color:#1d1d1f; font-weight:600; padding:0.55rem 0.7rem; border-radius:10px; font-size:0.8rem; text-decoration:none; transition:all 0.2s;">
+                                    📱 Call
+                                </a>
+                            <?php else: ?>
+                                <span style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#fff; border:1px solid rgba(0,0,0,0.1); color:#aaa; font-weight:600; padding:0.55rem 0.7rem; border-radius:10px; font-size:0.8rem; cursor:not-allowed; opacity:0.5;" title="Confirm order first">
+                                    🔒 Call
+                                </span>
+                            <?php endif; ?>
                         <?php endif; ?>
                         <?php if(!empty($product['whatsapp'])): ?>
-                            <a href="https://wa.me/<?= preg_replace('/[^0-9]/', '', $product['whatsapp']) ?>" target="_blank" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#248a3d; color:#fff; font-weight:600; padding:0.55rem 0.7rem; border-radius:10px; font-size:0.8rem; text-decoration:none; border:none; transition:all 0.2s;">
-                                💬 WhatsApp
-                            </a>
+                            <?php if($canContactSeller): ?>
+                                <a href="<?= formatWhatsAppLink($product['whatsapp']) ?>" target="_blank" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#248a3d; color:#fff; font-weight:600; padding:0.55rem 0.7rem; border-radius:10px; font-size:0.8rem; text-decoration:none; border:none; transition:all 0.2s;">
+                                    💬 WhatsApp
+                                </a>
+                            <?php else: ?>
+                                <span style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#248a3d; color:#fff; font-weight:600; padding:0.55rem 0.7rem; border-radius:10px; font-size:0.8rem; border:none; cursor:not-allowed; opacity:0.5;" title="Confirm order first">
+                                    🔒 WhatsApp
+                                </span>
+                            <?php endif; ?>
                         <?php endif; ?>
                         <?php if(isLoggedIn() && !$isOwner): ?>
                             <a href="chat.php?user=<?= $product['seller_id'] ?>" style="flex:1; display:flex; align-items:center; justify-content:center; gap:4px; background:#7c3aed; color:#fff; font-weight:600; padding:0.55rem 0.7rem; border-radius:10px; font-size:0.8rem; text-decoration:none; border:none; transition:all 0.2s;">

@@ -15,9 +15,17 @@ if (!$product) redirect('dashboard.php');
 $imgUrl = $product['main_image']
     ? getAssetUrl('uploads/' . $product['main_image'])
     : 'https://placehold.co/600x600?text=No+Image';
-$renderImgUrl = preg_match('#^https?://#i', $imgUrl)
-    ? getAppUrl() . '/image_proxy.php?src=' . rawurlencode($imgUrl)
-    : $imgUrl;
+
+// Force absolute URL for proxy
+if (strpos($imgUrl, 'http') !== 0 && strpos($imgUrl, '//') !== 0) {
+    $imgUrl = rtrim(getAppUrl(), '/') . '/' . ltrim($imgUrl, '/');
+}
+if (strpos($imgUrl, '//') === 0) {
+    $imgUrl = 'https:' . $imgUrl;
+}
+
+// Always proxy to avoid CORS issues with html2canvas
+$renderImgUrl = rtrim(getAppUrl(), '/') . '/image_proxy.php?src=' . rawurlencode($imgUrl);
 
 require_once 'includes/header.php';
 ?>
@@ -72,8 +80,8 @@ require_once 'includes/header.php';
 
     <!-- Canvas area we will convert to image -->
     <div class="flyer-stage">
-    <div id="flyerCanvas" class="flyer-canvas">
-        <img id="flyerImage" src="<?= htmlspecialchars($renderImgUrl) ?>" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:1; opacity:0.8;">
+    <div id="flyerCanvas" class="flyer-canvas" style="background:#0f172a;">
+        <img id="flyerImage" src="<?= htmlspecialchars($renderImgUrl) ?>" crossorigin="anonymous" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; z-index:1;">
         
         <!-- Gradient overlay -->
         <div style="position:absolute; bottom:0; left:0; width:100%; height:60%; background:linear-gradient(transparent, rgba(15,23,42,0.95)); z-index:2;"></div>
@@ -106,13 +114,53 @@ require_once 'includes/header.php';
 
     <script>
     function downloadFlyer() {
+        const btn = event.currentTarget;
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '⌛ Generating...';
+
         const tgt = document.getElementById('flyerCanvas');
-        html2canvas(tgt, { useCORS: true, backgroundColor: '#0f172a', scale: Math.max(2, window.devicePixelRatio || 1) }).then(canvas => {
-            const link = document.createElement('a');
-            link.download = 'Flyer-<?= $product['id'] ?>.png';
-            link.href = canvas.toDataURL('image/png');
-            link.click();
-        });
+        
+        // Ensure image is fully loaded before capturing
+        const img = document.getElementById('flyerImage');
+        
+        const processCapture = () => {
+            html2canvas(tgt, { 
+                useCORS: true, 
+                allowTaint: false,
+                backgroundColor: '#0f172a', 
+                scale: 2,
+                logging: true 
+            }).then(canvas => {
+                try {
+                    const link = document.createElement('a');
+                    link.download = 'Flyer-<?= $product['id'] ?>.png';
+                    link.href = canvas.toDataURL('image/png');
+                    link.click();
+                } catch (e) {
+                    console.error('Canvas export failed:', e);
+                    alert('Could not generate image. This might be due to security restrictions on the product image.');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = originalText;
+                }
+            }).catch(err => {
+                console.error('html2canvas error:', err);
+                alert('Error generating flyer.');
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            });
+        };
+
+        if (img.complete) {
+            setTimeout(processCapture, 500);
+        } else {
+            img.onload = () => setTimeout(processCapture, 500);
+            img.onerror = () => {
+                alert('Failed to load product image. Flyer might be incomplete.');
+                setTimeout(processCapture, 500);
+            };
+        }
     }
     </script>
 </div>

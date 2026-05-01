@@ -81,7 +81,7 @@ require_once 'includes/header.php';
             echo '<p style="color:var(--text-muted); font-size:0.9rem; margin-bottom:0.75rem;">Seller: <strong>' . htmlspecialchars($i['username']) . '</strong></p>';
             echo '<div class="flex gap-1 flex-wrap">';
             if (!empty($i['phone'])) echo '<a href="tel:' . htmlspecialchars($i['phone']) . '" class="btn btn-outline btn-sm">📞 Call Seller</a>';
-            if (!empty($i['whatsapp'])) echo '<a href="https://wa.me/' . preg_replace('/[^0-9]/', '', $i['whatsapp']) . '" target="_blank" class="btn btn-success btn-sm" style="border:none;">💬 WhatsApp</a>';
+            if (!empty($i['whatsapp'])) echo '<a href="' . formatWhatsAppLink($i['whatsapp']) . '" target="_blank" class="btn btn-success btn-sm" style="border:none;">💬 WhatsApp</a>';
             if (isLoggedIn() && $_SESSION['user_id'] != $i['seller_id']) echo '<a href="chat.php?user=' . $i['seller_id'] . '" class="btn btn-primary btn-sm">✉️ Message in App</a>';
             echo '</div></div>';
         }

@@ -1,0 +1,38 @@
+🚀 DEPLOYMENT INSTRUCTIONS - RUN MANUALLY
+
+⚠️ AUTOMATION ISSUE: The deployment script requires password input, so it must be run manually.
+
+🎯 STEP 1: DEPLOY CODE
+1. Open File Explorer
+2. Navigate to: C:\xampp\htdocs\marketplace
+3. Double-click: deploy_to_alwaysdata.bat
+4. Enter your alwaysdata password when prompted
+5. Wait for completion (should show "Deployment finished!")
+
+🎯 STEP 2: DATABASE MIGRATION
+1. Open browser to: https://app.supabase.com/project/ontxylkqzojjqhzimrcg/sql
+2. Copy contents of: supabase_migration.sql
+3. Paste into SQL editor
+4. Click "Run"
+
+🎯 STEP 3: TEST FIXES
+1. Go to: https://campusmarketplace.alwaysdata.net/register.php
+2. Test profile picture upload (should show preview!)
+3. Test WhatsApp join flow
+4. Verify everything works
+
+✅ FILES BEING DEPLOYED:
+• register.php (profile picture preview)
+• whatsapp_join.php (enhanced validation)
+• edit_profile.php (default avatar fix)
+• assets/img/default-avatar.svg (new default avatar)
+• alwaysdata.env (Cloudinary credentials)
+
+🔧 WHAT'S HAPPENING:
+• Code uploads to alwaysdata via FTP
+• alwaysdata.env becomes .env on server
+• Cloudinary is configured as primary storage
+• Supabase gets new columns for features
+
+🎉 READY TO GO!
+Just double-click deploy_to_alwaysdata.bat and follow the prompts!

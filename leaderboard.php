@@ -267,7 +267,7 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
             <?php foreach($leaders as $index => $l): ?>
                 <?php 
                     $isTop3 = $index < 3; 
-                    $rankEmoji = ['🥇','🥈','🥉'][$index] ?? null;
+                    $rankEmoji = null;
                     $rankColor = $isTop3 ? $colors[$index] : 'var(--text-muted)';
                 ?>
                 <div class="leaderboard-grid" style="cursor:pointer;" onmouseover="this.style.background='rgba(124,58,237,0.04)'" onmouseout="this.style.background='transparent'" onclick="window.location.href='chat.php?user=<?= $l['id'] ?>'">
@@ -299,11 +299,11 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
                             <h4 class="seller-name">
                                 <?= htmlspecialchars($l['username']) ?>
                                 <?php if($l['seller_tier']==='premium'): ?>
-                                    <span class="tier-badge">⭐ Premium</span>
+                                    <span class="tier-badge">Premium</span>
                                 <?php endif; ?>
                             </h4>
                             <p class="seller-meta">
-                                <?= htmlspecialchars($l['department']) ?: 'Verified Seller' ?>
+                                <?= htmlspecialchars((string)($l['department'] ?? '')) ?: 'Verified Seller' ?>
                                 <?php if($l['verified']): ?>
                                     <span class="verified-badge">✓ Verified</span>
                                 <?php endif; ?>
@@ -326,8 +326,7 @@ $colors = ['#FFD700', '#C0C0C0', '#CD7F32']; // Gold, Silver, Bronze
             <?php endforeach; ?>
         <?php else: ?>
             <div style="padding:4rem; text-align:center; color:var(--text-muted);">
-                <span style="font-size:3rem; display:block; margin-bottom:1rem;">🏆</span>
-                <p style="font-size:1.1rem; font-weight:600;">The leaderboard is warming up...</p>
+                                <p style="font-size:1.1rem; font-weight:600;">The leaderboard is warming up...</p>
                 <p style="font-size:0.9rem; opacity:0.7;">Be the first to list and sell to claim your spot!</p>
             </div>
         <?php endif; ?>

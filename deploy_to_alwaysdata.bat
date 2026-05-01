@@ -114,6 +114,16 @@ if not exist "%APP_ZIP%" (
 )
 for %%I in ("%APP_ZIP%") do echo PHP package ready: %%~fI ^(%%~zI bytes^)
 
+:: Verify critical legacy admin files exist in app.zip before upload
+echo Verifying app.zip includes legacy admin files...
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ^
+    "Add-Type -AssemblyName System.IO.Compression.FileSystem; $zip = [IO.Compression.ZipFile]::OpenRead('%APP_ZIP%'); try { " ^
+    "$entry = $zip.Entries | Where-Object { $_.FullName -match '(^|[\\/])legacy[\\/]admin[\\/]header\.php$' } | Select-Object -First 1; " ^
+    "if (-not $entry) { Write-Host 'ERROR: legacy/admin/header.php not found in app.zip'; exit 1 } " ^
+    "Write-Host 'OK: legacy/admin/header.php found in app.zip' " ^
+    "} finally { if ($zip) { $zip.Dispose() } }"
+if errorlevel 1 goto :error
+
 if "%SKIP_REMOTE%"=="1" (
     echo Packaging verification completed. Skipping AlwaysData upload and extraction.
     goto :success
@@ -203,17 +213,67 @@ echo   #12 Messages IDOR fixed
 echo   #13 Open redirect blocked
 echo   #14 display_errors off in production
 echo   #15 Dev/migration scripts deleted
+echo   #16 Admin 2FA setup with QR code support
+echo   #17 User-level 2FA and Security Dashboard
+echo   #18 Strong password enforcement (12+ chars)
+echo   #19 Mandatory Email Verification before account activation
+echo   #20 Session Tracking and Device Management
+echo   #21 New Login Email Alerts (Anti-phishing)
+echo   #22 Global Error Hardening (Hidden live errors + professional fallback)
+echo   #23 WhatsApp Channel Verification Code logic
+echo   #24 Admin Settings Tool for global configuration
+echo   #25 Google Sign-in 2FA and security integration
+echo   #26 Fixed email verification and password reset links (AlwaysData /backend fix)
+echo   #27 Fixed Admin Settings SQL crash (PostgreSQL compatibility)
+echo   #28 Profile edit and product add redirect to dashboard
+echo   #29 Global WhatsApp link integration for phone numbers
+echo   #30 Automatic Tier Downgrade ^& Vacation Mode Logic
+echo   #31 Tier Subscription Ledger for Admin financial records
+echo   #32 Paystack-to-Tier synchronization hardening
+echo   #33 Manual Admin Upgrade sync with Subscription Ledger
+echo   #34 Fixed Tier Subscription table creation for PostgreSQL
+echo   #35 Support Lifetime access in Ledger and Dashboard
+echo   #36 Unified Tier Duration logic across system (Manual + Automated)
+echo   #37 Professional Responsive Admin Tables (Card View on Mobile)
+echo   #38 Restored Admin's Personal Seller Dashboard Navigation (Dynamic Deep Fix)
+echo   #39 Professional Responsive Seller Dashboard (Mobile Optimization)
 echo.
 echo UI IMPROVEMENTS NOW LIVE:
 echo   - Profile pic preview on registration
 echo   - Leaderboard styling and badges
 echo   - WhatsApp join form validation
 echo   - Default avatar updated to SVG
+echo   - Admin 2FA QR code generator
+echo   - User Security settings page
+echo   - Email Verification flow (Fixed AlwaysData endpoint)
+echo   - Active Sessions management UI
+echo   - Login security banners
+echo   - Professional 500 error screen
+echo   - WhatsApp Verification Code UI
+echo   - Admin Site Settings dashboard
+echo   - Clickable WhatsApp numbers across site
+echo   - Auto-redirects after profile/product updates
+echo   - Fixed navbar overflow in mobile landscape view
+echo   - Fixed all broken WhatsApp links (channel URL + country code handling)
+echo   - Updated WhatsApp channel to Campus Marketplace_TTU
+echo   - Confirm Order flow: buyer must order before Phone/WhatsApp unlock
+echo   - Phone button now calls seller (tel:) instead of WhatsApp
+echo   - Auto chat message sent to seller on order confirmation
+echo   - Sellers now see "My Orders" if they buy from other sellers
+echo   - Confirm Item Received: hardened with try/catch (no more 500s from email/notification failures)
+echo   - Buyers can re-order the same product after a completed order (shows "Order Again")
+echo   - Admin: Click username to view full user profile with all registration credentials
+echo   - UI refresh: removed glassmorphism from default cards (less AI-generated feel)
+echo   - Unified brand palette: all Apple-blue hex values swapped for consistent purple (#7c3aed)
+echo   - Fixed missing } in style.css that was nesting desktop CSS inside a mobile media query
+echo   - Subscription countdown timer on Dashboard
+echo   - Admin Subscription Ledger dashboard
 echo.
 echo NEXT STEPS:
 echo   1. Visit site and test login, register, checkout
 echo   2. Rotate secrets: Cloudinary, Paystack, DB password, JWT
 echo   3. Check AlwaysData error logs for any PHP errors
+echo   4. Verify Tier expiry logic on a test account
 echo ========================================================
 
 :success
@@ -264,3 +324,4 @@ echo Deployment failed.
 if defined ARTIFACT_DIR if exist "%ARTIFACT_DIR%" echo Debug artifacts kept at: %ARTIFACT_DIR%
 if not "%SKIP_REMOTE%"=="1" pause
 exit /b 1
+

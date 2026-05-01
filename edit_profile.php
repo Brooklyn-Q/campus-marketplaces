@@ -88,7 +88,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($changes_submitted > 0) {
-        $success = "✅ Your profile changes ({$changes_submitted} field" . ($changes_submitted > 1 ? 's' : '') . ") have been submitted for Administrator approval.";
+        setFlashMessage('auth_success', "✅ Your profile changes ({$changes_submitted} field" . ($changes_submitted > 1 ? 's' : '') . ") have been submitted for Administrator approval.");
+        redirect('dashboard.php');
     } else {
         $success = "No changes detected. Your profile is up to date.";
     }

@@ -1,0 +1,150 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Full Deploy (AlwaysData)",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": []
+        },
+        {
+            "label": "Package Only (No Upload)",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "--package-only"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Verify Package",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "--verify-package"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Patch: Deploy Recent Fixes",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "recent-fixes"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Patch: Deploy Header Only",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "header-only"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Patch: Deploy Login Only",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "login-only"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Patch: Admin Settings Only",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "admin-settings"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Patch: Auth & Notifications",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "auth-notifications"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Patch: Google Choice Fix",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "google-choice"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Patch: Nav & PGSQL Fix",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "nav-pgsql"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Patch: PGSQL Prepare Fix",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "pgsql-prepare"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Patch: Production Env Google",
+            "type": "shell",
+            "command": ".\\deploy.alwaysdata.bat",
+            "args": [
+                "prod-env"
+            ],
+            "problemMatcher": []
+        },
+        {
+            "label": "Quick Deploy (WinSCP)",
+            "type": "shell",
+            "command": ".\\QUICK_DEPLOY.bat",
+            "problemMatcher": []
+        },
+        {
+            "label": "Clear Remote Cache",
+            "type": "shell",
+            "command": ".\\deploy_cache_clearer.bat",
+            "problemMatcher": []
+        },
+        {
+            "label": "Test FTP Connection",
+            "type": "shell",
+            "command": ".\\test_connection.bat",
+            "problemMatcher": []
+        },
+        {
+            "label": "Diagnostic: Check FTP (List)",
+            "type": "shell",
+            "command": ".\\check_ftp.bat",
+            "problemMatcher": []
+        },
+        {
+            "label": "Diagnostic: Trace Deployment",
+            "type": "shell",
+            "command": ".\\_trace_deploy.cmd",
+            "problemMatcher": []
+        },
+        {
+            "label": "Diagnostic: Verify Packaging",
+            "type": "shell",
+            "command": ".\\_verify_packaging.cmd",
+            "problemMatcher": []
+        }
+    ]
+}

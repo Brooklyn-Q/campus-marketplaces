@@ -1,0 +1,36 @@
+🚀 CAMPUS MARKETPLACE DEPLOYMENT INSTRUCTIONS
+
+Your deployment files are now configured and ready!
+
+🎯 WHAT TO DO RIGHT NOW:
+
+1️⃣  RUN THE QUICK DEPLOY SCRIPT:
+   • Double-click: QUICK_DEPLOY.bat
+   • Enter your alwaysdata username
+   • Follow the prompts
+
+2️⃣  RUN DATABASE MIGRATION:
+   • Go to alwaysdata admin panel
+   • PostgreSQL → SQL interface
+   • Copy contents of: deploy_database_migration.sql
+   • Execute
+
+3️⃣  TEST YOUR FIXES:
+   • Go to: https://campusmarketplace.alwaysdata.net/register.php
+   • Try registering as a seller
+   • Upload a profile picture → should see preview!
+   • Test WhatsApp join flow
+
+✅ FILES THAT WILL BE DEPLOYED:
+   • register.php (profile picture preview)
+   • whatsapp_join.php (enhanced validation)  
+   • edit_profile.php (default avatar fix)
+   • assets/img/default-avatar.svg (new default avatar)
+
+🔧 IF YOU NEED HELP:
+   • Check deploy_log.txt for upload details
+   • All documentation files are in this folder
+   • Your domain: campusmarketplace.alwaysdata.net
+
+🎉 READY TO GO!
+Just run QUICK_DEPLOY.bat and follow the prompts!

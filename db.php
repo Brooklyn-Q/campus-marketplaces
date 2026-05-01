@@ -1,5 +1,12 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) {
+    // Fix: Use local sessions folder to avoid XAMPP tmp permission issues
+    $sessionPath = __DIR__ . '/sessions';
+    if (!is_dir($sessionPath)) {
+        mkdir($sessionPath, 0777, true);
+    }
+    session_save_path($sessionPath);
+
     $isHttps = (
         (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https')
@@ -14,6 +21,52 @@ if (session_status() === PHP_SESSION_NONE) {
         'samesite' => 'Lax',
     ]);
     session_start();
+}
+
+// ── Site Configuration ──
+function getSiteSetting(PDO $pdo, string $key, $default = null) {
+    try {
+        $stmt = $pdo->prepare("SELECT setting_value FROM site_settings WHERE setting_key = ? LIMIT 1");
+        $stmt->execute([$key]);
+        $val = $stmt->fetchColumn();
+        return $val !== false ? $val : $default;
+    } catch (PDOException $e) {
+        return $default;
+    }
+}
+
+// ── Global Error Handling (Hardening) ──
+$app_env = getenv('APP_ENV') ?: 'production'; // Default to production for safety
+
+if ($app_env === 'production') {
+    // Hide errors from users on the live site
+    ini_set('display_errors', '0');
+    ini_set('display_startup_errors', '0');
+    error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
+    
+    // Log errors in the background instead
+    ini_set('log_errors', '1');
+    // Ensure logs directory exists
+    $log_path = __DIR__ . '/logs/error.log';
+    if (!is_dir(__DIR__ . '/logs')) {
+        @mkdir(__DIR__ . '/logs', 0755, true);
+    }
+    ini_set('error_log', $log_path);
+
+    // Professional Fallback Screen for Fatal Errors
+    set_exception_handler(function($e) {
+        error_log($e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
+        http_response_code(500);
+        if (!headers_sent()) {
+            header('Content-Type: text/html; charset=utf-8');
+        }
+        die('<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Something went wrong | Campus Marketplace</title><style>body{background:#0a0f1e;color:#fff;font-family:system-ui,-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center;}.card{background:rgba(255,255,255,0.03);backdrop-filter:blur(20px);padding:3rem;border-radius:24px;border:1px solid rgba(255,255,255,0.1);max-width:450px;box-shadow:0 40px 100px rgba(0,0,0,0.4);}h1{font-size:2rem;margin:0;color:#7c3aed;}p{color:rgba(255,255,255,0.6);line-height:1.6;margin-top:1rem;font-size:1.1rem;}.btn{display:inline-block;margin-top:2rem;padding:10px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:99px;font-weight:700;transition:opacity 0.2s;}.btn:hover{opacity:0.9;}</style></head><body><div class="card"><h1>Ouch! Something went wrong.</h1><p>Our engineers have been notified and are looking into it. Please try again in a few moments.</p><a href="/" class="btn">Back to Home</a></div></body></html>');
+    });
+} else {
+    // Show everything during development
+    ini_set('display_errors', '1');
+    ini_set('display_startup_errors', '1');
+    error_reporting(E_ALL);
 }
 
 $host = env('DB_HOST', 'localhost');
@@ -126,6 +179,47 @@ function isLoggedIn(): bool {
 
 function isAdmin(): bool {
     return isset($_SESSION['role']) && $_SESSION['role'] === 'admin';
+}
+
+function ensureAdminPageAccess(PDO $pdo, bool $requireTwoFactor = true): array
+{
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+
+    if (!isAdmin()) {
+        redirect('login.php');
+    }
+
+    if (!is_admin_ip_allowed()) {
+        http_response_code(403);
+        exit('Access denied: your IP is not allowed for admin access.');
+    }
+
+    $admin2faVerified = filter_var($_SESSION['admin_2fa_verified'] ?? false, FILTER_VALIDATE_BOOLEAN);
+    if ($requireTwoFactor && !$admin2faVerified) {
+        header('Location: verify_2fa.php');
+        exit;
+    }
+
+    $adminTimeoutSeconds = 1800; // 30 minutes idle timeout for admin sessions
+    $adminLastActivity = (int) ($_SESSION['admin_last_activity'] ?? 0);
+    if ($adminLastActivity > 0 && (time() - $adminLastActivity) > $adminTimeoutSeconds) {
+        session_unset();
+        session_destroy();
+        header('Location: login.php?expired=1');
+        exit;
+    }
+
+    $_SESSION['admin_last_activity'] = time();
+
+    $adminUserId = (int) ($_SESSION['user_id'] ?? 0);
+
+    return [
+        'admin_2fa_verified' => $admin2faVerified,
+        'admin_user_id' => $adminUserId,
+        'admin_unread_notifications' => getUnreadNotificationCount($pdo, $adminUserId),
+    ];
 }
 
 function isSeller(): bool {
@@ -280,6 +374,43 @@ function getAppUrl(): string {
     return $cached = $scheme . '://' . $host . $suffix;
 }
 
+/**
+ * Returns the public root URL of the site, stripped of any /api suffix.
+ * Used for email links and other public-facing URLs that should point
+ * to the root PHP files, not the backend API router.
+ */
+function getSiteRootUrl(): string {
+    $url = getAppUrl();
+    // If APP_URL is configured with /api, strip it
+    if (str_ends_with($url, '/api')) {
+        return substr($url, 0, -4);
+    }
+    // If APP_URL is configured with /backend (AlwaysData default), strip it
+    if (str_ends_with($url, '/backend')) {
+        return substr($url, 0, -8);
+    }
+    return $url;
+}
+
+/**
+ * Formats a phone number into a clickable WhatsApp link.
+ * Handles +233, 0..., and raw numbers.
+ */
+function formatWhatsAppLink(?string $phone): string {
+    if (!$phone) return '#';
+    // Remove everything except numbers
+    $clean = preg_replace('/[^0-9]/', '', $phone);
+    // If it starts with 0 and is 10 digits, assume Ghana and prefix with 233
+    if (str_starts_with($clean, '0') && strlen($clean) === 10) {
+        $clean = '233' . substr($clean, 1);
+    }
+    // If it doesn't have a country code but is 9 digits, assume Ghana
+    if (strlen($clean) === 9) {
+        $clean = '233' . $clean;
+    }
+    return "https://wa.me/" . $clean;
+}
+
 function googleSignInEnabled(): bool {
     return trim((string) env('GOOGLE_CLIENT_ID', '')) !== '';
 }
@@ -310,7 +441,33 @@ function ensureFeatureSupportSchema(PDO $pdo): void {
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS browser_notifications BOOLEAN NOT NULL DEFAULT TRUE");
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP NULL");
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_joined BOOLEAN NOT NULL DEFAULT FALSE");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token VARCHAR(100)");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(64)");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled BOOLEAN NOT NULL DEFAULT FALSE");
+        
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS user_sessions (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            session_id VARCHAR(128) NOT NULL,
+            ip_address VARCHAR(45) NOT NULL,
+            user_agent TEXT,
+            last_activity TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )");
+        runSchemaStatement($pdo, "CREATE INDEX IF NOT EXISTS idx_user_sessions_user_id ON user_sessions (user_id)");
+        runSchemaStatement($pdo, "CREATE INDEX IF NOT EXISTS idx_user_sessions_session_id ON user_sessions (session_id)");
+
         runSchemaStatement($pdo, "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_google_id ON users (google_id)");
+
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS site_settings (
+            setting_key VARCHAR(50) PRIMARY KEY,
+            setting_value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
+
+        // Seed default WhatsApp verification code if not exists
+        $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) SELECT 'whatsapp_verification_code', 'CAMPUS_JOIN_2026' WHERE NOT EXISTS (SELECT 1 FROM site_settings WHERE setting_key = 'whatsapp_verification_code')");
+        $stmt->execute();
 
         runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS password_reset_tokens (
             id SERIAL PRIMARY KEY,
@@ -389,7 +546,33 @@ function ensureFeatureSupportSchema(PDO $pdo): void {
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS browser_notifications TINYINT(1) NOT NULL DEFAULT 1");
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified_at DATETIME NULL");
         runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS whatsapp_joined TINYINT(1) NOT NULL DEFAULT 0");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verification_token VARCHAR(100) NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret VARCHAR(64) NULL");
+        runSchemaStatement($pdo, "ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_enabled TINYINT(1) NOT NULL DEFAULT 0");
+
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS user_sessions (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            session_id VARCHAR(128) NOT NULL,
+            ip_address VARCHAR(45) NOT NULL,
+            user_agent TEXT,
+            last_activity TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user_id (user_id),
+            INDEX idx_session_id (session_id)
+        ) ENGINE=InnoDB");
+
         runSchemaStatement($pdo, "CREATE UNIQUE INDEX idx_users_google_id ON users (google_id)");
+
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS site_settings (
+            setting_key VARCHAR(50) PRIMARY KEY,
+            setting_value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB");
+
+        // Seed default WhatsApp verification code if not exists
+        $stmt = $pdo->prepare("INSERT IGNORE INTO site_settings (setting_key, setting_value) VALUES ('whatsapp_verification_code', 'CAMPUS_JOIN_2026')");
+        $stmt->execute();
 
         runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS password_reset_tokens (
             id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
@@ -456,7 +639,56 @@ function ensureFeatureSupportSchema(PDO $pdo): void {
         runSchemaStatement($pdo, "ALTER TABLE ad_placements ADD COLUMN IF NOT EXISTS image_url TEXT NULL");
         runSchemaStatement($pdo, "UPDATE ad_placements SET image_path = COALESCE(NULLIF(image_path, ''), image_url, '')");
         runSchemaStatement($pdo, "ALTER TABLE products ADD COLUMN IF NOT EXISTS promo_tag VARCHAR(50) DEFAULT ''");
+
+        // CROSS-DRIVER: Site Settings table (MySQL + PostgreSQL)
+        runSchemaStatement($pdo, "CREATE TABLE IF NOT EXISTS site_settings (
+            setting_key VARCHAR(50) PRIMARY KEY,
+            setting_value TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )");
     }
+
+    // CROSS-DRIVER: Tier Subscriptions table for Admin Visibility (PostgreSQL + MySQL)
+    $subTableSql = ($driver === 'pgsql')
+        ? "CREATE TABLE IF NOT EXISTS tier_subscriptions (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL,
+            tier_name VARCHAR(50) NOT NULL,
+            amount DECIMAL(10,2) NOT NULL,
+            transaction_id VARCHAR(100) NOT NULL,
+            purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at TIMESTAMP NULL,
+            status VARCHAR(20) DEFAULT 'active'
+        )"
+        : "CREATE TABLE IF NOT EXISTS tier_subscriptions (
+            id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            user_id INT NOT NULL,
+            tier_name VARCHAR(50) NOT NULL,
+            amount DECIMAL(10,2) NOT NULL,
+            transaction_id VARCHAR(100) NOT NULL,
+            purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            expires_at DATETIME NULL,
+            status VARCHAR(20) DEFAULT 'active'
+        ) ENGINE=InnoDB";
+
+    runSchemaStatement($pdo, $subTableSql);
+
+    // DEEP FIX: Ensure expires_at is nullable in existing tables
+    if ($driver === 'pgsql') {
+        runSchemaStatement($pdo, "ALTER TABLE tier_subscriptions ALTER COLUMN expires_at DROP NOT NULL");
+    } else {
+        runSchemaStatement($pdo, "ALTER TABLE tier_subscriptions MODIFY expires_at DATETIME NULL");
+    }
+    runSchemaStatement($pdo, "CREATE INDEX IF NOT EXISTS idx_tier_subs_user ON tier_subscriptions(user_id)");
+    runSchemaStatement($pdo, "CREATE INDEX IF NOT EXISTS idx_tier_subs_expiry ON tier_subscriptions(expires_at)");
+
+    // Seed default WhatsApp verification code if not exists
+    if ($driver === 'pgsql') {
+        $stmt = $pdo->prepare("INSERT INTO site_settings (setting_key, setting_value) SELECT 'whatsapp_verification_code', 'CAMPUS_JOIN_2026' WHERE NOT EXISTS (SELECT 1 FROM site_settings WHERE setting_key = 'whatsapp_verification_code')");
+    } else {
+        $stmt = $pdo->prepare("INSERT IGNORE INTO site_settings (setting_key, setting_value) VALUES ('whatsapp_verification_code', 'CAMPUS_JOIN_2026')");
+    }
+    $stmt->execute();
 
     $ready = true;
 }
@@ -612,6 +844,70 @@ function consumePasswordResetToken(PDO $pdo, string $selector): void {
         ->execute([date('Y-m-d H:i:s'), $selector]);
 }
 
+/**
+ * Parses a duration string (e.g., 'weekly', '2_weeks', '3_months', 'forever')
+ * and returns a modification string for DateTime::modify() and a human-friendly label.
+ */
+function parse_tier_duration(string $duration): array
+{
+    $value = strtolower(trim($duration));
+
+    if ($value === '' || $value === '0' || $value === 'forever' || $value === 'lifetime') {
+        return ['modify' => null, 'label' => 'lifetime access'];
+    }
+
+    if ($value === 'weekly' || $value === '1_week') {
+        return ['modify' => '+1 week', 'label' => '1 week'];
+    }
+
+    if ($value === '2_weeks') {
+        return ['modify' => '+2 weeks', 'label' => '2 weeks'];
+    }
+
+    if (preg_match('/^(\d+)_weeks?$/', $value, $matches)) {
+        $weeks = max(1, (int)$matches[1]);
+        return ['modify' => '+' . $weeks . ' weeks', 'label' => $weeks . ' week' . ($weeks === 1 ? '' : 's')];
+    }
+
+    if (preg_match('/^(\d+)_months?$/', $value, $matches)) {
+        $months = max(1, (int)$matches[1]);
+        return ['modify' => '+' . $months . ' months', 'label' => $months . ' month' . ($months === 1 ? '' : 's')];
+    }
+
+    if (is_numeric($value)) {
+        $months = max(1, (int)$value);
+        return ['modify' => '+' . $months . ' months', 'label' => $months . ' month' . ($months === 1 ? '' : 's')];
+    }
+
+    return ['modify' => '+1 month', 'label' => '1 month'];
+}
+
+/**
+ * Calculates the next expiry date based on the current expiry and a duration string.
+ * If current expiry is in the future, the new duration is added to it.
+ * Otherwise, it's added to 'now'.
+ */
+function next_tier_expiry(?string $currentExpiry, string $duration): ?string
+{
+    $parsed = parse_tier_duration($duration);
+    if ($parsed['modify'] === null) {
+        return null;
+    }
+
+    $base = new DateTimeImmutable('now');
+    if (!empty($currentExpiry)) {
+        try {
+            $existing = new DateTimeImmutable($currentExpiry);
+            if ($existing > $base) {
+                $base = $existing;
+            }
+        } catch (Exception $e) {
+        }
+    }
+
+    return $base->modify($parsed['modify'])->format('Y-m-d H:i:s');
+}
+
 if ($pdo instanceof PDO) {
     ensureFeatureSupportSchema($pdo);
 }
@@ -654,13 +950,101 @@ function getUnreadNotificationCount(PDO $pdo, int $userId): int {
 
 function updateLastSeen(PDO $pdo, int $userId): void {
     try {
+        // ── AUTO-DOWNGRADE LOGIC (Phase 2 Hardening) ──
+        $stmt_exp = $pdo->prepare("SELECT seller_tier, tier_expires_at FROM users WHERE id = ? LIMIT 1");
+        $stmt_exp->execute([$userId]);
+        $u_exp = $stmt_exp->fetch();
+
+        if ($u_exp && $u_exp['seller_tier'] !== 'basic' && !empty($u_exp['tier_expires_at'])) {
+            if (strtotime($u_exp['tier_expires_at']) < time()) {
+                // Tier has expired!
+                $oldTier = $u_exp['seller_tier'];
+                $boolT = sqlBool(true, $pdo);
+                $pdo->prepare("UPDATE users SET seller_tier = 'basic', tier_expires_at = NULL, vacation_mode = $boolT WHERE id = ?")
+                    ->execute([$userId]);
+                
+                // Create a notification for the user
+                createNotification($pdo, $userId, 'admin_alert', 'Your subscription has expired. Your account has been set to Basic and Vacation Mode has been enabled.', null, ['title' => 'Subscription Expired']);
+                
+                // Log the event in security_logs
+                $log = $pdo->prepare("INSERT INTO security_logs (event_type, description, user_id, ip_address) VALUES (?, ?, ?, ?)");
+                $log->execute([
+                    'tier_expired', 
+                    "User's {$oldTier} tier expired. Automatically downgraded to basic and enabled vacation mode.",
+                    $userId,
+                    $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'
+                ]);
+
+                // Notify user via flash message
+                if (function_exists('setFlashMessage')) {
+                    setFlashMessage('error', 'Your subscription has expired. Your account has been set to Vacation Mode and downgraded to Basic.');
+                }
+            }
+        }
+
         $pdo->prepare("UPDATE users SET last_seen = ? WHERE id = ?")->execute([date('Y-m-d H:i:s'), $userId]);
+        
+        // Also update session activity
+        $sid = session_id();
+        if ($sid !== '') {
+            $pdo->prepare("UPDATE user_sessions SET last_activity = NOW() WHERE session_id = ? AND user_id = ?")
+                ->execute([$sid, $userId]);
+        }
     } catch (PDOException $e) {
         // Frequent heartbeat writes can hit lock waits; keep requests non-blocking.
         $errorCode = (int)($e->errorInfo[1] ?? 0);
         if ($errorCode !== 1205 && $errorCode !== 1213) {
             throw $e;
         }
+    }
+}
+
+function registerUserSession(PDO $pdo, int $userId): void {
+    $sid = session_id();
+    if ($sid === '') return;
+    
+    $ip = get_login_client_ip();
+    $ua = $_SERVER['HTTP_USER_AGENT'] ?? '';
+    
+    try {
+        // Clean up this specific session if it already exists for some reason
+        $pdo->prepare("DELETE FROM user_sessions WHERE session_id = ?")->execute([$sid]);
+        
+        $pdo->prepare("INSERT INTO user_sessions (user_id, session_id, ip_address, user_agent) VALUES (?, ?, ?, ?)")
+            ->execute([$userId, $sid, $ip, $ua]);
+            
+        // Check for new login alert (Phase 3)
+        // Check if this user has ever logged in from this IP before
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM user_sessions WHERE user_id = ? AND ip_address = ? AND created_at < NOW() - INTERVAL '1 minute'");
+        $stmt->execute([$userId, $ip]);
+        $hasHistory = (int) $stmt->fetchColumn() > 0;
+        
+        if (!$hasHistory) { // This is a new IP for this user
+            $user = getUser($pdo, $userId);
+            // Re-fetch with email since getUser might unset it in some versions (ours doesn't)
+            $stmt_e = $pdo->prepare("SELECT email FROM users WHERE id = ?");
+            $stmt_e->execute([$userId]);
+            $email = $stmt_e->fetchColumn();
+
+            if ($user && $email) {
+                $time = date('F j, Y, g:i a');
+                $html = "<div style=\"font-family:Arial,sans-serif;line-height:1.6;color:#111827\">
+                    <h2 style=\"color:#7c3aed;margin-bottom:12px\">New Login Detected</h2>
+                    <p>Hello " . htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8') . ",</p>
+                    <p>Your Campus Marketplace account was just signed into from a new device or location.</p>
+                    <div style=\"background:#f3f4f6;padding:15px;border-radius:8px;margin:15px 0;\">
+                        <strong>Time:</strong> {$time}<br>
+                        <strong>IP Address:</strong> {$ip}<br>
+                        <strong>Device:</strong> " . htmlspecialchars($ua, ENT_QUOTES, 'UTF-8') . "
+                    </div>
+                    <p>If this was you, you can ignore this email. If you don't recognize this activity, please <strong>change your password immediately</strong> and log out other sessions from your Security settings.</p>
+                    <p><a href=\"" . rtrim(getAppUrl(), '/') . "/security.php\" style=\"display:inline-block;padding:10px 18px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:999px;font-weight:700\">Manage Sessions</a></p>
+                </div>";
+                sendMarketplaceEmail($email, 'Security Alert: New Login Detected | Campus Marketplace', $html);
+            }
+        }
+    } catch (PDOException $e) {
+        error_log('Failed to register user session: ' . $e->getMessage());
     }
 }
 
@@ -777,6 +1161,26 @@ function hasUnreviewedOrders($pdo, $userId) {
         WHERE o.buyer_id = ? AND o.status = 'completed' AND r.id IS NULL");
     $s->execute([$userId]);
     return ((int)$s->fetchColumn() > 0);
+}
+
+function getFirstUnreviewedProductId(PDO $pdo, int $userId): ?int
+{
+    if ($userId <= 0) {
+        return null;
+    }
+
+    $stmt = $pdo->prepare(
+        "SELECT o.product_id
+         FROM orders o
+         LEFT JOIN reviews r ON o.product_id = r.product_id AND r.user_id = o.buyer_id
+         WHERE o.buyer_id = ? AND o.status = 'completed' AND r.id IS NULL
+         ORDER BY o.created_at DESC
+         LIMIT 1"
+    );
+    $stmt->execute([$userId]);
+    $productId = (int) ($stmt->fetchColumn() ?: 0);
+
+    return $productId > 0 ? $productId : null;
 }
 
 // System-wide tables (settings, orders, tiers, profile_edit_requests) 
@@ -978,6 +1382,42 @@ function get_login_client_ip(): string
     return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
 }
 
+function is_admin_ip_allowed(): bool
+{
+    $raw = trim((string) env('ADMIN_ALLOWED_IPS', ''));
+    if ($raw === '') {
+        return true;
+    }
+
+    $clientIp = get_login_client_ip();
+    if (!filter_var($clientIp, FILTER_VALIDATE_IP)) {
+        return false;
+    }
+
+    $rules = array_filter(array_map('trim', explode(',', $raw)));
+    foreach ($rules as $rule) {
+        if ($rule === $clientIp) {
+            return true;
+        }
+
+        if (strpos($rule, '/') !== false && strpos($clientIp, ':') === false) {
+            [$subnet, $bits] = explode('/', $rule, 2);
+            $subnetLong = ip2long($subnet);
+            $ipLong = ip2long($clientIp);
+            $bits = (int) $bits;
+            if ($subnetLong === false || $ipLong === false || $bits < 0 || $bits > 32) {
+                continue;
+            }
+            $mask = $bits === 0 ? 0 : (~((1 << (32 - $bits)) - 1) & 0xFFFFFFFF);
+            if (($ipLong & $mask) === ($subnetLong & $mask)) {
+                return true;
+            }
+        }
+    }
+
+    return false;
+}
+
 function is_login_throttled(PDO $pdo, string $ip): bool
 {
     if (!ensure_login_attempts_table($pdo)) return false;
@@ -1020,6 +1460,83 @@ function remaining_login_attempts(PDO $pdo, string $ip): int
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM login_attempts WHERE ip_address = ? AND attempt_time > NOW() - $interval");
     $stmt->execute([$ip]);
     return max(0, LOGIN_ATTEMPT_LIMIT - (int) $stmt->fetchColumn());
+}
+
+function ensure_admin_2fa_schema(PDO $pdo): bool
+{
+    static $ready = null;
+    if ($ready !== null) return $ready;
+    try {
+        if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
+            $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_totp_secret VARCHAR(64)");
+            $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_totp_enabled BOOLEAN NOT NULL DEFAULT FALSE");
+        } else {
+            $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_totp_secret VARCHAR(64) NULL");
+            $pdo->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_totp_enabled TINYINT(1) NOT NULL DEFAULT 0");
+        }
+        $ready = true;
+    } catch (PDOException $e) {
+        error_log('admin 2fa schema check failed: ' . $e->getMessage());
+        $ready = false;
+    }
+    return $ready;
+}
+
+function generate_totp_secret(int $length = 32): string
+{
+    $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    $secret = '';
+    for ($i = 0; $i < $length; $i++) {
+        $secret .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+    }
+    return $secret;
+}
+
+function base32_decode_safe(string $input): string
+{
+    $alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    $input = strtoupper(preg_replace('/[^A-Z2-7]/', '', $input));
+    if ($input === '') return '';
+
+    $bits = '';
+    $len = strlen($input);
+    for ($i = 0; $i < $len; $i++) {
+        $val = strpos($alphabet, $input[$i]);
+        if ($val === false) return '';
+        $bits .= str_pad(decbin($val), 5, '0', STR_PAD_LEFT);
+    }
+
+    $output = '';
+    for ($i = 0; $i + 8 <= strlen($bits); $i += 8) {
+        $output .= chr(bindec(substr($bits, $i, 8)));
+    }
+    return $output;
+}
+
+function totp_code_for_time(string $secret, int $timestamp): string
+{
+    $key = base32_decode_safe($secret);
+    if ($key === '') return '';
+    $counter = intdiv($timestamp, 30);
+    $binCounter = pack('N*', 0) . pack('N*', $counter);
+    $hash = hash_hmac('sha1', $binCounter, $key, true);
+    $offset = ord(substr($hash, -1)) & 0x0F;
+    $chunk = substr($hash, $offset, 4);
+    $value = unpack('N', $chunk)[1] & 0x7FFFFFFF;
+    return str_pad((string) ($value % 1000000), 6, '0', STR_PAD_LEFT);
+}
+
+function verify_totp_code(string $secret, string $code, int $window = 1): bool
+{
+    $code = preg_replace('/\D/', '', $code);
+    if (strlen($code) !== 6) return false;
+    $now = time();
+    for ($i = -$window; $i <= $window; $i++) {
+        if (hash_equals(totp_code_for_time($secret, $now + ($i * 30)), $code)) {
+            return true;
+        }
+    }
+    return false;
 }
 
 // ────────────────────────────────────────────────────────────────────────

@@ -135,7 +135,7 @@ if ($action === 'get') {
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $allowed_images = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
         $allowed_videos = ['mp4', 'webm', 'mov'];
-        $allowed_audio = ['mp3', 'wav', 'm4a', 'ogg'];
+        $allowed_audio = ['mp3', 'wav', 'm4a', 'ogg', 'webm'];
 
         // MIME validation via finfo.
         $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -155,6 +155,8 @@ if ($action === 'get') {
             'audio/wav',
             'audio/mp4',
             'audio/ogg',
+            'audio/webm',
+            'audio/x-m4a',
         ];
 
         // BUG FIX #8: Reduced per-type size limits — 100 MB was dangerously high,

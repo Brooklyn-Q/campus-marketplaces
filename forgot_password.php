@@ -30,7 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($user && !empty($user['email'])) {
             $tokenData = issuePasswordResetToken($pdo, (int) $user['id']);
-            $resetUrl = rtrim(getAppUrl(), '/') . '/reset_password.php?selector=' . rawurlencode($tokenData['selector']) . '&token=' . rawurlencode($tokenData['token']);
+            $resetUrl = rtrim(getSiteRootUrl(), '/') . '/reset_password.php?selector=' . rawurlencode($tokenData['selector']) . '&token=' . rawurlencode($tokenData['token']);
             $safeName = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
             $safeUrl = htmlspecialchars($resetUrl, ENT_QUOTES, 'UTF-8');
 

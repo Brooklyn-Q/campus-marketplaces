@@ -56,7 +56,7 @@ if ($action === 'get') {
         $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $allowed_images = ['jpg','jpeg','png','gif','webp'];
         $allowed_videos = ['mp4','webm','mov'];
-        $allowed_audio  = ['mp3','wav','m4a','ogg'];
+        $allowed_audio  = ['mp3','wav','m4a','ogg','webm'];
         
         if (in_array($ext, array_merge($allowed_images, $allowed_videos, $allowed_audio))) {
             $newName = 'chat_' . bin2hex(random_bytes(8)) . '.' . $ext;

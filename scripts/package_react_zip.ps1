@@ -7,6 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $resolvedSourceDir = (Resolve-Path -LiteralPath $SourceDir).Path
@@ -29,9 +30,19 @@ if (Test-Path -LiteralPath $DestinationZip) {
     Remove-Item -LiteralPath $DestinationZip -Force
 }
 
-[System.IO.Compression.ZipFile]::CreateFromDirectory(
-    $resolvedSourceDir,
-    $DestinationZip,
-    [System.IO.Compression.CompressionLevel]::Optimal,
-    $false
-)
+$zip = [System.IO.Compression.ZipFile]::Open($DestinationZip, [System.IO.Compression.ZipArchiveMode]::Create)
+try {
+    $allFiles = Get-ChildItem -LiteralPath $resolvedSourceDir -Recurse -File
+    foreach ($file in $allFiles) {
+        $entryName = $file.FullName.Substring($resolvedSourceDir.Length).TrimStart('\', '/').Replace('\', '/')
+        [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+            $zip,
+            $file.FullName,
+            $entryName,
+            [System.IO.Compression.CompressionLevel]::Optimal
+        ) | Out-Null
+    }
+} finally {
+    $zip.Dispose()
+}
+

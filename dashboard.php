@@ -5,6 +5,10 @@ if (!isLoggedIn()) redirect('login.php');
 $user = getUser($pdo, $_SESSION['user_id']);
 if (!$user) { session_destroy(); redirect('login.php'); }
 $supportAdminId = getPrimaryAdminId($pdo);
+$isAdminSellerView = ($user['role'] === 'admin' && (($_GET['view'] ?? '') === 'seller' || ($_POST['dashboard_view'] ?? '') === 'seller'));
+$dashboardRole = $isAdminSellerView ? 'seller' : $user['role'];
+$hasSellerDashboardAccess = ($dashboardRole === 'seller');
+$hasBuyerDashboardAccess = ($dashboardRole === 'buyer');
 try {
     $boolTrue = sqlBool(true, $pdo);
     $pdo->prepare("UPDATE notifications SET is_read = {$boolTrue} WHERE user_id = ?")->execute([$user['id']]);
@@ -53,6 +57,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             }
             break;
         case 'toggle_vacation':
+            // ── VACATION MODE HARDENING (Phase 2) ──
+            $isTierExpired = ($user['seller_tier'] === 'basic' && !empty($user['tier_expires_at']) && strtotime($user['tier_expires_at']) < time());
+            if ($isTierExpired && $user['vacation_mode']) {
+                $msg = "❌ Cannot disable vacation mode while your subscription is expired. Please subscribe to a tier first.";
+                break;
+            }
+
             if ($user['vacation_mode']) {
                 $stmt = $pdo->prepare("UPDATE users SET vacation_mode=? WHERE id=?");
                 $stmt->bindValue(1, false, PDO::PARAM_BOOL);
@@ -283,43 +294,73 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
         case 'receive_order':
             $oid = (int)($_POST['oid'] ?? $_GET['oid'] ?? 0);
             if ($oid > 0) {
-                $orderStmt = $pdo->prepare("SELECT * FROM orders WHERE id=? AND buyer_id=?");
-                $orderStmt->execute([$oid, $user['id']]);
-                $ordData = $orderStmt->fetch(PDO::FETCH_ASSOC);
-                if (!$ordData) {
-                    $msg = "Order not found.";
-                    break;
-                }
-                if (($ordData['status'] ?? '') !== 'delivered' || empty($ordData['seller_confirmed'])) {
-                    $msg = "The seller must confirm item sold before you can confirm receipt.";
-                    break;
-                }
-                if (!empty($ordData['buyer_confirmed'])) {
-                    $msg = "Receipt already confirmed for this order.";
-                    break;
-                }
-                $boolT = sqlBool(true, $pdo);
-                $status_sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql' 
-                    ? "CASE WHEN seller_confirmed = $boolT THEN 'completed' ELSE 'delivered' END"
-                    : "IF(seller_confirmed = 1, 'completed', 'delivered')";
-                $pdo->prepare("UPDATE orders SET buyer_confirmed=$boolT, status=$status_sql WHERE id=? AND buyer_id=?")->execute([$oid, $user['id']]);
-                if (!empty($ordData['seller_confirmed'])) {
-                    dashboardCreateSaleTransaction($pdo, $ordData, $oid);
-                }
-                $o = $pdo->prepare("SELECT seller_id, p.id as pid FROM orders o JOIN products p ON o.product_id=p.id WHERE o.id=?"); $o->execute([$oid]); $ord = $o->fetch();
-                if ($ord) {
-                    createNotification($pdo, (int) $ord['seller_id'], 'order_update', "Buyer confirmed Item Received. Transaction complete.", $oid, [
-                        'title' => 'Buyer confirmed receipt',
-                        'link_url' => 'dashboard.php#seller_orders',
-                    ]);
-                    if ($supportAdminId > 0) {
-                        createNotification($pdo, $supportAdminId, 'admin_alert', "Buyer confirmed receipt of order #$oid. Transaction complete.", $oid, [
-                            'title' => 'Buyer confirmed an order',
-                            'link_url' => 'admin/',
-                        ]);
+                try {
+                    $orderStmt = $pdo->prepare("SELECT * FROM orders WHERE id=? AND buyer_id=?");
+                    $orderStmt->execute([$oid, $user['id']]);
+                    $ordData = $orderStmt->fetch(PDO::FETCH_ASSOC);
+                    if (!$ordData) {
+                        $msg = "Order not found.";
+                        break;
                     }
+                    if (($ordData['status'] ?? '') !== 'delivered' || empty($ordData['seller_confirmed'])) {
+                        $msg = "The seller must confirm item sold before you can confirm receipt.";
+                        break;
+                    }
+                    if (!empty($ordData['buyer_confirmed'])) {
+                        $msg = "Receipt already confirmed for this order.";
+                        break;
+                    }
+                    $boolT = sqlBool(true, $pdo);
+                    $status_sql = $pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql'
+                        ? "CASE WHEN seller_confirmed = $boolT THEN 'completed' ELSE 'delivered' END"
+                        : "IF(seller_confirmed = 1, 'completed', 'delivered')";
+
+                    // CORE ACTION: update order status (must succeed)
+                    $pdo->prepare("UPDATE orders SET buyer_confirmed=$boolT, status=$status_sql WHERE id=? AND buyer_id=?")
+                        ->execute([$oid, $user['id']]);
+
+                    // SIDE EFFECTS: wrap each in try/catch so email/notification/transaction failures don't 500
+                    try {
+                        if (!empty($ordData['seller_confirmed'])) {
+                            dashboardCreateSaleTransaction($pdo, $ordData, $oid);
+                        }
+                    } catch (Throwable $txErr) {
+                        error_log("receive_order transaction creation failed for order #$oid: " . $txErr->getMessage());
+                    }
+
+                    try {
+                        $o = $pdo->prepare("SELECT seller_id, p.id as pid FROM orders o JOIN products p ON o.product_id=p.id WHERE o.id=?");
+                        $o->execute([$oid]);
+                        $ord = $o->fetch();
+                        if ($ord) {
+                            try {
+                                createNotification($pdo, (int) $ord['seller_id'], 'order_update', "Buyer confirmed Item Received. Transaction complete.", $oid, [
+                                    'title' => 'Buyer confirmed receipt',
+                                    'link_url' => 'dashboard.php#seller_orders',
+                                ]);
+                            } catch (Throwable $nErr) {
+                                error_log("receive_order seller notification failed for order #$oid: " . $nErr->getMessage());
+                            }
+                            if ($supportAdminId > 0) {
+                                try {
+                                    createNotification($pdo, $supportAdminId, 'admin_alert', "Buyer confirmed receipt of order #$oid. Transaction complete.", $oid, [
+                                        'title' => 'Buyer confirmed an order',
+                                        'link_url' => 'admin/',
+                                    ]);
+                                } catch (Throwable $aErr) {
+                                    error_log("receive_order admin notification failed for order #$oid: " . $aErr->getMessage());
+                                }
+                            }
+                        }
+                    } catch (Throwable $notifErr) {
+                        error_log("receive_order notification block failed for order #$oid: " . $notifErr->getMessage());
+                    }
+
+                    $msg = "Item Received confirmed. Transaction complete.";
+                } catch (Throwable $e) {
+                    error_log("receive_order failed for order #$oid, buyer " . ($user['id'] ?? '?') . ": " . $e->getMessage() . " at " . $e->getFile() . ":" . $e->getLine());
+                    $msg = "Could not confirm receipt. Please try again or contact support.";
                 }
-                $msg = "Item Received confirmed. Transaction complete.";
             }
             break;
         case 'submit_dispute':
@@ -397,7 +438,7 @@ $announcements = $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
 
 // --- BUYER ANALYTICS ---
 $buyerItemsBought = 0; $buyerTotalSpent = 0; $buyerRecentPurchases = []; $buyerFavCategories = [];
-if ($user['role'] === 'buyer') {
+if ($hasBuyerDashboardAccess) {
     try {
         // Total items bought (from orders table)
         $s = $pdo->prepare("SELECT COUNT(*) FROM orders WHERE buyer_id = ? AND status='completed'"); $s->execute([$user['id']]); $buyerItemsBought = (int)$s->fetchColumn();
@@ -420,7 +461,7 @@ if ($user['role'] === 'buyer') {
 
 // --- SELLER ANALYTICS ---
 $sellerTotalSold = 0; $sellerRevenue = 0; $sellerLowStock = 0; $sellerTopProduct = null; $sellerWeeklySales = [];
-if ($user['role'] === 'seller' || $user['role'] === 'admin') {
+if ($hasSellerDashboardAccess) {
     try {
         // Total items sold
         $s = $pdo->prepare("SELECT COUNT(*) FROM orders o JOIN products p ON o.product_id=p.id WHERE p.user_id=? AND o.status='completed'"); $s->execute([$user['id']]); $sellerTotalSold = (int)$s->fetchColumn();
@@ -567,69 +608,80 @@ function dashboardSortTiers(array $tiers): array {
     return $tiers;
 }
 
-function dashboardOrderQuantity(array $order): int {
-    return max(1, (int)($order['quantity'] ?? 1));
-}
-
-function dashboardRestoreOrderStock(PDO $pdo, array $order): void {
-    $qty = dashboardOrderQuantity($order);
-    $pdo->prepare("
-        UPDATE products
-        SET quantity = quantity + ?,
-            status = CASE WHEN status = 'sold' THEN 'approved' ELSE status END
-        WHERE id = ?
-    ")->execute([$qty, $order['product_id']]);
-}
-
-function dashboardSaleDescription(int $orderId): string {
-    return "Sale of order #$orderId";
-}
-
-function dashboardCreateSaleTransaction(PDO $pdo, array $order, int $orderId): void {
-    $sellerId = (int)($order['seller_id'] ?? 0);
-    if ($sellerId <= 0) {
-        return;
+if (!function_exists('dashboardOrderQuantity')) {
+    function dashboardOrderQuantity(array $order): int {
+        return max(1, (int)($order['quantity'] ?? 1));
     }
+}
 
-    $check = $pdo->prepare("
-        SELECT id
-        FROM transactions
-        WHERE user_id = ?
-          AND type = 'sale'
-          AND status = 'completed'
-          AND description = ?
-        LIMIT 1
-    ");
-    $check->execute([$sellerId, dashboardSaleDescription($orderId)]);
-
-    if ($check->fetchColumn()) {
-        return;
+if (!function_exists('dashboardRestoreOrderStock')) {
+    function dashboardRestoreOrderStock(PDO $pdo, array $order): void {
+        $qty = dashboardOrderQuantity($order);
+        $pdo->prepare("
+            UPDATE products
+            SET quantity = quantity + ?,
+                status = CASE WHEN status = 'sold' THEN 'approved' ELSE status END
+            WHERE id = ?
+        ")->execute([$qty, $order['product_id']]);
     }
+}
 
-    $pdo->prepare("
-        INSERT INTO transactions (user_id, type, amount, status, reference, description)
-        VALUES (?, 'sale', ?, 'completed', ?, ?)
-    ")->execute([
-        $sellerId,
-        (float)($order['price'] ?? 0),
-        generateRef('SAL'),
-        dashboardSaleDescription($orderId),
-    ]);
+if (!function_exists('dashboardSaleDescription')) {
+    function dashboardSaleDescription(int $orderId): string {
+        return "Sale of order #$orderId";
+    }
+}
+
+if (!function_exists('dashboardCreateSaleTransaction')) {
+    function dashboardCreateSaleTransaction(PDO $pdo, array $order, int $orderId): void {
+        $sellerId = (int)($order['seller_id'] ?? 0);
+        if ($sellerId <= 0) {
+            return;
+        }
+
+        $check = $pdo->prepare("
+            SELECT id
+            FROM transactions
+            WHERE user_id = ?
+              AND type = 'sale'
+              AND status = 'completed'
+              AND description = ?
+            LIMIT 1
+        ");
+        $check->execute([$sellerId, dashboardSaleDescription($orderId)]);
+
+        if ($check->fetchColumn()) {
+            return;
+        }
+
+        $pdo->prepare("
+            INSERT INTO transactions (user_id, type, amount, status, reference, description)
+            VALUES (?, 'sale', ?, 'completed', ?, ?)
+        ")->execute([
+            $sellerId,
+            (float)($order['price'] ?? 0),
+            generateRef('SAL'),
+            dashboardSaleDescription($orderId),
+        ]);
+    }
 }
 
 // --- FETCH ORDERS ---
 $buyer_orders = [];
 $seller_orders = [];
 try {
-    if ($user['role'] === 'buyer' || $user['role'] === 'admin') {
-        $s = $pdo->prepare("SELECT o.*, p.title as product_title, p.price as product_price, s.username as seller_name FROM orders o JOIN products p ON o.product_id=p.id JOIN users s ON o.seller_id=s.id WHERE o.buyer_id=? ORDER BY o.created_at DESC");
-        $s->execute([$user['id']]); $buyer_orders = $s->fetchAll(PDO::FETCH_ASSOC);
-    }
-    if ($user['role'] === 'seller' || $user['role'] === 'admin') {
+    // Always load purchases for any logged-in user — sellers can buy from other sellers
+    $s = $pdo->prepare("SELECT o.*, p.title as product_title, p.price as product_price, s.username as seller_name FROM orders o JOIN products p ON o.product_id=p.id JOIN users s ON o.seller_id=s.id WHERE o.buyer_id=? ORDER BY o.created_at DESC");
+    $s->execute([$user['id']]); $buyer_orders = $s->fetchAll(PDO::FETCH_ASSOC);
+
+    if ($hasSellerDashboardAccess) {
         $s = $pdo->prepare("SELECT o.*, p.title as product_title, p.price as product_price, b.username as buyer_name FROM orders o JOIN products p ON o.product_id=p.id JOIN users b ON o.buyer_id=b.id WHERE o.seller_id=? ORDER BY o.created_at DESC");
         $s->execute([$user['id']]); $seller_orders = $s->fetchAll(PDO::FETCH_ASSOC);
     }
 } catch(PDOException $e) {}
+
+// Show buyer-orders UI to anyone who has at least one purchase (covers sellers buying from other sellers)
+$showBuyerOrdersView = $hasBuyerDashboardAccess || count($buyer_orders) > 0;
 
 require_once 'includes/ai_recommendations.php';
 
@@ -877,6 +929,34 @@ require_once 'includes/header.php';
         width: 100% !important;
         text-align: left !important;
     }
+    
+    /* DASHBOARD MOBILE STACKING */
+    .dashboard-grid {
+        grid-template-columns: 1fr !important;
+        gap: 1.5rem !important;
+    }
+    
+    /* ORDERS & TRANSACTIONS MOBILE VIEW */
+    .order-card, .transaction-card {
+        display: block !important;
+        width: 100% !important;
+    }
+    
+    .order-item-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 0.5rem !important;
+    }
+    
+    .order-actions {
+        flex-direction: column !important;
+        align-items: stretch !important;
+    }
+    
+    .order-actions .btn {
+        width: 100% !important;
+        justify-content: center !important;
+    }
 }
 
 /* PROFILE PIC CENTERING FIX */
@@ -948,12 +1028,12 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
 </div>
 <?php endif; ?>
 
-<div class="dashboard-grid" style="display:grid; grid-template-columns:300px 1fr; gap:2rem;">
+<div class="dashboard-grid">
     <!-- SIDEBAR -->
     <div>
         <!-- Profile Card -->
         <div class="glass fade-in" style="padding:2rem; text-align:center; margin-bottom:1.5rem;">
-            <?php $tierClass = 'profile-pic-' . ($user['role'] === 'seller' ? ($user['seller_tier'] ?: 'basic') : 'basic'); ?>
+            <?php $tierClass = 'profile-pic-' . ($hasSellerDashboardAccess ? ($user['seller_tier'] ?: 'basic') : 'basic'); ?>
             <?php if($user['profile_pic']): ?>
                 <img src="<?= getAssetUrl('uploads/' . htmlspecialchars($user['profile_pic'])) ?>" class="profile-pic profile-pic-lg profile-pic-previewable <?= $tierClass ?> mb-2" style="cursor:pointer;" alt="<?= htmlspecialchars($user['username']) ?>">
             <?php else: ?>
@@ -963,7 +1043,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
             <?php endif; ?>
             <h3><?= htmlspecialchars($user['username']) ?></h3>
             <div class="mb-1">
-                <?php if($user['role'] === 'seller'): ?>
+                <?php if($hasSellerDashboardAccess): ?>
                     <?= getBadgeHtml($pdo, $user['seller_tier'] ?: 'basic') ?>
                 <?php elseif($user['role'] === 'admin'): ?>
                     <span class="badge badge-gold">Admin</span>
@@ -983,28 +1063,120 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                 </p>
             <?php endif; ?>
             <?php if(!empty($user['hall'])): ?><p class="text-muted" style="font-size:0.8rem;">Hall: <?= htmlspecialchars((string)$user['hall']) ?></p><?php endif; ?>
-            <?php if(!empty($user['phone'])): ?><p class="text-muted" style="font-size:0.8rem;">Phone: <?= htmlspecialchars((string)$user['phone']) ?></p><?php endif; ?>
+            <?php if(!empty($user['phone'])): ?>
+                <p class="text-muted" style="font-size:0.8rem;">
+                    Phone: <a href="<?= formatWhatsAppLink($user['phone']) ?>" target="_blank" style="color:inherit; text-decoration:none;"><?= htmlspecialchars((string)$user['phone']) ?></a>
+                </p>
+            <?php endif; ?>
             
             <!-- Social Links -->
-            <div class="flex gap-1 mt-2" style="justify-content:center;">
-                <?php if($user['whatsapp']): ?><a href="https://wa.me/<?= $user['whatsapp'] ?>" target="_blank" class="btn btn-outline btn-sm">WhatsApp</a><?php endif; ?>
-                <?php if($user['instagram']): ?><a href="https://instagram.com/<?= $user['instagram'] ?>" target="_blank" class="btn btn-outline btn-sm">IG</a><?php endif; ?>
-            </div>
-            
-            <div style="margin-top:1rem; display:flex; gap:0.5rem; flex-direction:column;">
-                <a href="edit_profile.php" class="react-liquid-btn" data-label="Edit Profile"></a>
-                <?php if(isSeller()): ?>
-                    <form method="POST" style="display:flex; flex-direction:column; gap:0.5rem;">
-                        <input type="hidden" name="action" value="toggle_vacation">
-                        <?= csrf_field() ?>
-                        <button type="submit" class="btn btn-outline btn-sm" style="justify-content:center;"><?= $user['vacation_mode'] ? 'End Vacation' : 'Vacation Mode' ?></button>
-                    </form>
-                    <?php if($user['seller_tier'] !== 'premium'): ?>
-                        <button type="button" class="btn btn-gold btn-sm" style="justify-content:center;" onclick="toggleUpgradeModal(true);">Upgrade Account</button>
-                    <?php endif; ?>
+            <div style="display:flex; flex-direction:column; align-items:center; gap:0.75rem; margin-top:1.5rem;">
+                <?php if($user['whatsapp'] || !empty($user['phone'])): ?>
+                    <a href="<?= formatWhatsAppLink($user['whatsapp'] ?: $user['phone']) ?>" target="_blank" class="btn" style="background:#25D366; color:#fff; width:140px; justify-content:center; border-radius:14px; font-weight:700; font-size:0.85rem; padding:0.6rem;">
+                        <i class="fab fa-whatsapp" style="font-size:1.1rem; margin-right:6px;"></i> WhatsApp
+                    </a>
                 <?php endif; ?>
+                
+                <a href="edit_profile.php" class="react-liquid-btn" data-label="Edit Profile" style="display:inline-flex; align-items:center; justify-content:center; min-height:42px; width:140px; flex-shrink:0;"></a>
             </div>
         </div>
+
+        <!-- Subscription Status Card -->
+        <?php if($hasSellerDashboardAccess): ?>
+        <div class="glass fade-in" style="padding:1.5rem; margin-bottom:1.5rem; border: 1px solid <?= ($user['seller_tier'] !== 'basic') ? 'var(--gold)' : 'rgba(255,255,255,0.1)' ?>;">
+            <h4 style="margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem;">
+                Subscription Status
+            </h4>
+            
+            <div style="background:rgba(255,255,255,0.05); padding:1rem; border-radius:12px; margin-bottom:1rem;">
+                <p style="font-size:0.75rem; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Current Plan</p>
+                <div style="display:flex; align-items:center; justify-content:space-between;">
+                    <span style="font-weight:700; font-size:1.1rem; color:<?= ($user['seller_tier'] === 'premium') ? 'var(--gold)' : (($user['seller_tier'] === 'pro') ? '#8e8e93' : '#fff') ?>;">
+                        <?= ucfirst($user['seller_tier'] ?: 'basic') ?>
+                    </span>
+                    <?= getBadgeHtml($pdo, $user['seller_tier'] ?: 'basic') ?>
+                </div>
+            </div>
+
+            <?php 
+            $isTierExpired = ($user['seller_tier'] === 'basic' && !empty($user['tier_expires_at']) && strtotime($user['tier_expires_at']) < time());
+            $isLifetime = ($user['seller_tier'] !== 'basic' && empty($user['tier_expires_at']));
+            ?>
+
+            <?php if($isLifetime): ?>
+                <div style="background:rgba(212,175,55,0.1); padding:1rem; border-radius:12px; border:1px solid rgba(212,175,55,0.2);">
+                    <p style="font-size:0.75rem; color:var(--gold); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Subscription Status</p>
+                    <div style="font-size:1.1rem; font-weight:700; color:#fff; display:flex; align-items:center; gap:0.5rem;">
+                        <span>♾️ Lifetime Access</span>
+                    </div>
+                </div>
+            <?php elseif($user['seller_tier'] !== 'basic' && !empty($user['tier_expires_at'])): ?>
+                <div id="subscription-countdown" data-expiry="<?= $user['tier_expires_at'] ?>" style="background:rgba(124,58,237,0.1); padding:1rem; border-radius:12px; border:1px solid rgba(124,58,237,0.2);">
+                    <p style="font-size:0.75rem; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Expires In</p>
+                    <div id="countdown-timer" style="font-family:monospace; font-size:1.2rem; font-weight:700; color:#fff;">
+                        --:--:--
+                    </div>
+                </div>
+                <script>
+                    (function() {
+                        const expiryStr = document.getElementById('subscription-countdown').dataset.expiry;
+                        if (!expiryStr) return;
+                        const expiry = new Date(expiryStr).getTime();
+                        const timerDisplay = document.getElementById('countdown-timer');
+                        
+                        function updateTimer() {
+                            const now = new Date().getTime();
+                            const distance = expiry - now;
+                            
+                            if (distance < 0) {
+                                timerDisplay.innerHTML = "EXPIRED";
+                                timerDisplay.style.color = "#ef4444";
+                                return;
+                            }
+                            
+                            const days = Math.floor(distance / (1000 * 60 * 60 * 24));
+                            const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                            const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                            const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+                            
+                            let display = "";
+                            if (days > 0) display += days + "d ";
+                            display += String(hours).padStart(2, '0') + ":" + 
+                                       String(minutes).padStart(2, '0') + ":" + 
+                                       String(seconds).padStart(2, '0');
+                            
+                            timerDisplay.innerHTML = display;
+                        }
+                        
+                        updateTimer();
+                        setInterval(updateTimer, 1000);
+                    })();
+                </script>
+            <?php elseif($isTierExpired): ?>
+                <div style="background:rgba(239,68,68,0.1); padding:1rem; border-radius:12px; border:1px solid rgba(239,68,68,0.2); margin-bottom:1rem;">
+                    <p style="font-size:0.75rem; color:#ef4444; font-weight:700; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:0.25rem;">Subscription Expired</p>
+                    <p style="font-size:0.8rem; color:rgba(255,255,255,0.7); margin:0;">Your account is in restricted mode. Renew to reactivate your listings.</p>
+                </div>
+                <button type="button" class="btn btn-gold btn-sm w-100" onclick="toggleUpgradeModal(true);">Renew Subscription</button>
+            <?php else: ?>
+                <p class="text-muted" style="font-size:0.85rem; margin-bottom:1rem;">Upgrade to Pro or Premium to unlock more features and boost your sales.</p>
+                <button type="button" class="btn btn-gold btn-sm w-100" onclick="toggleUpgradeModal(true);">Get Premium Account</button>
+            <?php endif; ?>
+
+            <div style="margin-top:1.5rem; padding-top:1.5rem; border-top:1px solid rgba(255,255,255,0.1);">
+                <form method="POST" style="display:flex; flex-direction:column; gap:0.5rem;">
+                    <input type="hidden" name="action" value="toggle_vacation">
+                    <?= csrf_field() ?>
+                    <button type="submit" class="btn btn-outline btn-sm" style="justify-content:center;" <?= ($isTierExpired && $user['vacation_mode']) ? 'disabled title="Cannot disable while subscription is expired"' : '' ?>>
+                        <?= $user['vacation_mode'] ? 'End Vacation Mode' : 'Go on Vacation' ?>
+                    </button>
+                    <?php if($isTierExpired && $user['vacation_mode']): ?>
+                        <p style="font-size:0.65rem; color:#ef4444; text-align:center; margin-top:0.25rem;">Locked: Subscription expired</p>
+                    <?php endif; ?>
+                </form>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <style>
             body.modal-open {
@@ -1014,103 +1186,122 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
             }
             .upgrade-card-grid {
                 display: flex;
-                flex-wrap: wrap;
+                flex-wrap: nowrap;
                 justify-content: center;
                 align-items: stretch;
-                gap: 0.7rem;
+                gap: 0.75rem;
                 width: 100%;
+                padding: 0.5rem 0;
             }
             .upgrade-card-grid::-webkit-scrollbar { display: none; }
             .upgrade-modal-content {
                 width: 100%;
-                max-width: 740px;
-                padding: 1.25rem 0.8rem;
+                max-width: 880px;
+                padding: 2rem 1.25rem;
                 border-radius: 32px;
                 position: relative;
-                background: transparent;
+                background: rgba(10,10,15,0.95);
                 color: var(--text-main);
-                border: none;
-                box-shadow: none;
+                border: 1px solid rgba(255,255,255,0.1);
+                box-shadow: 0 40px 100px rgba(0,0,0,0.6);
             }
             .tier-card {
-                flex: 0 0 190px;
-                width: min(100%, 210px);
-                min-height: 290px;
-                padding: 0.95rem 0.9rem;
-                border-radius: 22px;
-                transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+                flex: 1 1 260px;
+                max-width: 280px;
+                min-height: 460px;
+                padding: 1.5rem 1.25rem;
+                border-radius: 24px;
+                transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease;
                 display: flex;
                 flex-direction: column;
                 position: relative;
-                overflow: hidden;
+                overflow: visible;
             }
             .tier-card:hover {
-                transform: translateY(-3px) scale(1.015);
+                transform: translateY(-5px);
+                box-shadow: 0 20px 40px rgba(0,0,0,0.4);
             }
             .tier-card.featured {
-                transform: translateY(-4px) scale(1.01);
+                transform: scale(1.02);
+                z-index: 2;
+                border-width: 2px;
             }
             .tier-card.featured:hover {
-                transform: translateY(-6px) scale(1.02);
+                transform: translateY(-5px) scale(1.02);
             }
             .tier-floating-badge {
                 position: absolute;
-                top: -18px;
+                top: -12px;
                 left: 50%;
                 transform: translateX(-50%);
                 border-radius: 999px;
-                padding: 0.45rem 1rem;
-                font-size: 0.7rem;
+                padding: 0.35rem 1rem;
+                font-size: 0.65rem;
                 font-weight: 900;
-                letter-spacing: 0.18em;
+                letter-spacing: 0.08em;
                 text-transform: uppercase;
                 white-space: nowrap;
+                box-shadow: 0 6px 15px rgba(0,0,0,0.3);
             }
             .tier-status-pill {
                 position: absolute;
-                top: 16px;
-                right: 16px;
+                top: 15px;
+                right: 15px;
                 border-radius: 999px;
-                padding: 0.4rem 0.8rem;
-                font-size: 0.68rem;
+                padding: 0.3rem 0.8rem;
+                font-size: 0.6rem;
                 font-weight: 800;
-                letter-spacing: 0.14em;
+                letter-spacing: 0.03em;
                 text-transform: uppercase;
+                z-index: 5;
             }
             .tier-price-row {
                 display: flex;
-                align-items: flex-end;
-                gap: 0.45rem;
-                margin-bottom: 1rem;
+                flex-direction: column;
+                gap: 0.1rem;
+                margin-bottom: 1.25rem;
             }
             .tier-feature-list {
                 list-style: none;
                 padding: 0;
-                margin: 0 0 1.1rem;
+                margin: 0 0 1.5rem;
                 display: flex;
                 flex-direction: column;
-                gap: 0.65rem;
+                gap: 0.75rem;
                 flex-grow: 1;
             }
             .tier-feature-item {
                 display: flex;
-                align-items: flex-start;
+                align-items: center;
                 gap: 0.65rem;
-                font-size: 0.8rem;
+                font-size: 0.82rem;
                 font-weight: 500;
-                line-height: 1.45;
             }
             .tier-feature-icon {
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                width: 22px;
-                height: 22px;
-                border-radius: 999px;
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
                 flex-shrink: 0;
-                margin-top: 1px;
-                font-size: 0.82rem;
+                font-size: 0.75rem;
                 font-weight: 900;
+            }
+            @media (max-width: 992px) {
+                .upgrade-modal-content {
+                    max-width: 650px;
+                    padding: 1.5rem 0.75rem;
+                }
+                .upgrade-card-grid {
+                    flex-wrap: wrap;
+                    gap: 0.75rem;
+                }
+                .tier-card {
+                    flex: 1 1 45%;
+                    max-width: none;
+                    min-height: 400px;
+                }
             }
             @media (max-width: 640px) {
                 .upgrade-modal-content {
@@ -1188,12 +1379,12 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
             }
             unset($tier);
             ?>
-            <div class="glass upgrade-modal-content fade-in">
-                 <button type="button" onclick="toggleUpgradeModal(false);" style="position:absolute; top:15px; right:15px; background:rgba(255,255,255,0.1); border:none; width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.5rem; color:var(--text-main); cursor:pointer; z-index:10;">&times;</button>
+            <div class="glass upgrade-modal-content fade-in" style="overflow-x: hidden;">
+                 <button type="button" onclick="toggleUpgradeModal(false);" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.1); border:none; width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.2rem; color:var(--text-main); cursor:pointer; z-index:100;">&times;</button>
                  
-                 <div class="text-center mb-4 pt-2">
-                    <h2 style="font-weight:800; letter-spacing:-0.03em;">Upgrade Your Business</h2>
-                    <p class="text-muted" style="font-size:0.9rem;">Elevate your campus brand with premium verified tiers.</p>
+                 <div class="text-center mb-3">
+                    <h2 style="font-weight:800; letter-spacing:-0.03em; font-size:1.6rem; margin-bottom:0.2rem;">Upgrade Plan</h2>
+                    <p class="text-muted" style="font-size:0.8rem; margin:0;">Choose a plan to grow your campus business.</p>
                  </div>
                  
                  <div class="upgrade-card-grid">
@@ -1217,22 +1408,44 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                                 <span class="tier-status-pill" style="background:rgba(255,255,255,0.12); color:#fff; border:1px solid rgba(255,255,255,0.22);">Featured</span>
                             <?php endif; ?>
                             
-                            <div style="margin-bottom:1.25rem;">
-                                <p style="margin:0 0 0.65rem; color:<?= htmlspecialchars($visual['label']) ?>; font-size:0.78rem; font-weight:900; letter-spacing:0.18em; text-transform:uppercase;">
-                                    <?= htmlspecialchars(ucfirst($tier['tier_name'])) ?> Seller Plan
+                            <div style="margin-bottom:1rem;">
+                                <p style="margin:0 0 0.5rem; color:<?= htmlspecialchars($visual['label']) ?>; font-size:0.75rem; font-weight:900; letter-spacing:0.12em; text-transform:uppercase;">
+                                    <?= htmlspecialchars(ucfirst($tier['tier_name'])) ?> Plan
                                 </p>
-                                <h3 class="tier-title" style="text-transform:capitalize; margin-bottom:0; font-weight:850; font-size:1.25rem; color:<?= htmlspecialchars($visual['text']) ?>;"><?= htmlspecialchars($tier['tier_name']) ?></h3>
+                                <h3 class="tier-title" style="text-transform:capitalize; margin-bottom:0; font-weight:850; font-size:1.5rem; color:<?= htmlspecialchars($visual['text']) ?>;"><?= htmlspecialchars($tier['tier_name']) ?></h3>
                             </div>
-                            <div class="tier-price-row">
-                                <span class="tier-price" style="font-size:2rem; font-weight:900; line-height:1; letter-spacing:-0.05em; color:<?= htmlspecialchars($visual['accent']) ?>;">
-                                    <?= $price > 0 ? '&#8373;' . number_format($price, $price == floor($price) ? 0 : 2) : 'Free' ?>
-                                </span>
-                                <?php if($price > 0): ?>
-                                    <span style="font-size:0.96rem; color:<?= htmlspecialchars($visual['label']) ?>; font-weight:700; padding-bottom:0.3rem;">/ <?= htmlspecialchars($tier['duration_label']) ?></span>
-                                <?php endif; ?>
+                            <?php 
+                                $price = (float)$tier['price'];
+                                $originalPrice = isset($tier['original_price']) ? (float)$tier['original_price'] : 0.0;
+                                $isDiscounted = ($originalPrice > $price);
+                                // Contrast fix for Premium gold background
+                                $priceColor = ($tier['tier_name'] === 'premium') ? '#000' : htmlspecialchars($visual['accent']);
+                                $labelColor = ($tier['tier_name'] === 'premium') ? 'rgba(0,0,0,0.6)' : htmlspecialchars($visual['label']);
+                                $oldPriceColor = ($tier['tier_name'] === 'premium') ? 'rgba(0,0,0,0.35)' : 'rgba(255,255,255,0.4)';
+                                $badgeStyle = ($tier['tier_name'] === 'premium') 
+                                    ? "background:#000; color:#fff; font-size:0.4em; padding:4px 10px; border-radius:99px; vertical-align:middle; margin-left:8px; font-weight:900; text-transform:uppercase;"
+                                    : "background:var(--gold); color:#000; font-size:0.4em; padding:4px 10px; border-radius:99px; vertical-align:middle; margin-left:8px; font-weight:900; text-transform:uppercase;";
+                            ?>
+                            <div class="tier-price-row" style="margin-bottom: 1.5rem;">
+                                <div style="display: flex; flex-direction: column; gap: 2px;">
+                                    <?php if($isDiscounted): ?>
+                                        <span style="text-decoration: line-through; color: <?= $oldPriceColor ?>; font-size: 1rem; font-weight: 700;">₵<?= number_format($originalPrice, 0) ?></span>
+                                    <?php endif; ?>
+                                    <div style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;">
+                                        <span class="tier-price" style="font-size:2.6rem; font-weight:900; line-height:1; letter-spacing:-0.05em; color:<?= $priceColor ?>;">
+                                            <?= $price > 0 ? '₵' . number_format($price, $price == floor($price) ? 0 : 2) : 'Free' ?>
+                                        </span>
+                                        <?php if($price > 0): ?>
+                                            <span style="font-size:0.85rem; color:<?= $labelColor ?>; font-weight:700;">/ <?= htmlspecialchars($tier['duration_label']) ?></span>
+                                        <?php endif; ?>
+                                        <?php if($isDiscounted): ?>
+                                            <span class="sale-badge" style="<?= $badgeStyle ?> margin-top: 2px;">-<?= round((1 - ($price/$originalPrice)) * 100) ?>%</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
                             </div>
-                            <p style="margin:0 0 1.45rem; color:<?= htmlspecialchars($visual['label']) ?>; font-size:0.92rem; line-height:1.5;">
-                                <?= $price > 0 ? 'Built for sellers who want more reach, stronger trust, and better storefront visibility.' : 'A clean starting point for new sellers getting set up on campus.' ?>
+                            <p style="margin:0 0 1rem; color:<?= htmlspecialchars($visual['label']) ?>; font-size:0.8rem; line-height:1.4;">
+                                <?= $price > 0 ? 'Built for sellers who want more reach and stronger trust.' : 'A clean starting point for new sellers.' ?>
                             </p>
                             <?php if(false): ?>
                             <div class="tier-price-row">
@@ -1257,33 +1470,33 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                                 $d_bens = json_decode($tier['benefits'] ?? '[]', true) ?: [];
                                 foreach($d_bens as $b): 
                                 ?>
-                                <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500;">
-                                    <span style="color:var(--primary); font-weight:800;">&#10003;</span> <?= htmlspecialchars($b) ?>
+                                <li style="margin-bottom:0.8rem; font-size:0.92rem; display:flex; gap:10px; font-weight:500; color:<?= ($tier['tier_name'] === 'premium') ? '#000' : 'inherit' ?>;">
+                                    <span style="color:<?= ($tier['tier_name'] === 'premium') ? '#000' : 'var(--primary)' ?>; font-weight:800;">&#10003;</span> <?= htmlspecialchars($b) ?>
                                 </li>
                                 <?php endforeach; ?>
                             </ul>
                             <?php endif; ?>
                             
                             <?php if(!$active): ?>
-                                <?php if($price > 0): ?>
-                                    <button type="button" onclick="payWithPaystack('<?= htmlspecialchars($tier['tier_name']) ?>')" class="btn" style="<?= $buttonStyle ?>">
-                                        Upgrade to <?= htmlspecialchars(ucfirst($tier['tier_name'])) ?>
-                                    </button>
-                                <?php else: ?>
-                                    <form method="POST" style="width:100%;">
-                                        <input type="hidden" name="action" value="request_<?= htmlspecialchars($tier['tier_name']) ?>">
-                                        <?= csrf_field() ?>
-                                        <button type="submit" class="btn" style="<?= $buttonStyle ?>">Get Started Free</button>
-                                    </form>
-                                <?php endif; ?>
+                                    <?php if($price > 0): ?>
+                                        <button type="button" onclick="payWithPaystack('<?= htmlspecialchars($tier['tier_name']) ?>')" class="btn" style="<?= $buttonStyle ?>; <?= ($tier['tier_name'] === 'premium') ? 'background:#000; color:#fff;' : '' ?> font-weight:800; border-radius:12px; text-transform:uppercase; letter-spacing:0.02em; padding: 0.8rem;">
+                                            Upgrade
+                                        </button>
+                                    <?php else: ?>
+                                        <form method="POST" style="width:100%;">
+                                            <input type="hidden" name="action" value="request_<?= htmlspecialchars($tier['tier_name']) ?>">
+                                            <?= csrf_field() ?>
+                                            <button type="submit" class="btn" style="<?= $buttonStyle ?>; <?= ($tier['tier_name'] === 'premium') ? 'background:#000; color:#fff;' : '' ?> font-weight:800; border-radius:12px; text-transform:uppercase; letter-spacing:0.02em; padding: 0.8rem;">Select Free</button>
+                                        </form>
+                                    <?php endif; ?>
                             <?php else: ?>
                                 <div style="display:flex; flex-direction:column; gap:0.5rem;">
-                                    <div style="width:100%; text-align:center; background:<?= htmlspecialchars($visual['soft']) ?>; padding:1rem; border-radius:16px; font-weight:800; color:<?= htmlspecialchars($visual['accent']) ?>; border:1px solid <?= htmlspecialchars($visual['border']) ?>;">Active Plan</div>
+                                    <div style="width:100%; text-align:center; background:<?= ($tier['tier_name'] === 'premium') ? 'rgba(0,0,0,0.08)' : htmlspecialchars($visual['soft']) ?>; padding:1rem; border-radius:16px; font-weight:800; color:<?= ($tier['tier_name'] === 'premium') ? '#000' : htmlspecialchars($visual['accent']) ?>; border:1px solid <?= ($tier['tier_name'] === 'premium') ? 'rgba(0,0,0,0.1)' : htmlspecialchars($visual['border']) ?>;">Active Plan</div>
                                     <?php if($tier['tier_name'] !== 'basic'): ?>
                                         <form method="POST" style="width:100%;">
                                             <input type="hidden" name="action" value="cancel_tier">
                                             <?= csrf_field() ?>
-                                            <button type="submit" class="btn btn-outline btn-sm" style="font-size:0.8rem; justify-content:center; color:var(--danger); border-color:rgba(255,59,48,0.2); font-weight:700; width:100%;" onclick="return confirm('Request to downgrade to Basic? Your limits will be reduced.')">Downgrade to Basic</button>
+                                            <button type="submit" class="btn btn-outline btn-sm" style="font-size:0.8rem; justify-content:center; color:<?= ($tier['tier_name'] === 'premium') ? '#000' : 'var(--danger)' ?>; border-color:<?= ($tier['tier_name'] === 'premium') ? 'rgba(0,0,0,0.2)' : 'rgba(255,59,48,0.2)' ?>; font-weight:700; width:100%;" onclick="return confirm('Request to downgrade to Basic? Your limits will be reduced.')">Downgrade to Basic</button>
                                         </form>
                                     <?php endif; ?>
                                 </div>
@@ -1296,7 +1509,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
 
 
         <!-- Wallet -->
-        <div class="glass fade-in" style="padding:1.5rem; margin-bottom:1.5rem; margin-top:1.5rem;">
+        <div class="glass fade-in wallet-card" style="padding:1.5rem; margin-bottom:1.5rem; margin-top:1.5rem;">
             <p class="text-muted" style="font-size:0.8rem;">Wallet Balance</p>
             <h2 style="color:var(--success); font-size:2rem; font-weight:800;">GHS <?= number_format($user['balance'], 2) ?></h2>
         </div>
@@ -1346,7 +1559,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
     <!-- MAIN AREA -->
     <div>
         <!-- ROLE-SPECIFIC ANALYTICS -->
-        <?php if($user['role'] === 'seller' || $user['role'] === 'admin'): ?>
+        <?php if($hasSellerDashboardAccess): ?>
         <!-- SELLER STATS -->
         <div class="stat-grid mb-3 fade-in">
             <a href="#products_section" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--primary);"><?= $totalProducts ?></div><div class="stat-label">Total Products</div></div></a>
@@ -1444,7 +1657,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         </script>
         <?php endif; ?>
 
-        <?php if($user['role'] === 'buyer'): ?>
+        <?php if($hasBuyerDashboardAccess): ?>
         <!-- BUYER STATS -->
         <div class="stat-grid mb-3 fade-in">
             <a href="#buyer_recent_purchases" class="stat-card-link"><div class="glass stat-card"><div class="stat-val" style="color:var(--primary);"><?= $buyerItemsBought ?></div><div class="stat-label">Items Bought</div></div></a>
@@ -1507,7 +1720,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         </div>
         <?php endif; ?>
 
-        <?php if($user['role'] === 'seller' || $user['role'] === 'admin'): ?>
+        <?php if($hasSellerDashboardAccess): ?>
         <!-- Products Section (Consolidated Card) -->
         <div id="products_section" class="fade-in mb-3">
             <div class="glass" style="padding:2rem; border-radius:24px; position:relative; overflow:hidden; background:linear-gradient(135deg, rgba(124,58,237,0.1) 0%, rgba(20,20,20,0) 100%); border:1px solid rgba(124,58,237,0.2);">
@@ -1674,20 +1887,20 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         <?php endif; ?>
 
         <!-- ORDERS VIEW (SELLER) -->
-        <?php if($user['role'] === 'seller' || $user['role'] === 'admin'): ?>
+        <?php if($hasSellerDashboardAccess): ?>
         <div id="seller_orders" class="glass fade-in" style="margin-bottom:2rem; padding:2rem;">
             <h3 class="mb-3">Order Management</h3>
             <?php if(count($seller_orders) > 0): ?>
                 <div class="flex-column gap-1">
                     <?php foreach($seller_orders as $ord): ?>
-                    <div style="background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:1rem; border-radius:12px;">
-                        <div class="flex-between mb-1">
+                    <div class="order-card" style="background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:1rem; border-radius:12px;">
+                        <div class="order-item-header flex-between mb-1">
                             <strong>#ORDER-<?= $ord['id'] ?> &bull; <?= htmlspecialchars($ord['product_title']) ?></strong>
                             <span class="badge" style="background:#7c3aed;color:#fff;">GHS <?= number_format($ord['product_price'], 2) ?></span>
                         </div>
                         <p class="text-muted" style="font-size:0.85rem;">Buyer: <strong><?= htmlspecialchars($ord['buyer_name']) ?></strong> &bull; Date: <?= date('M d, Y H:i', strtotime($ord['created_at'])) ?></p>
                         
-                        <div style="margin-top:0.75rem;">
+                        <div class="order-actions" style="margin-top:0.75rem;">
                             <?php if($ord['status'] === 'ordered'): ?>
                                 <span class="badge badge-pending mb-1">Status: Pending</span>
                                 <form method="POST" class="flex-column gap-1" style="margin-top:0.75rem;">
@@ -1706,7 +1919,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                                 <?php if(!empty($ord['delivery_note'])): ?>
                                     <p class="text-muted" style="font-size:0.8rem; margin:0.6rem 0;">Note to buyer: <?= htmlspecialchars($ord['delivery_note']) ?></p>
                                 <?php endif; ?>
-                                <form method="POST" style="display:inline-flex;">
+                                <form method="POST" style="display:inline-flex;" class="w-100">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="action" value="deliver_order">
                                     <input type="hidden" name="oid" value="<?= $ord['id'] ?>">
@@ -1730,11 +1943,11 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
         </div>
         <?php endif; ?>
 
-        <!-- BUYER ORDERS -->
-        <?php if($user['role'] === 'buyer' || $user['role'] === 'admin'): ?>
+        <!-- BUYER ORDERS (shown to anyone with purchases — sellers can buy from other sellers too) -->
+        <?php if($showBuyerOrdersView): ?>
         <div id="buyer_orders" class="glass fade-in mt-3" style="padding:2rem;">
             <div class="flex-between mb-3">
-                <h3 style="margin:0;">My Orders</h3>
+                <h3 style="margin:0;">My Orders <?php if(!$hasBuyerDashboardAccess): ?><span style="font-size:0.7rem; color:var(--text-muted); font-weight:500;">(Purchases)</span><?php endif; ?></h3>
                 <?php if(hasUnreviewedOrders($pdo, $user['id'])): ?>
                     <span class="badge badge-rejected" style="padding:6px 12px; font-weight:800;">ACTION REQUIRED: Leave Reviews</span>
                 <?php endif; ?>
@@ -1742,14 +1955,14 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
             <?php if(count($buyer_orders) > 0): ?>
                 <div class="flex-column gap-1">
                     <?php foreach($buyer_orders as $ord): ?>
-                    <div style="background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:1rem; border-radius:12px;">
-                        <div class="flex-between mb-1">
+                    <div class="order-card" style="background:rgba(0,0,0,0.2); border:1px solid var(--border); padding:1rem; border-radius:12px;">
+                        <div class="order-item-header flex-between mb-1">
                             <strong><?= htmlspecialchars($ord['product_title']) ?></strong>
                             <span class="badge" style="background:#7c3aed;color:#fff;">GHS <?= number_format($ord['product_price'], 2) ?></span>
                         </div>
                         <p class="text-muted" style="font-size:0.85rem;">Seller: <strong><?= htmlspecialchars($ord['seller_name']) ?></strong> &bull; <?= date('M d, Y H:i', strtotime($ord['created_at'])) ?></p>
                         
-                        <div style="margin-top:0.75rem;">
+                        <div class="order-actions" style="margin-top:0.75rem;">
                             <?php if($ord['status'] === 'ordered'): ?>
                                 <span class="badge badge-pending">Status: Pending (Awaiting Seller)</span>
                                 <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-primary btn-sm mt-1">Message Seller</a>
@@ -1761,7 +1974,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                                 <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-outline btn-sm mt-1">Message Seller</a>
                             <?php elseif($ord['status'] === 'delivered'): ?>
                                 <span class="badge badge-approved mb-1">Status: Sold (Seller Confirmed)</span><br>
-                                <form method="POST" style="display:inline-flex;">
+                                <form method="POST" style="display:inline-flex;" class="w-100">
                                     <?= csrf_field() ?>
                                     <input type="hidden" name="action" value="receive_order">
                                     <input type="hidden" name="oid" value="<?= $ord['id'] ?>">
@@ -1770,9 +1983,11 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
                                 <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-outline btn-sm mt-1">Message Seller</a>
                             <?php elseif($ord['status'] === 'completed'): ?>
                                 <span class="badge" style="background:var(--success); color:#fff;">Status: Completed</span>
-                                <a href="product.php?id=<?= $ord['product_id'] ?>&review_required=1#review" class="btn btn-outline btn-sm" style="margin-left:0.5rem;">Submit Review</a>
-                                <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-outline btn-sm">Chat History</a>
-                                <a href="#" onclick="document.getElementById('dispute_form_<?= $ord['id'] ?>').style.display='block'; return false;" class="text-muted" style="font-size:0.75rem; margin-left:1rem; text-decoration:underline;">Report Issue</a>
+                                <div class="flex gap-1" style="flex-wrap:wrap; margin-top:0.5rem;">
+                                    <a href="product.php?id=<?= $ord['product_id'] ?>&review_required=1#review" class="btn btn-outline btn-sm">Submit Review</a>
+                                    <a href="chat.php?user=<?= $ord['seller_id'] ?>" class="btn btn-outline btn-sm">Chat History</a>
+                                </div>
+                                <a href="#" onclick="document.getElementById('dispute_form_<?= $ord['id'] ?>').style.display='block'; return false;" class="text-muted" style="font-size:0.75rem; margin-top:0.5rem; display:block; text-decoration:underline;">Report Issue</a>
                                 <div id="dispute_form_<?= $ord['id'] ?>" style="display:none; margin-top:1rem; padding:1rem; background:rgba(255,59,48,0.05); border-radius:12px; border:1px solid rgba(255,59,48,0.1);">
                                     <p style="font-size:0.8rem; font-weight:700; color:var(--danger); margin-bottom:0.5rem;">Report Dispute to Admin</p>
                                     <form method="POST" action="?action=submit_dispute&oid=<?= $ord['id'] ?>" class="flex-column gap-1">
@@ -1800,7 +2015,7 @@ if($msg): ?><div class="alert alert-success fade-in"><?= htmlspecialchars($msg) 
 </div>
 
 <!-- ADDED: Buyer Cart / Order Summary Section -->
-<?php if($user['role'] === 'buyer'): ?>
+<?php if($hasBuyerDashboardAccess): ?>
 <div class="glass fade-in mt-3" style="padding:2rem;">
     <h3 class="mb-2">My Cart</h3>
     

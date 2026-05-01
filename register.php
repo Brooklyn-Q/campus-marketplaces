@@ -115,14 +115,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hashed = password_hash($password, PASSWORD_DEFAULT);
                 $new_ref = generateReferralCode();
                 $role = ($mode === 'seller') ? 'seller' : 'buyer';
+                $verificationToken = bin2hex(random_bytes(32));
 
-                $insertParams = [$username, $email, $hashed, $role, $faculty, $department ?: null, $level ?: null, $hall ?: null, $hall_residence ?: null, $phone ?: null, $pic, $new_ref, $referred_by];
+                $insertParams = [$username, $email, $hashed, $role, $faculty, $department ?: null, $level ?: null, $hall ?: null, $hall_residence ?: null, $phone ?: null, $pic, $new_ref, $referred_by, $verificationToken];
                 if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'pgsql') {
-                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, whatsapp_joined) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,false,false) RETURNING id");
+                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, whatsapp_joined, email_verification_token) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,false,false,?) RETURNING id");
                     $stmt->execute($insertParams);
                     $user_id = (int) $stmt->fetchColumn();
                 } else {
-                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, whatsapp_joined) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,0)");
+                    $stmt = $pdo->prepare("INSERT INTO users (username, email, password, role, faculty, department, level, hall, hall_residence, phone, profile_pic, referral_code, referred_by, terms_accepted, whatsapp_joined, email_verification_token) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0,0,?)");
                     $stmt->execute($insertParams);
                     $user_id = (int) $pdo->lastInsertId();
                 }
@@ -131,22 +132,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     throw new RuntimeException('Could not determine new user ID after registration.');
                 }
 
-                // Referral bonuses
-                if ($referred_by) {
-                    $pdo->prepare("UPDATE users SET balance = balance + 5.00 WHERE id = ?")->execute([$referred_by]);
-                    $pdo->prepare("INSERT INTO transactions (user_id, type, amount, status, reference, description) VALUES (?, 'referral', 5.00, 'completed', ?, 'Referral bonus')")->execute([$referred_by, generateRef('REF')]);
-                    $pdo->prepare("UPDATE users SET balance = balance + 2.00 WHERE id = ?")->execute([$user_id]);
-                    $pdo->prepare("INSERT INTO transactions (user_id, type, amount, status, reference, description) VALUES (?, 'referral', 2.00, 'completed', ?, 'Signup referral bonus')")->execute([$user_id, generateRef('REF')]);
-                    $pdo->prepare("INSERT INTO referrals (referrer_id, referred_user_id, bonus) VALUES (?,?,5.00)")->execute([$referred_by, $user_id]);
-                }
+                // Send Verification Email
+                $verifyUrl = rtrim(getSiteRootUrl(), '/') . '/verify_email.php?token=' . $verificationToken;
+                $safeUrl = htmlspecialchars($verifyUrl, ENT_QUOTES, 'UTF-8');
+                $html = "<div style=\"font-family:Arial,sans-serif;line-height:1.6;color:#111827\">
+                    <h2 style=\"color:#7c3aed;margin-bottom:12px\">Verify your email</h2>
+                    <p>Hello " . htmlspecialchars($username, ENT_QUOTES, 'UTF-8') . ",</p>
+                    <p>Welcome to Campus Marketplace! Please verify your email address to activate your account.</p>
+                    <p><a href=\"{$safeUrl}\" style=\"display:inline-block;padding:12px 24px;background:#7c3aed;color:#fff;text-decoration:none;border-radius:999px;font-weight:700\">Verify Email Address</a></p>
+                    <p>If you cannot click the button, copy and paste this link into your browser:</p>
+                    <p style=\"font-size:0.85rem;color:#6b7280\">{$safeUrl}</p>
+                </div>";
+                sendMarketplaceEmail($email, 'Verify your email | Campus Marketplace', $html);
 
                 $pdo->commit();
                 session_regenerate_id(true);
                 $_SESSION['user_id'] = $user_id;
                 $_SESSION['username'] = $username;
                 $_SESSION['role'] = $role;
-                // New users must join the WhatsApp channel before proceeding
-                redirect('whatsapp_join.php');
+                
+                // Redirect to a pending verification page or show notice
+                setFlashMessage('auth_success', 'Account created! Please check your email to verify your account.');
+                redirect('verify_email.php?pending=1');
             } catch (Exception $e) {
                 $pdo->rollBack();
                 error_log('register.php registration failed: ' . $e->getMessage());
@@ -284,6 +291,20 @@ require_once 'includes/header.php';
 /* Hero panel */
 .auth-hero-panel { display: none; flex: 1; position: relative; overflow: hidden; }
 @media (min-width: 1024px) { .auth-hero-panel { display: flex; } }
+
+@media (max-width: 1024px) {
+    .reg-page-root { flex-direction: column; height: auto; min-height: auto !important; }
+    .auth-form-panel { padding: 2rem 1rem; }
+    .auth-form-inner { max-width: 100%; }
+}
+
+@media (max-width: 768px) {
+    .auth-form-panel { padding: 1.5rem 1rem; align-items: flex-start; }
+    .auth-card-new { padding: 1.5rem 1.25rem; border-radius: 1.25rem; width: 100% !important; max-width: 100% !important; }
+    .auth-title { font-size: 1.6rem; }
+    .auth-header { margin-bottom: 1.5rem; }
+    .auth-icon-wrap { width: 48px; height: 48px; margin-bottom: 0.75rem; }
+}
 .auth-hero-bg { position: absolute; inset: 0; background: linear-gradient(135deg, #0f0f1a 0%, #2e1065 50%, #0f0f1a 100%); }
 .auth-blob { position: absolute; border-radius: 9999px; filter: blur(40px); mix-blend-mode: screen; opacity: 0.65; animation: authBlob 7s infinite; }
 .auth-blob-1 { width: 18rem; height: 18rem; background: hsla(280,80%,60%,0.4); top: 0; left: -2rem; }
@@ -361,8 +382,8 @@ require_once 'includes/header.php';
 
             <!-- Role tabs -->
             <div class="reg-tabs">
-                <a href="?mode=buyer" class="reg-tab <?= $mode === 'buyer' ? 'active' : '' ?>">🛒 Buyer</a>
-                <a href="?mode=seller" class="reg-tab <?= $mode === 'seller' ? 'active' : '' ?>">🏪 Seller</a>
+                <a href="?mode=buyer" class="reg-tab <?= $mode === 'buyer' ? 'active' : '' ?>">Buyer</a>
+                <a href="?mode=seller" class="reg-tab <?= $mode === 'seller' ? 'active' : '' ?>">Seller</a>
             </div>
 
             <!-- Card -->

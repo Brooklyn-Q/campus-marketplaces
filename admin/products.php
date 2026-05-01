@@ -5,11 +5,7 @@ $page_title = 'Moderation Desk';
 // header.php already checks isAdmin() and redirects non-admins
 require_once '../includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
-
-if (!isAdmin()) {
-    http_response_code(403);
-    exit('Forbidden');
-}
+$adminAccess = ensureAdminPageAccess($pdo);
 
 // --- Safe deletion helper ---
 function deleteProductWithFiles(PDO $pdo, int $id): void
@@ -183,24 +179,24 @@ $filter_encoded = htmlspecialchars($filter);
         class="btn <?= $filter === 'rejected' ? 'btn-primary' : 'btn-outline' ?> btn-sm">Rejected</a>
 </div>
 
-<div class="glass fade-in" style="padding:1.5rem; overflow-x:auto;">
-    <table>
+<div class="glass fade-in" style="padding:0; overflow-x:auto;">
+    <table class="responsive-table" style="width:100%; border-collapse:collapse; font-size:0.85rem;">
         <thead>
-            <tr>
-                <th></th>
-                <th>ID</th>
-                <th>Title</th>
-                <th>Seller</th>
-                <th>Price</th>
-                <th>Qty</th>
-                <th>Status</th>
-                <th>Actions</th>
+            <tr style="background:rgba(255,255,255,0.03); border-bottom:1px solid var(--border);">
+                <th style="padding:1rem; text-align:left;">IMAGE</th>
+                <th style="padding:1rem; text-align:left;">ID</th>
+                <th style="padding:1rem; text-align:left;">TITLE</th>
+                <th style="padding:1rem; text-align:left;">SELLER</th>
+                <th style="padding:1rem; text-align:left;">PRICE</th>
+                <th style="padding:1rem; text-align:left;">QTY</th>
+                <th style="padding:1rem; text-align:left;">STATUS</th>
+                <th style="padding:1rem; text-align:right;">ACTIONS</th>
             </tr>
         </thead>
         <tbody>
             <?php foreach ($products as $p): ?>
-                <tr>
-                    <td>
+                <tr style="border-bottom:1px solid var(--border);">
+                    <td data-label="Image" style="padding:1rem;">
                         <?php if ($p['thumb']): ?>
                             <img src="<?= htmlspecialchars(
                                 str_starts_with($p['thumb'], 'http')
@@ -211,20 +207,25 @@ $filter_encoded = htmlspecialchars($filter);
                             <div style="width:40px;height:40px;background:rgba(0,0,0,0.3);border-radius:6px;"></div>
                         <?php endif; ?>
                     </td>
-                    <td><?= (int) $p['id'] ?></td>
-                    <td>
+                    <td data-label="ID" style="padding:1rem;"><?= (int) $p['id'] ?></td>
+                    <td data-label="Title" style="padding:1rem;">
                         <a href="../product.php?id=<?= (int) $p['id'] ?>" target="_blank"
                             style="color:#fff; font-weight:500;"><?= htmlspecialchars($p['title']) ?></a>
                     </td>
-                    <td>
-                        <?= htmlspecialchars($p['seller']) ?>
-                        <?php if ($p['seller_tier'] === 'premium'): ?>
-                            <span class="badge badge-gold" style="margin-left:2px;">⭐</span>
-                        <?php endif; ?>
+                    <td data-label="Seller" style="padding:1rem;">
+                        <div style="font-weight:600;">
+                            <?= htmlspecialchars($p['seller']) ?>
+                            <?php if ($p['seller_tier'] === 'premium'): ?>
+                                <span class="badge badge-gold" style="margin-left:2px;">⭐</span>
+                            <?php endif; ?>
+                        </div>
+                        <a href="messages.php?view=chat&u1=<?= (int)$_SESSION['user_id'] ?>&u2=<?= (int)$p['user_id'] ?>" style="font-size:0.72rem; color:var(--primary);">Contact Seller</a>
                     </td>
-                    <td>₵<?= number_format((float) $p['price'], 2) ?></td>
-                    <td><?= (int) $p['quantity'] ?></td>
-                    <td>
+                    <td data-label="Price" style="padding:1rem; font-weight:700; color:var(--primary);">
+                        ₵<?= number_format((float) $p['price'], 2) ?>
+                    </td>
+                    <td data-label="Qty" style="padding:1rem;"><?= (int) $p['quantity'] ?></td>
+                    <td data-label="Status" style="padding:1rem;">
                         <?php
                         $bc = match ($p['status']) {
                             'pending' => 'badge-pending',
@@ -238,31 +239,33 @@ $filter_encoded = htmlspecialchars($filter);
                         <span
                             class="badge <?= $bc ?>"><?= htmlspecialchars(strtoupper(str_replace('_', ' ', $p['status']))) ?></span>
                     </td>
-                    <td>
-                        <?php if ($p['status'] === 'pending'): ?>
-                            <button class="btn btn-success btn-sm"
-                                onclick="submitAction('approve', <?= (int) $p['id'] ?>, 'Approve Product #<?= (int) $p['id'] ?>?')">
-                                Approve
-                            </button>
-                            <button class="btn btn-outline btn-sm"
-                                onclick="submitAction('reject', <?= (int) $p['id'] ?>, 'Reject Product #<?= (int) $p['id'] ?>?')">
-                                Reject
-                            </button>
-                        <?php elseif ($p['status'] === 'deletion_requested'): ?>
-                            <button class="btn btn-danger btn-sm"
-                                onclick="submitAction('delete_approve', <?= (int) $p['id'] ?>, 'Permanently delete Product #<?= (int) $p['id'] ?> and all its files?\nThis cannot be undone.')">
-                                Confirm Delete
-                            </button>
-                            <button class="btn btn-outline btn-sm"
-                                onclick="submitAction('delete_cancel', <?= (int) $p['id'] ?>, 'Cancel deletion and return Product #<?= (int) $p['id'] ?> to pending review?')">
-                                Cancel
-                            </button>
-                        <?php else: ?>
-                            <button class="btn btn-danger btn-sm"
-                                onclick="submitAction('force_delete', <?= (int) $p['id'] ?>, 'Force delete Product #<?= (int) $p['id'] ?> and all its files?\nThis cannot be undone.')">
-                                Force Delete
-                            </button>
-                        <?php endif; ?>
+                    <td data-label="Actions" style="padding:1rem; text-align:right;">
+                        <div class="flex gap-1" style="justify-content:flex-end; flex-wrap:wrap;">
+                            <?php if ($p['status'] === 'pending'): ?>
+                                <button class="btn btn-success btn-sm"
+                                    onclick="submitAction('approve', <?= (int) $p['id'] ?>, 'Approve Product #<?= (int) $p['id'] ?>?')">
+                                    Approve
+                                </button>
+                                <button class="btn btn-outline btn-sm"
+                                    onclick="submitAction('reject', <?= (int) $p['id'] ?>, 'Reject Product #<?= (int) $p['id'] ?>?')">
+                                    Reject
+                                </button>
+                            <?php elseif ($p['status'] === 'deletion_requested'): ?>
+                                <button class="btn btn-danger btn-sm"
+                                    onclick="submitAction('delete_approve', <?= (int) $p['id'] ?>, 'Permanently delete Product #<?= (int) $p['id'] ?> and all its files?\nThis cannot be undone.')">
+                                    Confirm Delete
+                                </button>
+                                <button class="btn btn-outline btn-sm"
+                                    onclick="submitAction('delete_cancel', <?= (int) $p['id'] ?>, 'Cancel deletion and return Product #<?= (int) $p['id'] ?> to pending review?')">
+                                    Cancel
+                                </button>
+                            <?php else: ?>
+                                <button class="btn btn-danger btn-sm"
+                                    onclick="submitAction('force_delete', <?= (int) $p['id'] ?>, 'Force delete Product #<?= (int) $p['id'] ?> and all its files?\nThis cannot be undone.')">
+                                    Force Delete
+                                </button>
+                            <?php endif; ?>
+                        </div>
                     </td>
                 </tr>
             <?php endforeach; ?>

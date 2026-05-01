@@ -1,0 +1,34 @@
+<?php
+// Create a simple default avatar image using PHP GD
+header('Content-Type: image/png');
+
+$img = imagecreatetruecolor(200, 200);
+
+// Create a gradient background
+$bg_color1 = imagecolorallocate($img, 124, 58, 237); // Purple
+$bg_color2 = imagecolorallocate($img, 167, 139, 250); // Light purple
+
+for ($y = 0; $y < 200; $y++) {
+    $ratio = $y / 200;
+    $r = (int)($bg_color1 >> 16 & 0xFF) * (1 - $ratio) + (int)($bg_color2 >> 16 & 0xFF) * $ratio;
+    $g = (int)($bg_color1 >> 8 & 0xFF) * (1 - $ratio) + (int)($bg_color2 >> 8 & 0xFF) * $ratio;
+    $b = (int)($bg_color1 & 0xFF) * (1 - $ratio) + (int)($bg_color2 & 0xFF) * $ratio;
+    $color = imagecolorallocate($img, $r, $g, $b);
+    imageline($img, 0, $y, 200, $y, $color);
+}
+
+// Add a simple person icon
+$white = imagecolorallocate($img, 255, 255, 255);
+$gray = imagecolorallocate($img, 200, 200, 200);
+
+// Head circle
+imagefilledellipse($img, 100, 70, 50, 50, $white);
+imageellipse($img, 100, 70, 50, 50, $gray);
+
+// Body shape
+imagefilledellipse($img, 100, 140, 80, 60, $white);
+imageellipse($img, 100, 140, 80, 60, $gray);
+
+imagepng($img);
+imagedestroy($img);
+?>

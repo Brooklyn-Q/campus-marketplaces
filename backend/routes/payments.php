@@ -185,8 +185,14 @@ if ($method === 'POST' && $action === 'initialize') {
 
             $expiresAt = paymentDurationToExpiry((string)($tierInfo['duration'] ?? ''));
 
-            $pdo->prepare("UPDATE users SET seller_tier = ?, tier_expires_at = ? WHERE id = ?")
+            $boolF = sqlBool(false, $pdo);
+            $pdo->prepare("UPDATE users SET seller_tier = ?, tier_expires_at = ?, vacation_mode = $boolF WHERE id = ?")
                 ->execute([$tier, $expiresAt, $tx['user_id']]);
+
+            // Log to tier_subscriptions for the admin ledger
+            $pdo->prepare("INSERT INTO tier_subscriptions (user_id, tier_name, amount, transaction_id, expires_at) VALUES (?, ?, ?, ?, ?)")
+                ->execute([$tx['user_id'], $tier, (float)$tx['amount'], $reference, $expiresAt]);
+
             $auditMessage = "Upgraded to $tier tier via payment $reference";
         } else {
             $pdo->prepare("UPDATE users SET balance = balance + ? WHERE id = ?")

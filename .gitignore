@@ -5,11 +5,16 @@ alwaysdata.env
 Thumbs.db
 *.log
 *.tmp
+nul
+/logs/
 app.zip
 react.zip
 unzip.php
 unzip_*.php
 deploy_with_password.bat
+
+# Session files
+sessions/
 
 # Local Storage (Production uses Supabase Storage)
 uploads/

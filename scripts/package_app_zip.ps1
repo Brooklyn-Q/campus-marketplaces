@@ -7,6 +7,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Add-Type -AssemblyName System.IO.Compression
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
 $resolvedRootDir = (Resolve-Path -LiteralPath $RootDir).Path
@@ -18,6 +19,7 @@ if (-not (Test-Path -LiteralPath $destinationDir)) {
 
 $paths = @(
     'admin',
+    'legacy',
     'api',
     'assets',
     'backend',
@@ -66,15 +68,25 @@ try {
         Remove-Item -LiteralPath $DestinationZip -Force
     }
 
-    [System.IO.Compression.ZipFile]::CreateFromDirectory(
-        $stagingDir,
-        $DestinationZip,
-        [System.IO.Compression.CompressionLevel]::Optimal,
-        $false
-    )
+    $zip = [System.IO.Compression.ZipFile]::Open($DestinationZip, [System.IO.Compression.ZipArchiveMode]::Create)
+    try {
+        $allFiles = Get-ChildItem -LiteralPath $stagingDir -Recurse -File
+        foreach ($file in $allFiles) {
+            $entryName = $file.FullName.Substring($stagingDir.Length).TrimStart('\', '/').Replace('\', '/')
+            [System.IO.Compression.ZipFileExtensions]::CreateEntryFromFile(
+                $zip,
+                $file.FullName,
+                $entryName,
+                [System.IO.Compression.CompressionLevel]::Optimal
+            ) | Out-Null
+        }
+    } finally {
+        $zip.Dispose()
+    }
 }
 finally {
     if (Test-Path -LiteralPath $stagingDir) {
         Remove-Item -LiteralPath $stagingDir -Recurse -Force
     }
 }
+

@@ -7,6 +7,18 @@ document.addEventListener('DOMContentLoaded', () => {
         // fallback: use the directory of the current page
         return p.substring(0, p.lastIndexOf('/') + 1);
     })();
+
+    const resolveAttachmentUrl = (attachmentUrl) => {
+        if (!attachmentUrl) return '';
+        if (/^https?:\/\//i.test(attachmentUrl) || attachmentUrl.startsWith('//')) {
+            return attachmentUrl;
+        }
+        const clean = attachmentUrl.replace(/^\.?\//, '');
+        if (clean.startsWith('uploads/')) {
+            return _base + clean;
+        }
+        return _base + 'uploads/' + clean;
+    };
     // ── CART SYSTEM (localStorage) ──
     window.cmCart = {
         get() {
@@ -161,7 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     let attachmentHtml = '';
                     if (m.attachment_url) {
-                        const fileUrl = _base + 'uploads/' + m.attachment_url;
+                        const fileUrl = resolveAttachmentUrl(m.attachment_url);
                         const ext = m.attachment_url.split('.').pop().toLowerCase();
                         let type = m.message_type;
                         if (type === 'text' || !type) {
@@ -294,11 +306,16 @@ document.addEventListener('DOMContentLoaded', () => {
                         const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
                         if (csrfToken) formData.append('csrf_token', csrfToken);
                         
-                        await fetch(_base + 'api/chat.php?action=send', {
+                        const res = await fetch(_base + 'api/chat.php?action=send', {
                             method: 'POST',
                             body: formData
                         });
-                        fetchMessages();
+                        const data = await res.json();
+                        if (data?.success) {
+                            fetchMessages();
+                        } else {
+                            alert('Voice note failed to send: ' + (data?.error || 'Server error'));
+                        }
                         stream.getTracks().forEach(track => track.stop());
                     };
 
@@ -450,4 +467,3 @@ function formatTime(dateStr) {
     const d = new Date(dateStr);
     return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
-

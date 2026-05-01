@@ -352,10 +352,18 @@ require_once 'includes/header.php';
 
     .about-tier-card {
         position: relative;
-        padding: 1.5rem;
-        border-radius: 20px;
+        padding: 2.5rem 2rem;
+        border-radius: 24px;
         background: var(--card-bg);
         border: 1px solid var(--border);
+        transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        display: flex;
+        flex-direction: column;
+    }
+
+    .about-tier-card:hover {
+        transform: translateY(-8px);
+        box-shadow: 0 32px 64px rgba(0,0,0,0.1);
     }
 
     .about-tier-card[data-tier="premium"] {
@@ -490,6 +498,10 @@ require_once 'includes/header.php';
         .about-card-grid,
         .about-tier-grid {
             grid-template-columns: 1fr;
+        }
+
+        .about-tier-card {
+            padding: 2rem 1.5rem;
         }
 
         .about-cta {
@@ -689,13 +701,39 @@ require_once 'includes/header.php';
                         $tierItems = array_values(array_unique($tierItems));
 
                         $price = isset($tier['price']) ? (float) $tier['price'] : 0.0;
+                        $originalPrice = isset($tier['original_price']) ? (float) $tier['original_price'] : 0.0;
+                        $isDiscounted = ($originalPrice > $price);
+
                         $duration = isset($tier['duration']) ? (int) $tier['duration'] : 0;
-                        $priceLabel = $price <= 0 ? 'Free' : 'GHS ' . number_format($price, 2);
+                        $priceLabel = $price <= 0 ? 'Free' : '₵' . number_format($price, $price == floor($price) ? 0 : 2);
+                        $originalPriceLabel = '₵' . number_format($originalPrice, 0);
                         $durationLabel = $duration > 0 ? 'Valid for ' . $duration . ' month' . ($duration === 1 ? '' : 's') : 'Flexible duration';
+                        
+                        // Contrast & Visibility Logic
+                        $isPremium = ($tierName === 'premium');
+                        $cardStyle = $isPremium ? "background:var(--gold); border-color:rgba(0,0,0,0.1); color:#000;" : "";
+                        $priceColor = $isPremium ? "#000" : "var(--primary)";
+                        $oldPriceColor = $isPremium ? "rgba(0,0,0,0.35)" : "rgba(255,255,255,0.4)";
+                        $nameColor = $isPremium ? "#000" : "var(--text-main)";
+                        $badgeStyle = $isPremium 
+                            ? "background:#000; color:#fff; font-size:0.45em; padding:4px 10px; border-radius:99px; vertical-align:middle; margin-left:8px; font-weight:900; text-transform:uppercase;"
+                            : "background:var(--gold); color:#000; font-size:0.45em; padding:4px 10px; border-radius:99px; vertical-align:middle; margin-left:8px; font-weight:900; text-transform:uppercase;";
                         ?>
-                        <article class="about-tier-card" data-tier="<?= htmlspecialchars($tierName, ENT_QUOTES, 'UTF-8') ?>">
-                            <p class="about-tier-name"><?= htmlspecialchars(ucfirst($tierName), ENT_QUOTES, 'UTF-8') ?></p>
-                            <p class="about-tier-price"><?= htmlspecialchars($priceLabel, ENT_QUOTES, 'UTF-8') ?></p>
+                        <article class="about-tier-card" data-tier="<?= htmlspecialchars($tierName, ENT_QUOTES, 'UTF-8') ?>" style="<?= $cardStyle ?>">
+                            <p class="about-tier-name" style="color:<?= $nameColor ?>; font-weight:850;"><?= htmlspecialchars(ucfirst($tierName), ENT_QUOTES, 'UTF-8') ?></p>
+                            <div class="about-tier-price-wrap" style="display:flex; flex-direction:column; gap:2px; margin-bottom:1.5rem;">
+                                <?php if ($isDiscounted): ?>
+                                    <span style="text-decoration: line-through; color: <?= $oldPriceColor ?>; font-size: 1rem; font-weight: 700;"><?= htmlspecialchars($originalPriceLabel, ENT_QUOTES, 'UTF-8') ?></span>
+                                <?php endif; ?>
+                                <div style="display:flex; align-items:baseline; gap:4px;">
+                                    <span class="about-tier-price" style="font-size:2.8rem; font-weight:900; line-height:1; letter-spacing:-0.05em; color:<?= $priceColor ?>;">
+                                        <?= htmlspecialchars($priceLabel, ENT_QUOTES, 'UTF-8') ?>
+                                    </span>
+                                    <?php if ($isDiscounted): ?>
+                                        <span class="sale-badge" style="<?= $badgeStyle ?>">Save <?= round((1 - ($price/$originalPrice)) * 100) ?>%</span>
+                                    <?php endif; ?>
+                                </div>
+                            </div>
                             <div class="about-tier-meta"><?= htmlspecialchars($durationLabel, ENT_QUOTES, 'UTF-8') ?></div>
                             <ul class="about-tier-list">
                                 <?php foreach ($tierItems as $tierItem): ?>

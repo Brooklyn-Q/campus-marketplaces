@@ -544,7 +544,7 @@ require_once 'includes/header.php';
             
             <!-- Social Links -->
             <div class="flex gap-1 mt-2" style="justify-content:center;">
-                <?php if($user['whatsapp']): ?><a href="https://wa.me/<?= $user['whatsapp'] ?>" target="_blank" class="btn btn-outline btn-sm">WhatsApp</a><?php endif; ?>
+                <?php if($user['whatsapp']): ?><a href="<?= formatWhatsAppLink($user['whatsapp']) ?>" target="_blank" class="btn btn-outline btn-sm">WhatsApp</a><?php endif; ?>
                 <?php if($user['instagram']): ?><a href="https://instagram.com/<?= $user['instagram'] ?>" target="_blank" class="btn btn-outline btn-sm">IG</a><?php endif; ?>
             </div>
             

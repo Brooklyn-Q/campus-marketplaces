@@ -1,0 +1,42 @@
+🔧 MANUAL DEPLOYMENT INSTRUCTIONS (FTP Alternative)
+
+Since FTP is failing, here's how to deploy manually:
+
+📁 FILES TO UPLOAD TO ALWAYSDATA:
+
+1. Go to: https://admin.alwaysdata.com
+2. Navigate to: File Manager
+3. Upload these files to your www/ folder:
+
+🎯 CRITICAL FILES:
+- dashboard.php (with alignment fixes)
+- leaderboard.php (with alignment fixes)
+- register.php (profile picture preview)
+- whatsapp_join.php (WhatsApp fixes)
+- edit_profile.php (avatar fixes)
+- alwaysdata.env (Cloudinary config)
+
+📁 ASSETS:
+- assets/img/default-avatar.svg (new default avatar)
+
+🔧 STEPS:
+1. Login to alwaysdata admin panel
+2. Go to File Manager
+3. Navigate to www/ folder
+4. Upload/replace each file above
+5. Make sure alwaysdata.env is renamed to .env on server
+
+✅ AFTER UPLOAD:
+1. Test registration: /register.php
+2. Test dashboard: /dashboard.php  
+3. Test leaderboard: /leaderboard.php
+
+🔍 TROUBLESHOOTING FTP:
+If you want to fix FTP:
+1. Check alwaysdata admin panel → Hosting → FTP Accounts
+2. Verify FTP is enabled
+3. Reset FTP password if needed
+4. Try deployment script again
+
+🎉 MANUAL DEPLOYMENT WORKS JUST AS WELL!
+The functionality will be identical.

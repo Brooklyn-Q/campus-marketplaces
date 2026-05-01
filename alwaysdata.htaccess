@@ -21,6 +21,20 @@ DirectoryIndex public/index.html index.php
     RewriteEngine On
     RewriteBase /
 
+    # ===== HARDENING: BLOCK COMMON SCAN TARGETS =====
+    # Block attempts to access hidden files/folders like .git, .env, etc.
+    # Allow only ACME challenge files under .well-known when needed.
+    RewriteRule "(^|/)\.(?!well-known/)" - [F,L]
+
+    # Block common bot probe endpoints not used by this app.
+    RewriteRule ^(wp-admin|wp-login\.php|xmlrpc\.php|phpmyadmin|pma|myadmin|mysql|cgi-bin)(/.*)?$ - [F,L,NC]
+
+    # Block direct access to development or sensitive directories if present.
+    RewriteRule ^(\.git|\.svn|\.hg|node_modules|vendor|tests?|logs?|backups?)(/.*)?$ - [F,L,NC]
+
+    # Block direct reads of typical backup/config artifacts.
+    RewriteRule (^|/)(composer\.(json|lock)|package(-lock)?\.json|yarn\.lock|pnpm-lock\.yaml|phpunit\.xml(\.dist)?|Dockerfile|docker-compose\.ya?ml)$ - [F,L,NC]
+
     # ===== MAINTENANCE MODE (React SPA only) =====
     # PHP pages already handle maintenance via includes/header.php (which
     # checks isAdmin() and lets admins through). This rule only covers the

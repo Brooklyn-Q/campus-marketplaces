@@ -20,21 +20,36 @@ $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     check_csrf();
     if (isset($_POST['confirm_joined'])) {
-        $boolTrue = sqlBool(true, $pdo);
-        $stmt = $pdo->prepare("UPDATE users SET whatsapp_joined = $boolTrue WHERE id = ?");
-        if ($stmt->execute([$user['id']])) {
-            // If terms not yet accepted, go to terms page; else dashboard
-            if (!filter_var($user['terms_accepted'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-                redirect('terms.php');
-            }
-            redirect('dashboard.php');
+        $inputCode = trim($_POST['verification_code'] ?? '');
+        $correctCode = getSiteSetting($pdo, 'whatsapp_verification_code', 'CAMPUS_JOIN_2026');
+
+        if (strtoupper($inputCode) !== strtoupper($correctCode)) {
+            $error = "Invalid verification code. Please check the WhatsApp channel description or latest post for the correct code.";
         } else {
-            $error = "Could not save. Please try again.";
+            $boolTrue = sqlBool(true, $pdo);
+            $stmt = $pdo->prepare("UPDATE users SET whatsapp_joined = $boolTrue WHERE id = ?");
+            if ($stmt->execute([$user['id']])) {
+                // If terms not yet accepted, go to terms page; else dashboard
+                if (!filter_var($user['terms_accepted'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+                    redirect('terms.php');
+                }
+                redirect('dashboard.php');
+            } else {
+                $error = "Could not save. Please try again.";
+            }
         }
     }
 }
 
 $pageTitle = 'Join Our WhatsApp Channel';
+
+// Build a guaranteed-working WhatsApp channel URL
+$rawChannelUrl = trim(getSiteSetting($pdo, 'whatsapp_channel_url', 'https://www.whatsapp.com/channel/0029VbCLnKPLY6d7qLGtyQ0Z'));
+// Normalize: strip protocol + optional www, then rebuild with https://www.
+if (preg_match('#whatsapp\.com/channel/([A-Za-z0-9]+)#', $rawChannelUrl, $m)) {
+    $rawChannelUrl = 'https://www.whatsapp.com/channel/' . $m[1];
+}
+
 require_once 'includes/header.php';
 ?>
 
@@ -157,6 +172,14 @@ require_once 'includes/header.php';
     margin-top: 1.25rem;
     line-height: 1.5;
 }
+
+@media (max-width: 640px) {
+    .wa-page { padding: 1rem; min-height: auto !important; }
+    .wa-card { padding: 2rem 1.25rem; border-radius: 20px; width: 100% !important; max-width: 100% !important; }
+    .wa-title { font-size: 1.4rem; }
+    .wa-subtitle { font-size: 0.9rem; margin-bottom: 1.25rem; }
+    .wa-steps { padding: 1rem; margin-bottom: 1.5rem; }
+}
 </style>
 
 <div class="wa-page">
@@ -168,81 +191,75 @@ require_once 'includes/header.php';
             </svg>
         </div>
 
-        <h1 class="wa-title">Join Our WhatsApp Channel</h1>
-        <p class="wa-subtitle">
-            Before you can use Campus Marketplace, you must join our official WhatsApp channel. This is where we share important platform updates and community notices.
-        </p>
-
-        <?php if ($error): ?>
-            <div style="background:rgba(255,59,48,0.08); border:1px solid rgba(255,59,48,0.25); color:#ff3b30; border-radius:12px; padding:0.75rem 1rem; font-size:0.875rem; margin-bottom:1.25rem;">
-                <?= htmlspecialchars($error) ?>
-            </div>
-        <?php endif; ?>
+        <h1 class="wa-title">Join Our Channel</h1>
+        <p class="wa-subtitle">Stay updated with the latest safety alerts, campus deals, and community announcements.</p>
 
         <div class="wa-steps">
             <div class="wa-step">
                 <div class="wa-step-num">1</div>
-                <div>Click the <strong>"Join Channel"</strong> button below to open WhatsApp.</div>
+                <div>Click the button below to open and <strong>Join</strong> the channel.</div>
             </div>
             <div class="wa-step">
                 <div class="wa-step-num">2</div>
-                <div>Follow the link and tap <strong>"Follow"</strong> on the Campus Marketplace channel.</div>
+                <div>Find the <strong>Verification Code</strong> in the channel description or latest post.</div>
             </div>
             <div class="wa-step">
                 <div class="wa-step-num">3</div>
-                <div>Come back here and click <strong>"I've Joined — Continue"</strong>.</div>
+                <div>Enter the code below to unlock your account.</div>
             </div>
         </div>
 
-        <!-- Open WhatsApp channel in new tab -->
-        <a href="https://whatsapp.com/channel/0029VbCLnKPLY6d7qLGtyQ0Z"
-           target="_blank"
-           rel="noopener noreferrer"
+        <a href="<?= htmlspecialchars($rawChannelUrl, ENT_QUOTES, 'UTF-8') ?>" 
+           target="_blank" 
            class="wa-join-btn"
-           id="waJoinLink"
-           onclick="enableConfirm()">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+           id="joinBtn">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
             Open WhatsApp Channel
         </a>
 
-        <form method="POST" id="waConfirmForm">
+        <?php if($error): ?>
+            <div class="alert alert-error mb-2"><?= htmlspecialchars($error) ?></div>
+        <?php endif; ?>
+
+        <form method="POST">
             <?= csrf_field() ?>
-            <input type="hidden" name="confirm_joined" value="1">
-            <button type="submit" class="wa-confirm-btn" id="waConfirmBtn" disabled>
-                I've Joined — Continue
+            <div style="margin-bottom:1rem;">
+                <input type="text" 
+                       name="verification_code" 
+                       id="vCode" 
+                       class="form-control text-center" 
+                       placeholder="Enter Code (e.g. CAMPUS_...)" 
+                       required 
+                       style="font-family:monospace; font-weight:700; letter-spacing:1px; border-radius:14px; padding:0.9rem;">
+            </div>
+            <button type="submit" name="confirm_joined" id="confirmBtn" class="wa-confirm-btn">
+                Confirm & Continue
             </button>
         </form>
 
         <p class="wa-note">
-            You cannot access Campus Marketplace until you join the channel.<br>
-            Already on WhatsApp channel? <a href="#" onclick="enableConfirm(); return false;" style="color:#25d366; font-weight:600;">Click here</a> then confirm below.
+            <strong>Note:</strong> Joining the channel is mandatory to ensure all users receive real-time security updates and platform news.
         </p>
     </div>
 </div>
 
 <script>
-function enableConfirm() {
-    const btn = document.getElementById('waConfirmBtn');
-    if (btn) {
-        btn.disabled = false;
-        btn.classList.add('active');
-    }
-}
+    const vCode = document.getElementById('vCode');
+    const confirmBtn = document.getElementById('confirmBtn');
+    const joinBtn = document.getElementById('joinBtn');
+    let hasClickedJoin = false;
 
-// If user returns to this page after visiting channel in another tab
-document.addEventListener('visibilitychange', function() {
-    if (!document.hidden) enableConfirm();
-});
+    joinBtn.addEventListener('click', () => {
+        hasClickedJoin = true;
+    });
 
-// Form submission handler
-document.getElementById('waConfirmForm').addEventListener('submit', function(e) {
-    const btn = document.getElementById('waConfirmBtn');
-    if (btn && btn.disabled) {
-        e.preventDefault();
-        alert('Please click the "Open WhatsApp Channel" button first, then confirm you have joined.');
-        return false;
-    }
-});
+    vCode.addEventListener('input', () => {
+        if (vCode.value.trim().length > 3) {
+            confirmBtn.classList.add('active');
+        } else {
+            confirmBtn.classList.remove('active');
+        }
+    });
 </script>
 
 <?php require_once 'includes/footer.php'; ?>

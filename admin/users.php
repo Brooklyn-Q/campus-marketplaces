@@ -197,10 +197,39 @@ table td:nth-child(7) {
 }
 
 @media (max-width: 768px) {
-    .glass { padding: 1rem; overflow-x: auto; }
-    table { font-size: 0.75rem; min-width: 800px; }
-    .btn { padding: 0.25rem 0.5rem; font-size: 0.6rem; }
-    table th:nth-child(5), table td:nth-child(5) { display: none; }
+    /* TABLE SPECIFIC TWEAKS */
+    #users-table tr {
+        position: relative;
+    }
+    #users-table td:nth-child(1) { /* ID */
+        position: absolute;
+        top: 0.5rem;
+        right: 1rem;
+        width: auto !important;
+        background: var(--border);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-size: 0.7rem;
+    }
+    #users-table td:nth-child(1)::before { content: ""; margin: 0; }
+    
+    #users-table td:nth-child(2) { /* User */
+        padding-top: 0;
+        margin-bottom: 0.5rem;
+        border-bottom: 1px solid rgba(0,0,0,0.05);
+        padding-bottom: 0.5rem;
+    }
+    #users-table td:nth-child(2)::before { display: none; }
+    
+    #users-table td:nth-child(10) { /* Actions */
+        margin-top: 0.8rem;
+        padding-top: 0.8rem;
+        border-top: 1px solid rgba(0,0,0,0.05);
+        display: block;
+    }
+    #users-table td:nth-child(10)::before { display: block; margin-bottom: 0.5rem; }
+    
+    .glass { padding: 1rem; overflow-x: visible; }
 }
 </style>
 <?php
@@ -262,19 +291,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'
                 ? $tierData['duration']
                 : 'forever';
 
-            // Whitelist duration strings — unknown values collapse to NULL safely.
-            // ADJ 2: $expire_val is a bound PDO parameter (PHP null or a date string),
-            // eliminating the last raw SQL interpolation in this block entirely.
-            $allowed_durations = ['forever' => null, '2_weeks' => 14, 'weekly' => 7];
-            $days = array_key_exists($durStr, $allowed_durations) ? $allowed_durations[$durStr] : false;
-            $expire_val = ($days !== false && $days !== null)
-                ? date('Y-m-d H:i:s', strtotime("+{$days} days"))
-                : null; // PHP null → PDO sends SQL NULL, zero interpolation
+            // Use global duration logic from db.php (shared with Paystack verification)
+            $expire_val = next_tier_expiry($currentUser['tier_expires_at'] ?? null, (string)$durStr);
 
             $pdo->beginTransaction();
             try {
                 // ADJ 2: fully parameterised — no $expire_sql string in query.
-                $pdo->prepare("UPDATE users SET seller_tier = ?, tier_expires_at = ? WHERE id = ?")
+                // Also turn OFF vacation mode when upgrading
+                $boolF = sqlBool(false, $pdo);
+                $pdo->prepare("UPDATE users SET seller_tier = ?, tier_expires_at = ?, vacation_mode = $boolF WHERE id = ?")
                     ->execute([$tier, $expire_val, $id]);
                 $pdo->prepare("INSERT INTO transactions (user_id, type, amount, status, reference, description) VALUES (?,?,?,?,?,?)")
                     ->execute([
@@ -285,6 +310,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['id'
                         generateRef(strtoupper(substr($tier, 0, 2))),
                         ucfirst($tier) . " Seller Account Upgrade"
                     ]);
+
+                // Log to tier_subscriptions for the admin ledger
+                $admin_ref = "ADMIN_UPGRADE_" . strtoupper(uniqid());
+                $pdo->prepare("INSERT INTO tier_subscriptions (user_id, tier_name, amount, transaction_id, expires_at) VALUES (?, ?, ?, ?, ?)")
+                    ->execute([$id, $tier, $price, $admin_ref, $expire_val]);
 
                 // OPT 1: auditLog is inside the transaction — if logging throws,
                 // rollBack() undoes the UPDATE + INSERT, keeping the paper trail consistent.
@@ -419,7 +449,7 @@ function adminResolvedAvatarUrl(array $user): string {
 </div>
 
 <div class="glass fade-in" style="padding:1.5rem; overflow-x:auto; -webkit-overflow-scrolling:touch;">
-    <table id="users-table">
+    <table id="users-table" class="responsive-table">
         <thead>
             <tr>
                 <th>ID</th>
@@ -443,36 +473,36 @@ function adminResolvedAvatarUrl(array $user): string {
                 $avatarFallback = adminAvatarFallbackUri((string) $u['username']);
                 ?>
                 <tr>
-                    <td><?= $uid ?></td>
-                    <td>
-                        <span class="user-cell">
+                    <td data-label="ID"><?= $uid ?></td>
+                    <td data-label="User">
+                        <a href="user_profile.php?id=<?= $uid ?>" class="user-cell" style="text-decoration:none;color:inherit;display:inline-flex;align-items:center;gap:0.5rem;" title="View full profile">
                         <?php $tierClass = 'profile-pic-' . ($u['role'] === 'seller' ? ($u['seller_tier'] ?: 'basic') : 'basic'); ?>
                         <img src="<?= htmlspecialchars($avatarSrc, ENT_QUOTES, 'UTF-8') ?>"
-                            class="profile-pic-previewable <?= $tierClass ?>"
-                            style="cursor:pointer;border:2px solid transparent;"
+                            class="<?= $tierClass ?>"
+                            style="border:2px solid transparent;width:32px;height:32px;border-radius:50%;object-fit:cover;"
                             onerror="this.onerror=null;this.src='<?= htmlspecialchars($avatarFallback, ENT_QUOTES, 'UTF-8') ?>';"
                             alt="<?= htmlspecialchars($u['username']) ?>">
-                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?= htmlspecialchars($u['username']) ?></span>
-                        </span>
+                        <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600;"><?= htmlspecialchars($u['username']) ?></span>
+                        </a>
                     </td>
-                    <td><?= htmlspecialchars($u['email']) ?></td>
-                    <td>
+                    <td data-label="Email"><?= htmlspecialchars($u['email']) ?></td>
+                    <td data-label="Role">
                         <span
                             class="badge <?= $u['role'] === 'admin' ? 'badge-gold' : ($u['role'] === 'seller' ? 'badge-blue' : '') ?>">
                             <?= ucfirst(htmlspecialchars($u['role'])) ?>
                         </span>
                     </td>
-                    <td>
+                    <td data-label="Tier">
                         <?php if ($u['role'] === 'seller'): ?>
                             <?= getBadgeHtml($pdo, $u['seller_tier'] ?: 'basic') ?>
                         <?php else: ?>—<?php endif; ?>
                     </td>
-                    <td style="font-size:0.78rem;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
+                    <td data-label="Faculty" style="font-size:0.78rem;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"
                         title="<?= htmlspecialchars($u['faculty'] ?? '') ?>">
                         <?= htmlspecialchars($u['faculty'] ?? '—') ?>
                     </td>
-                    <td>₵<?= number_format($u['balance'], 2) ?></td>
-                    <td>
+                    <td data-label="Balance">₵<?= number_format($u['balance'], 2) ?></td>
+                    <td data-label="Status">
                         <?php if ($is_suspended): ?>
                             <span class="badge badge-rejected">⛔ Suspended</span>
                         <?php elseif ($u['verified']): ?>
@@ -481,8 +511,8 @@ function adminResolvedAvatarUrl(array $user): string {
                             <span class="text-muted">—</span>
                         <?php endif; ?>
                     </td>
-                    <td style="font-size:0.8rem;"><?= date('M d, Y', strtotime($u['created_at'])) ?></td>
-                    <td>
+                    <td data-label="Joined" style="font-size:0.8rem;"><?= date('M d, Y', strtotime($u['created_at'])) ?></td>
+                    <td data-label="Actions">
                         <?php if ($u['role'] !== 'admin'): ?>
                             <div class="flex gap-1" style="flex-wrap:wrap;">
 
@@ -536,7 +566,7 @@ function adminResolvedAvatarUrl(array $user): string {
                                     ) ?>
                                 <?php endif; ?>
 
-                                <a href="../chat.php?user=<?= $uid ?>" class="btn btn-outline btn-sm">💬 Message</a>
+                                <a href="messages.php?view=chat&u1=<?= (int) $_SESSION['user_id'] ?>&u2=<?= $uid ?>" class="btn btn-outline btn-sm">💬 Message</a>
 
                                 <?php if (!$is_self): ?>
                                     <?= actionBtn(

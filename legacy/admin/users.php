@@ -24,16 +24,23 @@ if (isset($_GET['action']) && isset($_GET['id'])) {
         $allTiers = getAccountTiers($pdo);
         $price = (float)($allTiers[$tier]['price'] ?? 0);
         $durStr = $allTiers[$tier]['duration'] ?? 'forever';
-        $expire_sql = "NULL";
-        if($durStr === '2_weeks') $expire_sql = "DATE_ADD(NOW(), INTERVAL 14 DAY)";
-        if($durStr === 'weekly') $expire_sql = "DATE_ADD(NOW(), INTERVAL 7 DAY)";
+        
+        // Use global duration logic from db.php (shared with Paystack verification)
+        $user = getUser($pdo, $id);
+        $expire_val = next_tier_expiry($user['tier_expires_at'] ?? null, (string)$durStr);
         
         $pdo->beginTransaction();
         try {
-            $pdo->prepare("UPDATE users SET seller_tier = ?, tier_expires_at = $expire_sql WHERE id = ?")->execute([$tier, $id]);
+            $boolF = sqlBool(false, $pdo);
+            $pdo->prepare("UPDATE users SET seller_tier = ?, tier_expires_at = ?, vacation_mode = $boolF WHERE id = ?")->execute([$tier, $expire_val, $id]);
             $pdo->prepare("INSERT INTO transactions (user_id, type, amount, status, reference, description) VALUES (?,?,?,?,?,?)")
                 ->execute([$id, 'premium', $price, 'completed', generateRef(strtoupper(substr($tier,0,2))), ucfirst($tier) . " Seller Account Upgrade"]);
             
+            // Log to tier_subscriptions for the admin ledger
+            $admin_ref = "ADMIN_UPGRADE_" . strtoupper(uniqid());
+            $pdo->prepare("INSERT INTO tier_subscriptions (user_id, tier_name, amount, transaction_id, expires_at) VALUES (?, ?, ?, ?, ?)")
+                ->execute([$id, $tier, $price, $admin_ref, $expire_val]);
+
             auditLog($pdo, $_SESSION['user_id'], "Upgraded user #$id to $tier seller (Revenue: +₵$price)", 'user', $id);
             $pdo->commit();
             $msg = "User #$id upgraded to " . ucfirst($tier) . " Seller. Revenue of ₵$price recorded.";

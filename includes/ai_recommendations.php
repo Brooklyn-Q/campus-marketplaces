@@ -93,9 +93,11 @@ function fetch_products_by_ids($pdo, $ids_csv, $exclude_ids, $limit) {
     if (empty($ids)) return [];
     
     $in = implode(',', $ids);
-    $stmt = $pdo->prepare("SELECT p.*, 
+    $stmt = $pdo->prepare("SELECT p.*, u.username, u.seller_tier, u.verified,
         (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY sort_order LIMIT 1) as main_image 
-        FROM products p WHERE p.id IN ($in) AND p.status='approved' LIMIT " . (int)$limit);
+        FROM products p
+        JOIN users u ON p.user_id = u.id
+        WHERE p.id IN ($in) AND p.status='approved' LIMIT " . (int)$limit);
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
 }

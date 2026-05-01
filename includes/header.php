@@ -11,16 +11,28 @@ header("Content-Security-Policy: default-src 'self'; script-src 'self' 'unsafe-i
 if (isLoggedIn()) {
     $current_file = basename($_SERVER['PHP_SELF']);
     // Skip enforcement for certain pages to prevent redirect loops
-    $exempt_pages = ['terms.php', 'logout.php', 'login.php', 'register.php', 'whatsapp_join.php'];
+    $exempt_pages = ['terms.php', 'logout.php', 'login.php', 'register.php', 'whatsapp_join.php', 'verify_email.php'];
     
     if (!in_array($current_file, $exempt_pages)) {
         $user_meta = getUser($pdo, $_SESSION['user_id']);
         $isAdminRole = ($user_meta['role'] ?? '') === 'admin';
-        // Non-admin must have joined WhatsApp channel first
+        
+        // Admins should only be forced to the admin panel if they hit the main dashboard
+        // This allows them to browse products and use the public site normally.
+        if ($isAdminRole && $current_file === 'dashboard.php' && empty($_GET['view']) && empty($_POST['dashboard_view'])) {
+            redirect('admin/');
+        }
+
+        // 1. Mandatory Email Verification
+        if ($user_meta && !$isAdminRole && empty($user_meta['email_verified_at'])) {
+            redirect('verify_email.php?pending=1');
+        }
+
+        // 2. Non-admin must have joined WhatsApp channel first
         if ($user_meta && !$isAdminRole && !filter_var($user_meta['whatsapp_joined'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
             redirect('whatsapp_join.php');
         }
-        // Then must accept terms
+        // 3. Then must accept terms
         if ($user_meta && !$user_meta['terms_accepted']) {
             redirect('terms.php');
         }
@@ -28,9 +40,8 @@ if (isLoggedIn()) {
 
     if (($_SESSION['role'] ?? '') !== 'admin') {
         try {
-            $stmt_unrev = $pdo->prepare("SELECT o.product_id FROM orders o LEFT JOIN reviews r ON o.product_id=r.product_id AND o.buyer_id=r.user_id WHERE o.buyer_id=? AND o.status='completed' AND r.id IS NULL LIMIT 1");
-            $stmt_unrev->execute([$_SESSION['user_id']]);
-            if ($needs_review = $stmt_unrev->fetchColumn()) {
+            $needs_review = getFirstUnreviewedProductId($pdo, (int) $_SESSION['user_id']);
+            if ($needs_review) {
                 if ($current_file !== 'product.php' && $current_file !== 'logout.php' && $current_file !== 'terms.php' && empty($_GET['action'])) {
                     header("Location: product.php?id=$needs_review&review_required=1#review");
                     exit;
@@ -43,7 +54,7 @@ if (isLoggedIn()) {
 if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
     if (strpos($_SERVER['REQUEST_URI'], '/login.php') === false && strpos($_SERVER['REQUEST_URI'], '/api/') === false) {
         $maintenanceLoginUrl = htmlspecialchars($baseUrl . 'login.php', ENT_QUOTES, 'UTF-8');
-        die("<!DOCTYPE html><html><head><title>Under Maintenance</title><style>body{background:#0a0f1e;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;}</style></head><body><div><h1>🚧 We're currently down for maintenance.</h1><p>Our engineers are upgrading the campus marketplace. We'll be back shortly!</p><br><a href='{$maintenanceLoginUrl}' style='color:#6366f1;text-decoration:none;'>Admin Login &rarr;</a></div></body></html>");
+        die("<!DOCTYPE html><html><head><title>Under Maintenance</title><style>body{background:#0a0f1e;color:#fff;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;text-align:center;}</style></head><body><div><h1>We're currently down for maintenance.</h1><p>Our engineers are upgrading the campus marketplace. We'll be back shortly!</p><br><a href='{$maintenanceLoginUrl}' style='color:#6366f1;text-decoration:none;'>Admin Login &rarr;</a></div></body></html>");
     }
 }
 ?>
@@ -62,11 +73,11 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
         window.MARKETPLACE_BASE_URL = '<?= $baseUrl ?>';
     </script>
     <!-- Fonts loaded via CSS @import in style.css -->
-    <link rel="stylesheet" href="<?= getAssetUrl('assets/css/style.css?v=1.4') ?>">
+    <link rel="stylesheet" href="<?= getAssetUrl('assets/css/style.css?v=1.8') ?>">
 
     <!-- LOAD REACT ASSETS EVERYWHERE -->
-    <link rel="stylesheet" href="<?= getAssetUrl('assets/dist/app.css?v=1.4') ?>">
-    <script type="module" src="<?= getAssetUrl('assets/dist/app.js?v=1.4') ?>" onerror="console.error('Failed to load module')"></script>
+    <link rel="stylesheet" href="<?= getAssetUrl('assets/dist/app.css?v=1.8') ?>">
+    <script type="module" src="<?= getAssetUrl('assets/dist/app.js?v=1.8') ?>" onerror="console.error('Failed to load module')"></script>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js" defer></script>
 
@@ -81,42 +92,42 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
             </a>
 
             <!-- Center Nav Links -->
-            <div class="nav-links" id="mobileNavLinks" style="display:flex; align-items:center; justify-content:center; gap:1.25rem; flex:1; min-width:0;">
-                <a href="<?= getSpaUrl() ?>" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Explore</a>
-                <a href="<?= $baseUrl ?>about.php" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">About</a>
+            <div class="nav-links" id="mobileNavLinks" style="display:flex; align-items:center; justify-content:center; gap:0.5rem; flex:1; min-width:0;">
+                <a href="<?= getSpaUrl() ?>" style="color:var(--text-muted); font-weight:600; font-size:0.82rem; padding:0.4rem 0.6rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:1;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Explore</a>
+                <a href="<?= $baseUrl ?>about.php" style="color:var(--text-muted); font-weight:600; font-size:0.82rem; padding:0.4rem 0.6rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:1;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">About</a>
 
                 <!-- Categories Dropdown -->
-                <div class="cat-dropdown" style="position:relative; display:inline-block; flex-shrink:0;">
-                    <a href="#" onclick="event.preventDefault(); document.getElementById('catMenu').classList.toggle('cat-open');" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap;">
+                <div class="cat-dropdown" style="position:relative; display:inline-block; flex-shrink:1;">
+                    <a href="#" onclick="event.preventDefault(); document.getElementById('catMenu').classList.toggle('cat-open');" style="color:var(--text-muted); font-weight:600; font-size:0.82rem; padding:0.4rem 0.6rem; border-radius:10px; transition:all 0.2s; text-decoration:none; cursor:pointer; display:flex; align-items:center; gap:4px; white-space:nowrap;">
                         Categories
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
                     </a>
-                    <div id="catMenu" class="cat-dropdown-menu" style="display:none; position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); z-index:999; width:240px; background:var(--card-bg); backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px); border:1px solid var(--border); border-radius:16px; box-shadow:0 12px 48px rgba(0,0,0,0.12); overflow:hidden;">
-                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Computer & Accessories']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
+                    <div id="catMenu" class="cat-dropdown-menu" style="display:none; position:absolute; top:calc(100% + 8px); left:50%; transform:translateX(-50%); z-index:999; width:220px; background:var(--card-bg); backdrop-filter:saturate(180%) blur(24px); -webkit-backdrop-filter:saturate(180%) blur(24px); border:1px solid var(--border); border-radius:16px; box-shadow:0 12px 48px rgba(0,0,0,0.12); overflow:hidden;">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Computer & Accessories']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item" style="font-size:0.8rem; padding:0.6rem 0.9rem;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
                             Computer &amp; Accessories
                         </a>
-                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Phone & Accessories']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Phone & Accessories']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item" style="font-size:0.8rem; padding:0.6rem 0.9rem;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
                             Phone &amp; Accessories
                         </a>
-                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Electrical Appliances']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Electrical Appliances']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item" style="font-size:0.8rem; padding:0.6rem 0.9rem;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                             Electrical Appliances
                         </a>
-                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Fashion']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Fashion']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item" style="font-size:0.8rem; padding:0.6rem 0.9rem;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.57a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.57a2 2 0 0 0-1.34-2.13z"/></svg>
                             Fashion
                         </a>
-                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Food & Groceries']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Food & Groceries']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item" style="font-size:0.8rem; padding:0.6rem 0.9rem;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>
                             Food &amp; Groceries
                         </a>
-                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Education & Books']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Education & Books']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item" style="font-size:0.8rem; padding:0.6rem 0.9rem;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                             Education &amp; Books
                         </a>
-                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Hostels for Rent']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item">
+                        <a href="<?= htmlspecialchars(getSpaUrl('/', ['category' => 'Hostels for Rent']), ENT_QUOTES, 'UTF-8') ?>" class="cat-item" style="font-size:0.8rem; padding:0.6rem 0.9rem;">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
                             Hostels for Rent
                         </a>
@@ -133,23 +144,24 @@ if (file_exists(__DIR__ . '/../.maintenance') && !isAdmin()) {
                         $alertsUrl = $accountHomeUrl;
                         $messagesUrl = $baseUrl . 'chat.php';
                     ?>
-                    <a href="<?= $baseUrl ?>leaderboard.php" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">🏆 Rank</a>
-                    <a href="<?= $accountHomeUrl ?>" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'"><?= htmlspecialchars($accountHomeLabel, ENT_QUOTES, 'UTF-8') ?></a>
-                    <a href="<?= $alertsUrl ?>" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; position:relative; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">
+                    <a href="<?= $baseUrl ?>leaderboard.php" style="color:var(--text-muted); font-weight:600; font-size:0.82rem; padding:0.4rem 0.6rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:1;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Rank</a>
+                    <a href="<?= $accountHomeUrl ?>" style="color:var(--text-muted); font-weight:600; font-size:0.82rem; padding:0.4rem 0.6rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:1;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'"><?= htmlspecialchars($accountHomeLabel, ENT_QUOTES, 'UTF-8') ?></a>
+                    <a href="<?= $baseUrl ?>security.php" style="color:var(--text-muted); font-weight:600; font-size:0.82rem; padding:0.4rem 0.6rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:1;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Security</a>
+                    <a href="<?= $alertsUrl ?>" style="color:var(--text-muted); font-weight:600; font-size:0.82rem; padding:0.4rem 0.6rem; border-radius:10px; transition:all 0.2s; text-decoration:none; position:relative; white-space:nowrap; flex-shrink:1;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">
                         Alerts
                         <span class="notif-badge notif-unread-badge" style="<?= $unreadNotifications > 0 ? 'display:flex;' : 'display:none;' ?>"><?= $unreadNotifications ?></span>
                     </a>
-                    <a href="<?= $messagesUrl ?>" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; position:relative; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">
+                    <a href="<?= $messagesUrl ?>" style="color:var(--text-muted); font-weight:600; font-size:0.82rem; padding:0.4rem 0.6rem; border-radius:10px; transition:all 0.2s; text-decoration:none; position:relative; white-space:nowrap; flex-shrink:1;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">
                         Messages
                         <span class="notif-badge msg-unread-badge" style="<?= $unread > 0 ? 'display:flex;' : 'display:none;' ?>"><?= $unread ?></span>
                     </a>
                     <?php if($isAdminMainAppView): ?>
-                        <a href="<?= $baseUrl ?>admin/" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.9rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Admin Panel</a>
+                        <a href="<?= $baseUrl ?>admin/" style="color:var(--text-muted); font-weight:600; font-size:0.82rem; padding:0.4rem 0.6rem; border-radius:10px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:1;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Admin Panel</a>
                     <?php endif; ?>
                     <?php if(isSeller()): ?>
-                        <a href="<?= $baseUrl ?>add_product.php" class="react-liquid-btn" data-label="+ Sell" style="display:inline-flex; align-items:center; justify-content:center; min-height:48px; flex-shrink:0;"></a>
+                        <a href="<?= $baseUrl ?>add_product.php" class="react-liquid-btn" data-label="+ Sell" style="display:inline-flex; align-items:center; justify-content:center; min-height:38px; flex-shrink:0; transform:scale(0.8);"></a>
                     <?php endif; ?>
-                    <a href="<?= $baseUrl ?>logout.php" class="nav-pill-link" style="color:var(--text-muted); font-weight:600; font-size:0.95rem; padding:0.55rem 0.95rem; border-radius:999px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:0;" onmouseover="this.style.color='#ff3b30'; this.style.background='rgba(255,59,48,0.06)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Sign Out</a>
+                    <a href="<?= $baseUrl ?>logout.php" class="nav-pill-link" style="color:var(--text-muted); font-weight:600; font-size:0.82rem; padding:0.4rem 0.75rem; border-radius:999px; transition:all 0.2s; text-decoration:none; white-space:nowrap; flex-shrink:1;" onmouseover="this.style.color='#ff3b30'; this.style.background='rgba(255,59,48,0.06)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Sign Out</a>
                 <?php else: ?>
                     <a href="<?= $baseUrl ?>login.php" class="nav-pill-link" style="color:var(--text-muted); font-weight:500; font-size:0.85rem; padding:0.4rem 0.85rem; border-radius:999px; transition:all 0.2s; text-decoration:none;" onmouseover="this.style.color='var(--text-main)'; this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.color='var(--text-muted)'; this.style.background='transparent'">Sign In</a>
                     <a href="<?= $baseUrl ?>register.php" style="background:#7c3aed; color:#fff; font-weight:600; font-size:0.85rem; padding:0.5rem 1.1rem; min-height:48px; border-radius:980px; text-decoration:none; transition:all 0.2s; display:inline-flex; align-items:center; justify-content:center;" onmouseover="this.style.background='#6d28d9'" onmouseout="this.style.background='#7c3aed'">Sign Up</a>

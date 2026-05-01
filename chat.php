@@ -72,7 +72,7 @@ require_once 'includes/header.php';
 
 <div class="glass chat-container fade-in">
     <div class="chat-users">
-        <div style="padding:1rem; border-bottom:1px solid var(--border); font-weight:700;">💬 Conversations</div>
+        <div style="padding:1rem; border-bottom:1px solid var(--border); font-weight:700;">Conversations</div>
         <?php if(count($history_users) === 0): ?>
             <p class="text-muted" style="padding:1rem; font-size:0.85rem;">No conversations yet.</p>
         <?php endif; ?>
@@ -98,9 +98,9 @@ require_once 'includes/header.php';
                         $preview = $u['last_msg'];
                         if(!$preview && $u['last_attachment']) {
                             $ext = strtolower(pathinfo($u['last_attachment'], PATHINFO_EXTENSION));
-                            if ($u['last_msg_type'] === 'video' || in_array($ext, ['mp4','webm','mov'])) $preview = '🎬 Video';
-                            elseif ($u['last_msg_type'] === 'audio' || in_array($ext, ['mp3','wav','m4a','ogg'])) $preview = '🎵 Audio';
-                            else $preview = '📷 Image';
+                            if ($u['last_msg_type'] === 'video' || in_array($ext, ['mp4','webm','mov'])) $preview = 'Video';
+                            elseif ($u['last_msg_type'] === 'audio' || in_array($ext, ['mp3','wav','m4a','ogg'])) $preview = 'Audio';
+                            else $preview = 'Image';
                         }
                     ?>
                     <?php if($preview): ?><p style="font-size:0.75rem; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"><?= htmlspecialchars(substr($preview, 0, 40)) ?></p><?php endif; ?>
@@ -118,7 +118,7 @@ require_once 'includes/header.php';
                 <?= htmlspecialchars($chat_user['username']) ?>
                 <span style="font-size:0.75rem; color:var(--text-muted); margin-left:0.5rem;">
                     <?php $on = $chat_user['last_seen'] && (time()-strtotime($chat_user['last_seen'])) < 300; ?>
-                    <?= $on ? '🟢 Online' : '⚫ Offline' ?>
+                    <?= $on ? 'Online' : 'Offline' ?>
                 </span>
             </div>
             <div class="chat-messages" id="chatMessages" data-user="<?= $chat_user['id'] ?>"></div>
@@ -205,8 +205,7 @@ require_once 'includes/header.php';
             </script>
         <?php else: ?>
             <div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);flex-direction:column;gap:1rem;">
-                <span style="font-size:2rem;">💬</span>
-                <p>Select a conversation to start chatting.</p>
+                                <p>Select a conversation to start chatting.</p>
             </div>
         <?php endif; ?>
     </div>

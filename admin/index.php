@@ -4,6 +4,7 @@ $page_title = 'Dashboard';
 // Load DB + session BEFORE header.php to handle POST redirects
 require_once '../includes/db.php';
 if (session_status() === PHP_SESSION_NONE) session_start();
+$adminAccess = ensureAdminPageAccess($pdo);
 try {
     $boolTrue = sqlBool(true, $pdo);
     $pdo->prepare("UPDATE notifications SET is_read = {$boolTrue} WHERE user_id = ?")->execute([$_SESSION['user_id'] ?? 0]);
@@ -205,6 +206,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_tiers'])) {
         $limit = max(0, (int) $_POST["{$t}_product_limit"]);
         $img = max(1, (int) $_POST["{$t}_image_limit"]);
         $price = max(0, (float) $_POST["{$t}_fee"]);
+        $original_price = !empty($_POST["{$t}_original_price"]) ? (float) $_POST["{$t}_original_price"] : null;
         $dur = max(1, (int) ($_POST["{$t}_duration"] ?? 1));
         $badge = $_POST["badge_color_{$t}"] ?? 'blue';
         $ads = isset($_POST["{$t}_ads_boost"]) ? 1 : 0;
@@ -212,8 +214,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_tiers'])) {
             ? $_POST["{$t}_benefits"] : [];
         $benefits = array_filter(array_map('trim', $benefits));
         $benefits_json = json_encode(array_values($benefits));
-        $pdo->prepare("UPDATE account_tiers SET product_limit=?, images_per_product=?, price=?, duration=?, badge=?, ads_boost=?, benefits=? WHERE tier_name=?")
-            ->execute([$limit, $img, $price, $dur, $badge, $ads, $benefits_json, $t]);
+        $pdo->prepare("UPDATE account_tiers SET product_limit=?, images_per_product=?, price=?, original_price=?, duration=?, badge=?, ads_boost=?, benefits=? WHERE tier_name=?")
+            ->execute([$limit, $img, $price, $original_price, $dur, $badge, $ads, $benefits_json, $t]);
     }
     auditLog($pdo, $_SESSION['user_id'], "Updated marketplace tier settings in account_tiers");
     $disc_msg = "✅ Tier configurations globally updated!";
@@ -430,10 +432,12 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                 <div class="tier-split">
                     <div class="form-group mb-1"><label style="font-size:0.75rem;">Fee (₵)</label><input type="number"
                             name="pro_fee" class="form-control" value="<?= $tp['price'] ?>"></div>
-                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Duration (Months)</label><input
-                            type="number" name="pro_duration" class="form-control"
-                            value="<?= htmlspecialchars($tp['duration']) ?>" min="1"></div>
+                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Original Fee (₵)</label><input type="number"
+                            name="pro_original_price" class="form-control" value="<?= $tp['original_price'] ?? '' ?>" placeholder="Was..."></div>
                 </div>
+                <div class="form-group mb-1"><label style="font-size:0.75rem;">Duration (Months)</label><input
+                        type="number" name="pro_duration" class="form-control"
+                        value="<?= htmlspecialchars($tp['duration']) ?>" min="1"></div>
                 <div class="form-group mb-1"><label style="font-size:0.75rem;">Badge Color</label><input type="color"
                         name="badge_color_pro" class="form-control" value="<?= htmlspecialchars($tp['badge']) ?>"
                         style="height:35px; padding:2px;"></div>
@@ -475,10 +479,12 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                 <div class="tier-split">
                     <div class="form-group mb-1"><label style="font-size:0.75rem;">Fee (₵)</label><input type="number"
                             name="premium_fee" class="form-control" value="<?= $tm['price'] ?>"></div>
-                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Duration (Months)</label><input
-                            type="number" name="premium_duration" class="form-control"
-                            value="<?= htmlspecialchars($tm['duration']) ?>" min="1"></div>
+                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Original Fee (₵)</label><input type="number"
+                            name="premium_original_price" class="form-control" value="<?= $tm['original_price'] ?? '' ?>" placeholder="Was..."></div>
                 </div>
+                <div class="form-group mb-1"><label style="font-size:0.75rem;">Duration (Months)</label><input
+                        type="number" name="premium_duration" class="form-control"
+                        value="<?= htmlspecialchars($tm['duration']) ?>" min="1"></div>
                 <div class="form-group mb-1"><label style="font-size:0.75rem;">Badge Color</label><input type="color"
                         name="badge_color_premium" class="form-control" value="<?= htmlspecialchars($tm['badge']) ?>"
                         style="height:35px; padding:2px;"></div>
@@ -545,7 +551,6 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
 <div class="glass fade-in mb-4"
     style="padding:2rem; border-radius:24px; border:1px solid #10b981; background:rgba(16,185,129,0.05);">
     <div style="display:flex; align-items:center; gap:12px; margin-bottom:1rem;">
-        <span style="font-size:1.8rem;">📢</span>
         <h4 style="margin:0; font-size:1.5rem; font-weight:800;">Global Broadcast (Announcements)</h4>
     </div>
     <p class="text-muted" style="font-size:0.9rem; margin-bottom:1.5rem;">Blast an update that will appear at the top of
@@ -565,14 +570,14 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                 <label style="font-size:0.8rem; font-weight:700; display:block; margin-bottom:0.5rem;">Alert
                     Style</label>
                 <select name="ann_type" class="form-control" style="border-radius:12px; padding:0.8rem;">
-                    <option value="info">🔵 Information (Blue)</option>
-                    <option value="warning">🟠 Warning (Orange)</option>
-                    <option value="success">🟢 Success/Update (Green)</option>
-                    <option value="danger">🔴 Urgent/Broken (Red)</option>
+                    <option value="info">Information (Blue)</option>
+                    <option value="warning">Warning (Orange)</option>
+                    <option value="success">Success/Update (Green)</option>
+                    <option value="danger">Urgent/Broken (Red)</option>
                 </select>
             </div>
             <button type="submit" name="send_announcement" class="btn btn-primary"
-                style="padding:1rem 2.5rem; border-radius:16px; font-weight:800; font-size:1rem;">🚀 Send
+                style="padding:1rem 2.5rem; border-radius:16px; font-weight:800; font-size:1rem;">Send
                 Update</button>
         </div>
     </form>
@@ -644,7 +649,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
     </style>
     <div class="container fade-in"
         style="background:rgba(168,85,247,0.1); border:1px solid rgba(168,85,247,0.2); color:#9333ea; display:flex; align-items:center; justify-content:space-between;">
-        <div><strong>🔔 Profile & Tier Changes Pending</strong> — <?= $stats['profile_pending'] ?> user(s) have requested
+        <div><strong>Profile & Tier Changes Pending</strong> — <?= $stats['profile_pending'] ?> user(s) have requested
             updates.</div>
         <a href="#profile_section" class="btn btn-sm" style="background:#a855f7; color:#fff;">Review Now</a>
     </div>
@@ -693,25 +698,25 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
             <div class="stat-label">Profile Edits</div>
         </div>
     </a>
-    <a href="#" class="stat-card-link">
+    <a href="analytics.php" class="stat-card-link">
         <div class="glass stat-card">
             <div class="stat-val" style="color:var(--gold);">₵<?= number_format($stats['volume'], 2) ?></div>
             <div class="stat-label">Total Revenue</div>
         </div>
     </a>
-    <a href="#" class="stat-card-link">
+    <a href="analytics.php" class="stat-card-link">
         <div class="glass stat-card">
             <div class="stat-val" style="color:var(--success);">₵<?= number_format($stats['sale_rev'], 2) ?></div>
             <div class="stat-label">Product Sales</div>
         </div>
     </a>
-    <a href="#" class="stat-card-link">
+    <a href="analytics.php" class="stat-card-link">
         <div class="glass stat-card">
             <div class="stat-val" style="color:#af52de;">₵<?= number_format($stats['premium_rev'], 2) ?></div>
             <div class="stat-label">Premium Fees</div>
         </div>
     </a>
-    <a href="#" class="stat-card-link">
+    <a href="analytics.php" class="stat-card-link">
         <div class="glass stat-card">
             <div class="stat-val" style="color:#ff9f0a;">₵<?= number_format($stats['boost_rev'], 2) ?></div>
             <div class="stat-label">Boost Revenue</div>
@@ -725,11 +730,14 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
     </a>
 </div>
 
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+<div class="admin-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
     <!-- Top Sellers — FIX #4: seller_id now comes from the query itself, no inner loop query -->
     <div class="glass fade-in" style="padding:1.5rem;">
-        <h4 class="mb-2">🏆 Top Sellers Leaderboard</h4>
-        <table>
+        <div class="flex-between mb-2">
+            <h4 style="margin:0;">Top Sellers Leaderboard</h4>
+            <a href="users.php?filter=sellers" class="btn btn-primary btn-sm">View All Sellers</a>
+        </div>
+        <table class="responsive-table">
             <thead>
                 <tr>
                     <th>#</th>
@@ -742,13 +750,13 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
             <tbody>
                 <?php foreach ($topSellers as $i => $s): ?>
                     <tr>
-                        <td><?= $i + 1 ?></td>
-                        <td><?= htmlspecialchars($s['username']) ?></td>
-                        <td><span
+                        <td data-label="#"><?= $i + 1 ?></td>
+                        <td data-label="Seller"><?= htmlspecialchars($s['username']) ?></td>
+                        <td data-label="Tier"><span
                                 class="badge <?= $s['seller_tier'] === 'premium' ? 'badge-gold' : 'badge-blue' ?>"><?= ucfirst($s['seller_tier']) ?></span>
                         </td>
-                        <td>₵<?= number_format($s['revenue'], 2) ?></td>
-                        <td><a href="../chat.php?user=<?= $s['seller_id'] ?>" class="btn btn-outline btn-sm">💬</a></td>
+                        <td data-label="Revenue">₵<?= number_format($s['revenue'], 2) ?></td>
+                        <td data-label="Chat"><a href="messages.php?view=chat&u1=<?= (int) $_SESSION['user_id'] ?>&u2=<?= (int) $s['seller_id'] ?>" class="btn btn-outline btn-sm">Chat</a></td>
                     </tr>
                 <?php endforeach; ?>
             </tbody>
@@ -762,7 +770,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
             <a href="products.php?filter=pending" class="btn btn-primary btn-sm">View All</a>
         </div>
         <?php if (count($pending) > 0): ?>
-            <table>
+            <table class="responsive-table">
                 <thead>
                     <tr>
                         <th>Title</th>
@@ -773,13 +781,25 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                 <tbody>
                     <?php foreach ($pending as $p): ?>
                         <tr>
-                            <td><a href="../product.php?id=<?= $p['id'] ?>" target="_blank"
+                            <td data-label="Title"><a href="../product.php?id=<?= $p['id'] ?>" target="_blank"
                                     style="color:var(--primary);"><?= htmlspecialchars($p['title']) ?></a></td>
-                            <td><?= htmlspecialchars($p['seller']) ?></td>
-                            <td>
-                                <a href="products.php?action=approve&id=<?= $p['id'] ?>" class="btn btn-success btn-sm">✓</a>
-                                <a href="products.php?action=reject&id=<?= $p['id'] ?>" class="btn btn-danger btn-sm">✗</a>
-                                <a href="../chat.php?user=<?= $p['user_id'] ?>" class="btn btn-outline btn-sm">💬</a>
+                            <td data-label="Seller"><?= htmlspecialchars($p['seller']) ?></td>
+                            <td data-label="Actions">
+                                <form method="POST" action="products.php" style="display:inline;">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="action" value="approve">
+                                    <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
+                                    <input type="hidden" name="filter" value="pending">
+                                    <button type="submit" class="btn btn-success btn-sm" title="Approve">✓</button>
+                                </form>
+                                <form method="POST" action="products.php" style="display:inline;">
+                                    <?= csrf_field() ?>
+                                    <input type="hidden" name="action" value="reject">
+                                    <input type="hidden" name="id" value="<?= (int) $p['id'] ?>">
+                                    <input type="hidden" name="filter" value="pending">
+                                    <button type="submit" class="btn btn-danger btn-sm" title="Reject">✗</button>
+                                </form>
+                                <a href="messages.php?view=chat&u1=<?= (int) $_SESSION['user_id'] ?>&u2=<?= (int) $p['user_id'] ?>" class="btn btn-outline btn-sm">Chat</a>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -794,13 +814,13 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
 <!-- Pending Vacation Requests -->
 <div id="vacation_section" class="glass fade-in mt-3" style="padding:1.5rem;">
     <div class="flex-between mb-2">
-        <h4>🏝️ Pending Vacation Requests</h4>
+        <h4>Pending Vacation Requests</h4>
     </div>
     <?php
     $vacPending = $pdo->query("SELECT v.*, u.username FROM vacation_requests v JOIN users u ON v.seller_id = u.id WHERE v.status='pending' ORDER BY v.created_at DESC")->fetchAll();
     ?>
     <?php if (count($vacPending) > 0): ?>
-        <table>
+        <table class="responsive-table">
             <thead>
                 <tr>
                     <th>Seller</th>
@@ -812,10 +832,10 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
             <tbody>
                 <?php foreach ($vacPending as $v): ?>
                     <tr>
-                        <td><strong><?= htmlspecialchars($v['username']) ?></strong></td>
-                        <td><?= date('M d, H:i', strtotime($v['created_at'])) ?></td>
-                        <td><span class="badge badge-pending">PENDING</span></td>
-                        <td>
+                        <td data-label="Seller"><strong><?= htmlspecialchars($v['username']) ?></strong></td>
+                        <td data-label="Requested"><?= date('M d, H:i', strtotime($v['created_at'])) ?></td>
+                        <td data-label="Status"><span class="badge badge-pending">PENDING</span></td>
+                        <td data-label="Actions">
                             <!-- FIX #2: Vacation actions now use POST forms with CSRF tokens -->
                             <form method="POST" style="display:inline;"
                                 onsubmit="return confirm('Approve vacation mode for this seller?')">
@@ -830,7 +850,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                                 <input type="hidden" name="vac_id" value="<?= $v['id'] ?>">
                                 <button type="submit" class="btn btn-danger btn-sm">Reject</button>
                             </form>
-                            <a href="../chat.php?user=<?= $v['seller_id'] ?>" class="btn btn-outline btn-sm">💬 Chat</a>
+                            <a href="messages.php?view=chat&u1=<?= (int) $_SESSION['user_id'] ?>&u2=<?= (int) $v['seller_id'] ?>" class="btn btn-outline btn-sm">Chat</a>
                         </td>
                     </tr>
                 <?php endforeach; ?>
@@ -859,7 +879,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
     ?>
     <?php if (count($allOrders) > 0): ?>
         <div style="overflow-x:auto;">
-            <table style="width:100%; font-size:0.85rem; border-collapse:collapse;">
+            <table class="responsive-table" style="width:100%; font-size:0.85rem; border-collapse:collapse;">
                 <thead>
                     <tr style="text-align:left; border-bottom:1px solid var(--border);">
                         <th style="padding:0.75rem;">ID</th>
@@ -894,18 +914,18 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                         }
                         ?>
                         <tr style="border-bottom:1px solid rgba(0,0,0,0.02);">
-                            <td style="padding:0.75rem;">#<?= $o['id'] ?></td>
-                            <td style="padding:0.75rem;"><strong><?= htmlspecialchars($o['prod_name']) ?></strong><br><span
+                            <td data-label="ID" style="padding:0.75rem;">#<?= $o['id'] ?></td>
+                            <td data-label="Product" style="padding:0.75rem;"><strong><?= htmlspecialchars($o['prod_name']) ?></strong><br><span
                                     class="text-muted">₵<?= number_format($o['price'], 2) ?></span></td>
-                            <td style="padding:0.75rem;">B: <?= htmlspecialchars($o['buyer_name']) ?><br>S:
+                            <td data-label="Participants" style="padding:0.75rem;">B: <?= htmlspecialchars($o['buyer_name']) ?><br>S:
                                 <?= htmlspecialchars($o['seller_name']) ?></td>
-                            <td style="padding:0.75rem;"><span class="badge <?= $cls ?>"><?= $lbl ?></span></td>
-                            <td style="padding:0.75rem;">
+                            <td data-label="Status" style="padding:0.75rem;"><span class="badge <?= $cls ?>"><?= $lbl ?></span></td>
+                            <td data-label="Timeline" style="padding:0.75rem;">
                                 <div style="font-size:0.72rem; color:var(--text-muted);">Ordered:
                                     <?= date('M d, H:i', strtotime($o['created_at'])) ?><br>Last Update:
                                     <?= !empty($o['updated_at'] ?? null) ? date('M d, H:i', strtotime($o['updated_at'])) : 'N/A' ?></div>
                             </td>
-                            <td style="padding:0.75rem;"><a
+                            <td data-label="Chat" style="padding:0.75rem;"><a
                                     href="messages.php?view=chat&u1=<?= $o['buyer_id'] ?>&u2=<?= $o['seller_id'] ?>"
                                     class="btn btn-sm"
                                     style="font-size:0.7rem; background:rgba(124,58,237,0.1); color:#7c3aed;">View Chat Log</a>
@@ -924,15 +944,13 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
 <div class="stat-grid mt-3">
     <a href="messages.php" class="stat-card-link">
         <div class="glass stat-card" style="padding:1.5rem; text-align:center;">
-            <div style="font-size:1.5rem;">💬</div>
-            <h5 class="mt-2">Chat Surveillance</h5>
+                        <h5 class="mt-2">Chat Surveillance</h5>
             <p class="text-muted" style="font-size:0.75rem;">Monitor all buyer-seller interactions.</p>
         </div>
     </a>
     <a href="audit.php" class="stat-card-link">
         <div class="glass stat-card" style="padding:1.5rem; text-align:center;">
-            <div style="font-size:1.5rem;">📋</div>
-            <h5 class="mt-2">Transaction Audit</h5>
+                        <h5 class="mt-2">Transaction Audit</h5>
             <p class="text-muted" style="font-size:0.75rem;">Complete logs for all confirmations.</p>
         </div>
     </a>
@@ -941,7 +959,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
 <!-- Pending Discount Approvals -->
 <div id="discount_section" class="glass fade-in mt-3" style="padding:1.5rem;">
     <div class="flex-between mb-2">
-        <h4>💰 Pending Discount Approvals</h4>
+        <h4>Pending Discount Approvals</h4>
         <span
             class="badge <?= count($discountPending) > 0 ? 'badge-pending' : 'badge-approved' ?>"><?= count($discountPending) ?>
             pending</span>
@@ -992,7 +1010,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
 <!-- Active Disputes -->
 <div id="disputes_section" class="glass fade-in mt-3" style="padding:1.5rem;">
     <div class="flex-between mb-2">
-        <h4>🚨 Active Disputes &amp; Conflicts</h4>
+        <h4>Active Disputes &amp; Conflicts</h4>
         <span class="badge badge-pending">Action Required</span>
     </div>
     <?php
@@ -1062,8 +1080,13 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                     <?php if ($req['seller_tier'] === 'premium'): ?>
                         <span class="badge badge-approved">✅ Already Premium</span>
                     <?php else: ?>
-                        <a href="users.php?action=upgrade_premium&id=<?= $req['sender_id'] ?>" class="btn btn-gold btn-sm">⭐ Upgrade
-                            to Premium</a>
+                        <form method="POST" action="users.php" style="display:inline;">
+                            <?= csrf_field() ?>
+                            <input type="hidden" name="action" value="upgrade_premium">
+                            <input type="hidden" name="id" value="<?= (int) $req['sender_id'] ?>">
+                            <input type="hidden" name="filter" value="sellers">
+                            <button type="submit" class="btn btn-gold btn-sm">⭐ Upgrade to Premium</button>
+                        </form>
                     <?php endif; ?>
                 </div>
             </div>
@@ -1076,7 +1099,7 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
 <!-- Profile Edit Requests -->
 <div id="profile_section" class="glass fade-in mt-3" style="padding:1.5rem;">
     <div class="flex-between mb-2">
-        <h4>🛡️ Profile Edit Requests</h4>
+        <h4>Profile Edit Requests</h4>
         <span
             class="badge <?= count($profileByUser) > 0 ? 'badge-pending' : 'badge-approved' ?>"><?= count($profileByUser) ?>
             users pending</span>

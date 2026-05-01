@@ -1,0 +1,60 @@
+🚀 CAMPUS MARKETPLACE - SUPABASE DEPLOYMENT GUIDE
+
+✅ YOUR FIXES ARE READY FOR SUPABASE DEPLOYMENT!
+
+🎯 DEPLOYMENT STEPS:
+
+1️⃣  DEPLOY YOUR CODE TO ALWAYSDATA:
+   • Double-click: deploy_to_alwaysdata.bat
+   • Enter your alwaysdata password
+   • Wait for deployment to complete
+
+2️⃣  UPDATE SUPABASE DATABASE:
+   • Go to: https://app.supabase.com/project/ontxylkqzojjqhzimrcg/sql
+   • Copy contents of: supabase_migration.sql
+   • Paste and click "Run"
+
+3️⃣  CONFIGURE SUPABASE STORAGE:
+   • Go to: https://app.supabase.com/project/ontxylkqzojjqhzimrcg/storage
+   • Create 'profile-pictures' bucket if it doesn't exist
+   • Set as Public bucket
+   • Set file size limit: 5MB
+
+4️⃣  TEST YOUR FIXES:
+   • Registration: https://campusmarketplace.alwaysdata.net/register.php
+   • Profile picture upload should show preview!
+   • WhatsApp join flow should work properly
+
+🔧 WHAT THE MIGRATION DOES:
+
+✅ Adds these columns to 'users' table:
+   • whatsapp_joined (BOOLEAN) - tracks WhatsApp channel join
+   • terms_accepted (BOOLEAN) - tracks terms acceptance
+   • profile_pic (VARCHAR) - stores profile picture path
+   • shop_banner (VARCHAR) - for seller shop banners
+   • faculty, department, level, hall_residence, phone (VARCHAR)
+
+✅ Creates 'profile_edit_requests' table for admin approvals
+
+✅ Sets up storage bucket and policies for profile pictures
+
+📁 IMPORTANT FILES:
+   • deploy_to_alwaysdata.bat (code deployment)
+   • supabase_migration.sql (database updates)
+   • backend/.env (your Supabase credentials)
+
+🔗 USEFUL LINKS:
+   • Supabase Dashboard: https://app.supabase.com/project/ontxylkqzojjqhzimrcg
+   • Supabase SQL Editor: https://app.supabase.com/project/ontxylkqzojjqhzimrcg/sql
+   • Supabase Storage: https://app.supabase.com/project/ontxylkqzojjqhzimrcg/storage
+   • Your App: https://campusmarketplace.alwaysdata.net
+
+⚠️  IMPORTANT:
+   • Your .env already has Supabase credentials
+   • The migration is SAFE - uses IF NOT EXISTS
+   • No data will be lost or modified
+
+🎉 READY TO GO!
+1. Run deploy_to_alwaysdata.bat
+2. Run supabase_migration.sql in Supabase
+3. Test your fixes!

@@ -28,6 +28,16 @@ require_once 'includes/header.php';
 <div class="auth-wrapper" style="min-height: calc(100vh - 100px); display:flex; align-items:center; justify-content:center; padding: 20px;">
     <div class="glass form-container fade-in" style="width:100%; max-width:850px; padding:3.5rem; box-shadow:0 32px 80px rgba(0,0,0,0.12);">
         
+        <style>
+             @media (max-width: 768px) {
+                 .auth-wrapper { padding: 10px; min-height: auto !important; }
+                 .form-container { padding: 1.5rem !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; }
+                 #termsContainer { height: 400px !important; padding: 1.25rem !important; margin-bottom: 1.5rem !important; }
+                 h1 { font-size: 1.6rem !important; }
+                 p { font-size: 0.95rem !important; }
+             }
+         </style>
+        
         <div class="text-center" style="margin-bottom:2rem;">
             <div style="display:inline-flex; align-items:center; justify-content:center; width:64px; height:64px; border-radius:22px; background:linear-gradient(135deg, rgba(124,58,237,0.12), rgba(124,58,237,0.06)); margin-bottom:1.25rem; border:1px solid rgba(124,58,237,0.1);">
                 <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -214,7 +224,26 @@ require_once 'includes/header.php';
                         <h4 style="font-size:1.05rem; font-weight:800; margin-bottom:0.5rem; text-transform:capitalize;"><?= htmlspecialchars($tier['tier_name']) ?> Account</h4>
                         <p style="margin:0; font-size:0.9rem; line-height:1.6;">
                             The <strong><?= ucfirst($tier['tier_name']) ?></strong> account is designed for <?= $tier['tier_name'] === 'basic' ? 'casual sellers' : 'serious businesses' ?>.
-                            <?= $tier['price'] <= 0 ? 'It is completely <strong>free</strong> and valid for ' . htmlspecialchars($tier['duration']) . ' month' . ($tier['duration'] == 1 ? '' : 's') . '.' : 'It requires a fee of <strong>₵' . number_format($tier['price'], 2) . '</strong> and is valid for ' . htmlspecialchars($tier['duration']) . ' month' . ($tier['duration'] == 1 ? '' : 's') . '.' ?>
+                            <?php 
+                                $price = (float)$tier['price'];
+                                $originalPrice = isset($tier['original_price']) ? (float)$tier['original_price'] : 0.0;
+                                $isDiscounted = ($originalPrice > $price);
+                                $duration = (int)$tier['duration'];
+                                $durationText = $duration . ' month' . ($duration == 1 ? '' : 's');
+                            ?>
+                            <?php if ($price <= 0): ?>
+                                It is completely <strong>free</strong> and valid for <?= htmlspecialchars($durationText) ?>.
+                            <?php else: ?>
+                                It requires a fee of 
+                                <?php if ($isDiscounted): ?>
+                                    <span style="text-decoration: line-through; opacity: 0.6;">₵<?= number_format($originalPrice, 2) ?></span>
+                                <?php endif; ?>
+                                <strong>₵<?= number_format($price, 2) ?></strong>
+                                <?php if ($isDiscounted): ?>
+                                    <span style="color: var(--primary); font-weight: 800; font-size: 0.85em; margin-left: 4px;">(PROMOTIONAL RATE)</span>
+                                <?php endif; ?>
+                                and is valid for <?= htmlspecialchars($durationText) ?>.
+                            <?php endif; ?>
                         </p>
                         <?php 
                             $bens = json_decode($tier['benefits'] ?? '[]', true) ?: []; 

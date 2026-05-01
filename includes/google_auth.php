@@ -208,7 +208,7 @@ function clearPendingGoogleSignup(): void {
 }
 
 function findGoogleLinkedUser(PDO $pdo, array $profile): ?array {
-    $stmt = $pdo->prepare("SELECT id, role, username, email, suspended, whatsapp_joined, terms_accepted, google_id, auth_provider, google_avatar, profile_pic, email_verified_at FROM users WHERE google_id = ? OR LOWER(email) = ? ORDER BY CASE WHEN google_id = ? THEN 0 ELSE 1 END LIMIT 1");
+    $stmt = $pdo->prepare("SELECT id, role, username, email, suspended, whatsapp_joined, terms_accepted, google_id, auth_provider, google_avatar, profile_pic, email_verified_at, totp_enabled, admin_totp_enabled FROM users WHERE google_id = ? OR LOWER(email) = ? ORDER BY CASE WHEN google_id = ? THEN 0 ELSE 1 END LIMIT 1");
     $stmt->execute([$profile['google_id'], $profile['email'], $profile['google_id']]);
     $user = $stmt->fetch();
     return $user ?: null;
@@ -251,10 +251,42 @@ function createGoogleMarketplaceUser(PDO $pdo, array $profile, string $role): ?a
 
 function startGoogleUserSession(PDO $pdo, array $user, bool $isNewUser = false): void {
     clearPendingGoogleSignup();
+    $isAdmin = (($user['role'] ?? '') === 'admin');
+
+    // ── Enforce 2FA for Google Users ──
+    if (!$isNewUser) {
+        // 1. Admin 2FA
+        if ($isAdmin) {
+            $adminTotpEnabled = filter_var($user['admin_totp_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+            if ($adminTotpEnabled) {
+                ensure_admin_2fa_schema($pdo);
+                session_regenerate_id(true);
+                $_SESSION['pending_admin_2fa_user_id'] = (int) $user['id'];
+                $_SESSION['pending_admin_2fa_username'] = (string) $user['username'];
+                $_SESSION['pending_admin_2fa_ip'] = get_login_client_ip();
+                redirect('admin/verify_2fa.php');
+            }
+        }
+
+        // 2. User 2FA
+        $userTotpEnabled = filter_var($user['totp_enabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        if ($userTotpEnabled) {
+            session_regenerate_id(true);
+            $_SESSION['pending_2fa_user_id'] = (int) $user['id'];
+            $_SESSION['pending_2fa_username'] = (string) $user['username'];
+            $_SESSION['pending_2fa_ip'] = get_login_client_ip();
+            $_SESSION['pending_2fa_role'] = (string) $user['role'];
+            redirect('verify_2fa.php');
+        }
+    }
+
     session_regenerate_id(true);
     $_SESSION['user_id'] = $user['id'];
     $_SESSION['username'] = $user['username'];
     $_SESSION['role'] = $user['role'];
+
+    // Register session (Phase 3)
+    registerUserSession($pdo, (int)$user['id']);
 
     try {
         $pdo->prepare("UPDATE users SET last_seen = NOW() WHERE id = ?")->execute([$user['id']]);
@@ -265,7 +297,7 @@ function startGoogleUserSession(PDO $pdo, array $user, bool $isNewUser = false):
         setFlashMessage('auth_success', 'Google sign-in is ready. You can finish any profile details later.');
     }
 
-    if (($user['role'] ?? '') === 'admin') {
+    if ($isAdmin) {
         redirect('admin/');
     }
 
