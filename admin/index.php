@@ -384,16 +384,16 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                 <h5 style="color:#7c3aed; margin-bottom:1rem; display:flex; justify-content:space-between;">Basic Tier
                     <span style="font-size:0.7rem; opacity:0.7;">Free</span></h5>
                 <input type="hidden" name="basic_fee" value="0">
-                <div class="form-group mb-1"><label style="font-size:0.75rem;">Duration (Months)</label><input
-                        type="number" name="basic_duration" class="form-control"
+                <div class="form-group mb-1"><label for="basic_duration" style="font-size:0.75rem;">Duration (Months)</label><input
+                        type="number" name="basic_duration" id="basic_duration" class="form-control"
                         value="<?= htmlspecialchars($tb['duration']) ?>" min="1"></div>
-                <div class="form-group mb-1"><label style="font-size:0.75rem;">Product Limit</label><input type="number"
-                        name="basic_product_limit" class="form-control" value="<?= $tb['product_limit'] ?>"></div>
-                <div class="form-group mb-1"><label style="font-size:0.75rem;">Images Per Product</label><input
-                        type="number" name="basic_image_limit" class="form-control"
+                <div class="form-group mb-1"><label for="basic_product_limit" style="font-size:0.75rem;">Product Limit</label><input type="number"
+                        name="basic_product_limit" id="basic_product_limit" class="form-control" value="<?= $tb['product_limit'] ?>"></div>
+                <div class="form-group mb-1"><label for="basic_image_limit" style="font-size:0.75rem;">Images Per Product</label><input
+                        type="number" name="basic_image_limit" id="basic_image_limit" class="form-control"
                         value="<?= $tb['images_per_product'] ?>"></div>
-                <div class="form-group mb-1"><label style="font-size:0.75rem;">Badge Color</label><input type="color"
-                        name="badge_color_basic" class="form-control" value="<?= htmlspecialchars($tb['badge']) ?>"
+                <div class="form-group mb-1"><label for="badge_color_basic" style="font-size:0.75rem;">Badge Color</label><input type="color"
+                        name="badge_color_basic" id="badge_color_basic" class="form-control" value="<?= htmlspecialchars($tb['badge']) ?>"
                         style="height:35px; padding:2px;"></div>
                 <div class="form-group mb-1">
                     <label style="font-size:0.75rem; font-weight:700;">Included Benefits</label>
@@ -424,22 +424,22 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                 style="background:rgba(142,142,147,0.05); border:1px solid rgba(142,142,147,0.1);">
                 <h5 style="color:#8e8e93; margin-bottom:1rem;">Pro Tier</h5>
                 <div class="tier-split">
-                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Limit</label><input type="number"
-                            name="pro_product_limit" class="form-control" value="<?= $tp['product_limit'] ?>"></div>
-                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Images</label><input type="number"
-                            name="pro_image_limit" class="form-control" value="<?= $tp['images_per_product'] ?>"></div>
+                    <div class="form-group mb-1"><label for="pro_product_limit" style="font-size:0.75rem;">Limit</label><input type="number"
+                            name="pro_product_limit" id="pro_product_limit" class="form-control" value="<?= $tp['product_limit'] ?>"></div>
+                    <div class="form-group mb-1"><label for="pro_image_limit" style="font-size:0.75rem;">Images</label><input type="number"
+                            name="pro_image_limit" id="pro_image_limit" class="form-control" value="<?= $tp['images_per_product'] ?>"></div>
                 </div>
                 <div class="tier-split">
-                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Fee (₵)</label><input type="number"
-                            name="pro_fee" class="form-control" value="<?= $tp['price'] ?>"></div>
-                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Original Fee (₵)</label><input type="number"
-                            name="pro_original_price" class="form-control" value="<?= $tp['original_price'] ?? '' ?>" placeholder="Was..."></div>
+                    <div class="form-group mb-1"><label for="pro_fee" style="font-size:0.75rem;">Fee (₵)</label><input type="number"
+                            name="pro_fee" id="pro_fee" class="form-control" value="<?= $tp['price'] ?>"></div>
+                    <div class="form-group mb-1"><label for="pro_original_price" style="font-size:0.75rem;">Original Fee (₵)</label><input type="number"
+                            name="pro_original_price" id="pro_original_price" class="form-control" value="<?= $tp['original_price'] ?? '' ?>" placeholder="Was..."></div>
                 </div>
-                <div class="form-group mb-1"><label style="font-size:0.75rem;">Duration (Months)</label><input
-                        type="number" name="pro_duration" class="form-control"
+                <div class="form-group mb-1"><label for="pro_duration" style="font-size:0.75rem;">Duration (Months)</label><input
+                        type="number" name="pro_duration" id="pro_duration" class="form-control"
                         value="<?= htmlspecialchars($tp['duration']) ?>" min="1"></div>
-                <div class="form-group mb-1"><label style="font-size:0.75rem;">Badge Color</label><input type="color"
-                        name="badge_color_pro" class="form-control" value="<?= htmlspecialchars($tp['badge']) ?>"
+                <div class="form-group mb-1"><label for="badge_color_pro" style="font-size:0.75rem;">Badge Color</label><input type="color"
+                        name="badge_color_pro" id="badge_color_pro" class="form-control" value="<?= htmlspecialchars($tp['badge']) ?>"
                         style="height:35px; padding:2px;"></div>
                 <div class="form-group mb-1">
                     <label style="font-size:0.75rem; font-weight:700;">Included Benefits</label>
@@ -470,23 +470,23 @@ $tm = $aTiers['premium'] ?? ['product_limit' => 15, 'images_per_product' => 3, '
                 style="background:rgba(255,159,10,0.05); border:1px solid rgba(255,159,10,0.12);">
                 <h5 style="color:#ff9f0a; margin-bottom:1rem;">Premium Tier</h5>
                 <div class="tier-split">
-                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Limit</label><input type="number"
-                            name="premium_product_limit" class="form-control" value="<?= $tm['product_limit'] ?>"></div>
-                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Images</label><input type="number"
-                            name="premium_image_limit" class="form-control" value="<?= $tm['images_per_product'] ?>">
+                    <div class="form-group mb-1"><label for="premium_product_limit" style="font-size:0.75rem;">Limit</label><input type="number"
+                            name="premium_product_limit" id="premium_product_limit" class="form-control" value="<?= $tm['product_limit'] ?>"></div>
+                    <div class="form-group mb-1"><label for="premium_image_limit" style="font-size:0.75rem;">Images</label><input type="number"
+                            name="premium_image_limit" id="premium_image_limit" class="form-control" value="<?= $tm['images_per_product'] ?>">
                     </div>
                 </div>
                 <div class="tier-split">
-                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Fee (₵)</label><input type="number"
-                            name="premium_fee" class="form-control" value="<?= $tm['price'] ?>"></div>
-                    <div class="form-group mb-1"><label style="font-size:0.75rem;">Original Fee (₵)</label><input type="number"
-                            name="premium_original_price" class="form-control" value="<?= $tm['original_price'] ?? '' ?>" placeholder="Was..."></div>
+                    <div class="form-group mb-1"><label for="premium_fee" style="font-size:0.75rem;">Fee (₵)</label><input type="number"
+                            name="premium_fee" id="premium_fee" class="form-control" value="<?= $tm['price'] ?>"></div>
+                    <div class="form-group mb-1"><label for="premium_original_price" style="font-size:0.75rem;">Original Fee (₵)</label><input type="number"
+                            name="premium_original_price" id="premium_original_price" class="form-control" value="<?= $tm['original_price'] ?? '' ?>" placeholder="Was..."></div>
                 </div>
-                <div class="form-group mb-1"><label style="font-size:0.75rem;">Duration (Months)</label><input
-                        type="number" name="premium_duration" class="form-control"
+                <div class="form-group mb-1"><label for="premium_duration" style="font-size:0.75rem;">Duration (Months)</label><input
+                        type="number" name="premium_duration" id="premium_duration" class="form-control"
                         value="<?= htmlspecialchars($tm['duration']) ?>" min="1"></div>
-                <div class="form-group mb-1"><label style="font-size:0.75rem;">Badge Color</label><input type="color"
-                        name="badge_color_premium" class="form-control" value="<?= htmlspecialchars($tm['badge']) ?>"
+                <div class="form-group mb-1"><label for="badge_color_premium" style="font-size:0.75rem;">Badge Color</label><input type="color"
+                        name="badge_color_premium" id="badge_color_premium" class="form-control" value="<?= htmlspecialchars($tm['badge']) ?>"
                         style="height:35px; padding:2px;"></div>
                 <div class="form-group mb-1">
                     <label style="font-size:0.75rem; font-weight:700;">Included Benefits</label>

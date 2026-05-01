@@ -145,8 +145,8 @@ require_once 'includes/header.php';
                                 <?= csrf_field() ?>
                                 <input type="hidden" name="action" value="disable">
                                 <div class="col-md-6">
-                                    <label class="form-label">Authenticator Code</label>
-                                    <input type="text" name="code" class="form-control" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required>
+                                    <label class="form-label" for="disableCode">Authenticator Code</label>
+                                    <input type="text" name="code" id="disableCode" class="form-control" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required>
                                 </div>
                                 <div class="col-md-6">
                                     <button type="submit" class="btn btn-outline-danger w-100">Disable 2FA</button>
@@ -180,8 +180,8 @@ require_once 'includes/header.php';
                                         <input type="hidden" name="action" value="enable">
                                         <input type="hidden" name="setup_secret" value="<?= htmlspecialchars($setupSecret) ?>">
                                         <div class="mb-3">
-                                            <label class="form-label">Enter 6-digit Verification Code</label>
-                                            <input type="text" name="code" class="form-control form-control-lg" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required>
+                                            <label class="form-label" for="enableCode">Enter 6-digit Verification Code</label>
+                                            <input type="text" name="code" id="enableCode" class="form-control form-control-lg" placeholder="000000" maxlength="6" pattern="[0-9]{6}" required>
                                         </div>
                                         <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Enable 2FA Now</button>
                                     </form>
@@ -210,18 +210,18 @@ require_once 'includes/header.php';
                         <?= csrf_field() ?>
                         <input type="hidden" name="action" value="change_password">
                         <div class="mb-3">
-                            <label class="form-label">Current Password</label>
-                            <input type="password" name="current_password" class="form-control" required autocomplete="current-password">
+                            <label class="form-label" for="current_password">Current Password</label>
+                            <input type="password" name="current_password" id="current_password" class="form-control" required autocomplete="current-password">
                         </div>
                         <div class="row mb-3">
                             <div class="col-md-6">
-                                <label class="form-label">New Password</label>
-                                <input type="password" name="new_password" class="form-control" required minlength="12" autocomplete="new-password">
+                                <label class="form-label" for="new_password">New Password</label>
+                                <input type="password" name="new_password" id="new_password" class="form-control" required minlength="12" autocomplete="new-password">
                                 <div class="form-text small">Min 12 chars, include A-Z, a-z, 0-9, and symbol.</div>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label">Confirm New Password</label>
-                                <input type="password" name="confirm_password" class="form-control" required minlength="12" autocomplete="new-password">
+                                <label class="form-label" for="confirm_password">Confirm New Password</label>
+                                <input type="password" name="confirm_password" id="confirm_password" class="form-control" required minlength="12" autocomplete="new-password">
                             </div>
                         </div>
                         <button type="submit" class="btn btn-primary px-4 py-2">Update Password</button>

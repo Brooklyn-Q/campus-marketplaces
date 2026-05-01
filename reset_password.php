@@ -60,12 +60,12 @@ require_once 'includes/header.php';
                 <input type="hidden" name="selector" value="<?= htmlspecialchars($selector) ?>">
                 <input type="hidden" name="token" value="<?= htmlspecialchars($token) ?>">
                 <div class="form-group">
-                    <label>New Password</label>
-                    <input type="password" name="password" class="form-control" required minlength="12" autocomplete="new-password">
+                    <label for="password">New Password</label>
+                    <input type="password" name="password" id="password" class="form-control" required minlength="12" autocomplete="new-password">
                 </div>
                 <div class="form-group">
-                    <label>Confirm New Password</label>
-                    <input type="password" name="confirm_password" class="form-control" required minlength="12" autocomplete="new-password">
+                    <label for="confirm_password">Confirm New Password</label>
+                    <input type="password" name="confirm_password" id="confirm_password" class="form-control" required minlength="12" autocomplete="new-password">
                 </div>
                 <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Save New Password</button>
             </form>

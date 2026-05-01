@@ -223,13 +223,14 @@ $csrf_token = $_SESSION['csrf_token'];
                 <input type="hidden" name="u1" value="<?= (int) $u1 ?>">
                 <input type="hidden" name="u2" value="<?= (int) $u2 ?>">
                 <div style="flex:1;">
-                    <label style="font-size:0.78rem; color:var(--text-muted); display:block; margin-bottom:0.45rem;">Reply as admin</label>
-                    <select name="to_id" class="form-control" style="margin-bottom:0.6rem;">
+                    <label for="reply_to_id" style="font-size:0.78rem; color:var(--text-muted); display:block; margin-bottom:0.45rem;">Reply as admin</label>
+                    <select name="to_id" id="reply_to_id" class="form-control" style="margin-bottom:0.6rem;">
                         <?php foreach ($replyTargets as $targetId => $targetName): ?>
                             <option value="<?= (int) $targetId ?>">Send to <?= htmlspecialchars($targetName) ?></option>
                         <?php endforeach; ?>
                     </select>
-                    <textarea name="message" class="form-control" placeholder="Type your reply..." required style="min-height:88px;"></textarea>
+                    <label for="reply_message" class="sr-only">Message</label>
+                    <textarea name="message" id="reply_message" class="form-control" placeholder="Type your reply..." required style="min-height:88px;"></textarea>
                 </div>
                 <button type="submit" name="admin_reply" class="btn btn-primary">Send Reply</button>
             </form>

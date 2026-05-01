@@ -17,7 +17,7 @@ require_once 'includes/header.php';
 
     <div id="depositForm">
         <div class="form-group mb-4">
-            <label style="font-weight:600; font-size:0.85rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Amount to Deposit (₵)</label>
+            <label for="depositAmount" style="font-weight:600; font-size:0.85rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px;">Amount to Deposit (₵)</label>
             <input type="number" id="depositAmount" step="0.01" min="1" class="form-control" required placeholder="0.00" style="font-size:1.5rem; font-weight:700; padding:1rem; height:auto; text-align:center; border-radius:16px;">
         </div>
         

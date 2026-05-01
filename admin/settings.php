@@ -192,8 +192,8 @@ require_once 'header.php';
     <form method="POST" style="max-width:400px;">
         <?= csrf_field() ?>
         <div style="margin-bottom: 1rem;">
-            <label style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">Current Verification Code</label>
-            <input type="text" name="whatsapp_code" value="<?= htmlspecialchars($whatsapp_code) ?>" 
+            <label for="whatsapp_code" style="display: block; font-size: 0.82rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.5rem; text-transform: uppercase;">Current Verification Code</label>
+            <input type="text" name="whatsapp_code" id="whatsapp_code" value="<?= htmlspecialchars($whatsapp_code) ?>" 
                 style="width: 100%; padding: 0.75rem 1rem; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 9px; color: var(--text-main); font-family: monospace; font-size: 1.1rem; font-weight: 700; letter-spacing: 0.05em;" 
                 required>
         </div>

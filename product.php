@@ -749,14 +749,14 @@ require_once 'includes/header.php';
         <form method="POST" style="margin-bottom:1.5rem; display:flex; gap:1rem; align-items:flex-end; flex-wrap:wrap;">
             <?= csrf_field() ?>
             <div class="form-group" style="margin:0;">
-                <label>Rating</label>
-                <select name="rating" class="form-control" style="width:80px;">
+                <label for="reviewRating">Rating</label>
+                <select name="rating" id="reviewRating" class="form-control" style="width:80px;">
                     <option value="5">5 stars</option><option value="4">4 stars</option><option value="3">3 stars</option><option value="2">2 stars</option><option value="1">1 star</option>
                 </select>
             </div>
             <div class="form-group" style="margin:0; flex:1;">
-                <label>Comment</label>
-                <input type="text" name="comment" class="form-control" placeholder="Write a short review...">
+                <label for="reviewComment">Comment</label>
+                <input type="text" name="comment" id="reviewComment" class="form-control" placeholder="Write a short review...">
             </div>
             <button type="submit" name="review" class="btn btn-primary btn-sm">Submit</button>
         </form>
