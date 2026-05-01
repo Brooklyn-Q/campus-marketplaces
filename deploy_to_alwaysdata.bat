@@ -274,7 +274,7 @@ echo   - Unified brand palette: all Apple-blue hex values swapped for consistent
 echo   - Fixed missing } in style.css that was nesting desktop CSS inside a mobile media query
 echo   - Subscription countdown timer on Dashboard
 echo   - Admin Subscription Ledger dashboard
-echo   - Fixed Admin Users navigation (onclick now properly returns true)
+echo   - Fixed Admin navigation (Users, Ads, Analytics, Subscriptions) - removed blocking onclick handlers
 echo.
 echo NEXT STEPS:
 echo   1. Visit site and test login, register, checkout

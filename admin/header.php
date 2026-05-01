@@ -339,19 +339,19 @@ $logoutLink = $realSiteRoot . '/logout.php';
                 FIX #7: Replaced all inline onmouseover/onmouseout with .nav-link CSS class.
             -->
             <div class="nav-links" id="main-nav">
-                <a href="index.php" class="nav-link" onclick="return closeNav()">Dashboard</a>
-                <a href="users.php" class="nav-link" onclick="return closeNav()">Users</a>
-                <a href="subscriptions.php" class="nav-link" onclick="return closeNav()">Subscriptions</a>
-                <a href="products.php" class="nav-link" onclick="return closeNav()">Moderation</a>
-                <a href="messages.php" class="nav-link" onclick="return closeNav()">Messages</a>
-                <a href="index.php" class="nav-link" onclick="return closeNav()">Alerts <span id="admin-notif-badge" style="<?= $adminUnreadNotifications > 0 ? '' : 'display:none;' ?>; margin-left:6px; background:#ff3b30; color:#fff; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;"><?= (int) $adminUnreadNotifications ?></span></a>
-                <a href="audit.php" class="nav-link" onclick="return closeNav()">Audit Log</a>
-                <a href="analytics.php" class="nav-link" onclick="return closeNav()">Analytics</a>
-                <a href="ads.php" class="nav-link" onclick="return closeNav()">Ads</a>
-                <a href="settings.php" class="nav-link" onclick="return closeNav()">Settings</a>
-                <a href="<?= $dashLink ?>" class="nav-link" onclick="return closeNav()">Seller Dashboard</a>
-                <a href="<?= $mainAppLink ?>" class="nav-link" onclick="return closeNav()">Main App</a>
-                <a href="<?= $logoutLink ?>" class="nav-link-cta" onclick="return closeNav()">Sign Out</a>
+                <a href="index.php" class="nav-link">Dashboard</a>
+                <a href="users.php" class="nav-link">Users</a>
+                <a href="subscriptions.php" class="nav-link">Subscriptions</a>
+                <a href="products.php" class="nav-link">Moderation</a>
+                <a href="messages.php" class="nav-link">Messages</a>
+                <a href="index.php" class="nav-link">Alerts <span id="admin-notif-badge" style="<?= $adminUnreadNotifications > 0 ? '' : 'display:none;' ?>; margin-left:6px; background:#ff3b30; color:#fff; padding:2px 8px; border-radius:999px; font-size:0.72rem; font-weight:800;"><?= (int) $adminUnreadNotifications ?></span></a>
+                <a href="audit.php" class="nav-link">Audit Log</a>
+                <a href="analytics.php" class="nav-link">Analytics</a>
+                <a href="ads.php" class="nav-link">Ads</a>
+                <a href="settings.php" class="nav-link">Settings</a>
+                <a href="<?= $dashLink ?>" class="nav-link">Seller Dashboard</a>
+                <a href="<?= $mainAppLink ?>" class="nav-link">Main App</a>
+                <a href="<?= $logoutLink ?>" class="nav-link-cta">Sign Out</a>
             </div>
 
             <div style="display:flex; align-items:center; gap:10px; flex-shrink:0;">
@@ -383,15 +383,28 @@ $logoutLink = $realSiteRoot . '/logout.php';
         const btnEl = document.getElementById('mobile-toggle-btn');
 
         function toggleNav() {
-            const isOpen = navEl.classList.toggle('open');
-            btnEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            try {
+                const isOpen = navEl.classList.toggle('open');
+                btnEl.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            } catch(e) {}
         }
 
-        // Called by each nav link's onclick so the menu closes before navigating.
+        // Close mobile menu - called by hamburger and delegated click handler
         function closeNav() {
-            navEl.classList.remove('open');
-            btnEl.setAttribute('aria-expanded', 'false');
-            return true; // Ensure navigation proceeds
+            try {
+                if (navEl) navEl.classList.remove('open');
+                if (btnEl) btnEl.setAttribute('aria-expanded', 'false');
+            } catch(e) {}
+        }
+
+        // Delegated click handler: close mobile menu when any nav link is clicked
+        // This does NOT block navigation - links work normally
+        if (navEl) {
+            navEl.addEventListener('click', function(e) {
+                if (e.target.closest('a')) {
+                    closeNav();
+                }
+            });
         }
     </script>
 
